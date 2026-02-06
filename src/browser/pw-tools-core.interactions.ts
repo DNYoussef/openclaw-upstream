@@ -242,10 +242,17 @@ export async function evaluateViaPlaywright(opts: {
   timeoutMs?: number;
   signal?: AbortSignal;
 }): Promise<unknown> {
+  if (!isDynamicEvalEnabled()) {
+    throw new Error(
+      "Dynamic evaluate is disabled by default. Set OPENCLAW_ENABLE_DYNAMIC_EVAL=1 to enable.",
+    );
+  }
+
   const fnText = String(opts.fn ?? "").trim();
   if (!fnText) {
     throw new Error("function is required");
   }
+  validateEvaluateFunction(fnText);
   const page = await getRestoredPageForTarget(opts);
   // Clamp evaluate timeout to prevent permanently blocking Playwright's command queue.
   // Without this, a long-running async evaluate blocks all subsequent page operations
@@ -360,6 +367,34 @@ export async function evaluateViaPlaywright(opts: {
   } finally {
     if (signal && abortListener) {
       signal.removeEventListener("abort", abortListener);
+    }
+  }
+}
+
+function isDynamicEvalEnabled(): boolean {
+  const raw = (process.env.OPENCLAW_ENABLE_DYNAMIC_EVAL ?? "").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
+
+function validateEvaluateFunction(fnText: string): void {
+  if (fnText.length > 5000) {
+    throw new Error("evaluate function exceeds max length (5000 chars)");
+  }
+
+  const blockedPatterns = [
+    /\beval\s*\(/i,
+    /\bFunction\s*\(/i,
+    /\bdocument\.cookie\b/i,
+    /\blocalStorage\b/i,
+    /\bsessionStorage\b/i,
+    /\bXMLHttpRequest\b/i,
+    /\bWebSocket\b/i,
+    /\bimport\s*\(/i,
+    /\b__proto__\b/i,
+  ];
+  for (const pattern of blockedPatterns) {
+    if (pattern.test(fnText)) {
+      throw new Error(`evaluate function blocked by policy (${pattern})`);
     }
   }
 }
