@@ -39,4 +39,4 @@ COPY docker/railway-entrypoint.sh /railway-entrypoint.sh
 RUN chmod +x /railway-entrypoint.sh
 
 ENTRYPOINT ["/railway-entrypoint.sh"]
-CMD ["gateway", "--allow-unconfigured", "--bind", "lan"]
+CMD ["gateway", "--allow-unconfigured", "--bind", "lan", "--port", "18789"]
