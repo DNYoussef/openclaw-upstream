@@ -7,16 +7,16 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "litellm:claude-sonnet",
-        "fallbacks": ["litellm:claude-haiku", "litellm:deepseek-chat"]
+        "primary": "litellm/claude-sonnet",
+        "fallbacks": ["litellm/claude-haiku", "litellm/deepseek-chat"]
       },
       "models": {
-        "litellm:claude-sonnet": { "alias": "Claude Sonnet" },
-        "litellm:claude-opus": { "alias": "Claude Opus" },
-        "litellm:claude-haiku": { "alias": "Claude Haiku" },
-        "litellm:gpt-4o": { "alias": "GPT-4o" },
-        "litellm:gemini-pro": { "alias": "Gemini Pro" },
-        "litellm:deepseek-chat": { "alias": "DeepSeek V3" }
+        "litellm/claude-sonnet": { "alias": "Claude Sonnet" },
+        "litellm/claude-opus": { "alias": "Claude Opus" },
+        "litellm/claude-haiku": { "alias": "Claude Haiku" },
+        "litellm/gpt-4o": { "alias": "GPT-4o" },
+        "litellm/gemini-pro": { "alias": "Gemini Pro" },
+        "litellm/deepseek-chat": { "alias": "DeepSeek V3" }
       }
     }
   },
