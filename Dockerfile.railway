@@ -34,9 +34,9 @@ RUN pnpm ui:build
 
 ENV NODE_ENV=production
 
-# Railway entrypoint: fix volume permissions then drop to node user
-COPY docker/railway-entrypoint.sh /railway-entrypoint.sh
-RUN chmod +x /railway-entrypoint.sh
+# Bake LiteLLM-routed config OUTSIDE the /data volume mount
+# Uses ${VAR} env var substitution (resolved by OpenClaw config loader)
+RUN mkdir -p /app/.openclaw
+COPY docker/railway-config.json /app/.openclaw/openclaw.json
 
-ENTRYPOINT ["/railway-entrypoint.sh"]
-CMD ["gateway", "--allow-unconfigured", "--bind", "lan", "--port", "18789"]
+CMD ["node", "dist/index.js", "gateway", "--bind", "lan", "--port", "18789"]
