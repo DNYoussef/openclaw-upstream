@@ -7,7 +7,7 @@ ENV PATH="/root/.bun/bin:${PATH}"
 RUN corepack enable
 
 # Install gosu for privilege dropping on Railway
-RUN apt-get update && apt-get install -y --no-install-recommends gosu && \
+RUN apt-get update && apt-get install -y --no-install-recommends gosu sqlite3 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
