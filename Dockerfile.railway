@@ -41,4 +41,7 @@ COPY docker/railway-config.json /app/.openclaw/openclaw.json
 COPY guardspine/extensions/guardspine /app/.openclaw/extensions/guardspine
 COPY guardspine/extensions/n8n-pipeline /app/.openclaw/extensions/n8n-pipeline
 
+# Bake CRM data (outreach.db) -- update by pushing new commit
+COPY guardspine/data/outreach.db /app/.openclaw/data/outreach.db
+
 CMD ["node", "dist/index.js", "gateway", "--bind", "lan", "--port", "18789"]

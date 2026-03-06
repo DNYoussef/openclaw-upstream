@@ -21,7 +21,7 @@
           "n8n_api_key": "${N8N_API_KEY}",
           "landing_base_url": "${LANDING_BASE_URL}",
           "landing_admin_key": "${LANDING_ADMIN_API_KEY}",
-          "outreach_db_path": "/data/outreach.db"
+          "outreach_db_path": "/app/.openclaw/data/outreach.db"
         }
       }
     }

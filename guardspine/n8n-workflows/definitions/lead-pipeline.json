@@ -1,5 +1,5 @@
 {
-  "name": "P1 - Lead Pipeline",
+  "name": "P1 - Outreach Pipeline",
   "nodes": [
     {
       "parameters": {
@@ -15,7 +15,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/lead-pipeline",
+        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -25,19 +25,19 @@
         },
         "sendBody": true,
         "bodyParameters": {
-          "parameters": [{ "name": "action", "value": "check_new_leads" }]
+          "parameters": [{ "name": "action", "value": "check_response_signals" }]
         },
         "options": { "timeout": 30000 }
       },
-      "name": "Check Outreach DB",
+      "name": "Check Response Signals",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [470, 200]
+      "position": [470, 100]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/lead-pipeline",
+        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -54,7 +54,29 @@
       "name": "Check Landing Signups",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [470, 400]
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [{ "name": "action", "value": "check_followups_due" }]
+        },
+        "options": { "timeout": 30000 }
+      },
+      "name": "Check Follow-ups Due",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 500]
     },
     {
       "parameters": {
@@ -62,10 +84,21 @@
         "combineBy": "combineAll",
         "options": {}
       },
-      "name": "Merge Lead Sources",
+      "name": "Merge Signals + Signups",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [690, 300]
+      "position": [690, 200]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "name": "Merge All Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [910, 350]
     },
     {
       "parameters": {
@@ -73,23 +106,23 @@
           "options": { "caseSensitive": true, "leftValue": "" },
           "conditions": [
             {
-              "id": "new-leads",
-              "leftValue": "={{ $json.new_leads_count }}",
+              "id": "has-green-or-yellow",
+              "leftValue": "={{ ($json.green_count || 0) + ($json.yellow_count || 0) + ($json.demo_count || 0) }}",
               "rightValue": 0,
               "operator": { "type": "number", "operation": "gt" }
             }
           ]
         }
       },
-      "name": "Has New Leads?",
+      "name": "Revenue Signals?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [910, 300]
+      "position": [1130, 250]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/lead-pipeline",
+        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -100,8 +133,52 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "action", "value": "compose_followups" },
-            { "name": "leads", "value": "={{ JSON.stringify($json.new_leads) }}" }
+            { "name": "action", "value": "send_alert" },
+            { "name": "signals", "value": "={{ JSON.stringify($json) }}" }
+          ]
+        },
+        "options": { "timeout": 30000 }
+      },
+      "name": "Alert: Revenue Signal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 150]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "has-followups",
+              "leftValue": "={{ $json.followups_due_count || 0 }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "name": "Follow-ups Due?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1130, 450]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "action", "value": "draft_followups" },
+            { "name": "prospects", "value": "={{ JSON.stringify($json.followups_due || []) }}" }
           ]
         },
         "options": { "timeout": 60000 }
@@ -109,38 +186,63 @@
       "name": "Draft Follow-ups",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1130, 200]
+      "position": [1350, 350]
     },
     {
       "parameters": {},
-      "name": "No New Leads",
+      "name": "No Follow-ups",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [1130, 400]
+      "position": [1350, 550]
+    },
+    {
+      "parameters": {},
+      "name": "Quiet Period",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1560, 150]
     }
   ],
   "connections": {
     "Schedule Trigger": {
       "main": [
         [
-          { "node": "Check Outreach DB", "type": "main", "index": 0 },
-          { "node": "Check Landing Signups", "type": "main", "index": 0 }
+          { "node": "Check Response Signals", "type": "main", "index": 0 },
+          { "node": "Check Landing Signups", "type": "main", "index": 0 },
+          { "node": "Check Follow-ups Due", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Check Outreach DB": {
-      "main": [[{ "node": "Merge Lead Sources", "type": "main", "index": 0 }]]
+    "Check Response Signals": {
+      "main": [[{ "node": "Merge Signals + Signups", "type": "main", "index": 0 }]]
     },
     "Check Landing Signups": {
-      "main": [[{ "node": "Merge Lead Sources", "type": "main", "index": 1 }]]
+      "main": [[{ "node": "Merge Signals + Signups", "type": "main", "index": 1 }]]
     },
-    "Merge Lead Sources": {
-      "main": [[{ "node": "Has New Leads?", "type": "main", "index": 0 }]]
+    "Merge Signals + Signups": {
+      "main": [[{ "node": "Merge All Sources", "type": "main", "index": 0 }]]
     },
-    "Has New Leads?": {
+    "Check Follow-ups Due": {
+      "main": [[{ "node": "Merge All Sources", "type": "main", "index": 1 }]]
+    },
+    "Merge All Sources": {
+      "main": [
+        [
+          { "node": "Revenue Signals?", "type": "main", "index": 0 },
+          { "node": "Follow-ups Due?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Revenue Signals?": {
+      "main": [
+        [{ "node": "Alert: Revenue Signal", "type": "main", "index": 0 }],
+        [{ "node": "Quiet Period", "type": "main", "index": 0 }]
+      ]
+    },
+    "Follow-ups Due?": {
       "main": [
         [{ "node": "Draft Follow-ups", "type": "main", "index": 0 }],
-        [{ "node": "No New Leads", "type": "main", "index": 0 }]
+        [{ "node": "No Follow-ups", "type": "main", "index": 0 }]
       ]
     }
   },

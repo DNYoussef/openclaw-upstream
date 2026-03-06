@@ -618,30 +618,35 @@ module.exports = function register(api) {
     return Object.assign({ _stub: true }, data);
   }
 
-  // --- Lead Pipeline handlers ---
+  // --- Outreach Pipeline handlers (P1) ---
 
-  async function checkNewLeads() {
-    // Query outreach.db for prospects with signals in last 24h
+  async function checkResponseSignals() {
     const rows = await sqliteQuery(
       outreachDbPath,
-      "SELECT name, company, signal_type, lane, message_sent_at " +
+      "SELECT id, name, company, signal_type, lane, investor_tier, message_sent_at, signal_notes " +
         "FROM prospects " +
-        "WHERE signal_type IS NOT NULL AND signal_type != 'none' " +
-        "AND message_sent_at >= datetime('now', '-24 hours') " +
+        "WHERE signal_type IN ('green','yellow') " +
         "ORDER BY message_sent_at DESC",
     );
-    return { new_leads_count: rows.length, new_leads: rows };
+    const green = rows.filter((r) => r.signal_type === "green");
+    const yellow = rows.filter((r) => r.signal_type === "yellow");
+    return {
+      green_count: green.length,
+      yellow_count: yellow.length,
+      green_signals: green,
+      yellow_signals: yellow,
+    };
   }
 
   async function checkLandingSignups() {
     if (!landingAdminKey) {
-      return stub({
+      return {
         signup_count: 0,
         signups: [],
         demo_count: 0,
         demos: [],
         error: "No LANDING_ADMIN_API_KEY",
-      });
+      };
     }
     try {
       const data = await httpGet(
@@ -650,7 +655,6 @@ module.exports = function register(api) {
       );
       const signups = data.signups || [];
       const demos = data.demoRequests || [];
-      // Filter to last 24h
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const recentSignups = signups.filter((s) => s.created_at >= cutoff);
       const recentDemos = demos.filter((d) => d.created_at >= cutoff);
@@ -663,21 +667,108 @@ module.exports = function register(api) {
         total_demos: demos.length,
       };
     } catch (e) {
-      return stub({ signup_count: 0, signups: [], error: e.message });
+      return { signup_count: 0, signups: [], demo_count: 0, demos: [], error: e.message };
     }
   }
 
-  async function composeFollowups(body) {
-    // For now, return the leads that need follow-up drafts.
-    // Real AI drafting would call LiteLLM via the agent -- that's an INT-2 task.
-    const leads = body.leads || "[]";
+  async function checkFollowupsDue() {
+    const rows = await sqliteQuery(
+      outreachDbPath,
+      "SELECT id, name, company, lane, investor_tier, message_sent_at, channel " +
+        "FROM prospects " +
+        "WHERE message_sent_at IS NOT NULL " +
+        "AND (signal_type IS NULL OR signal_type = 'none') " +
+        "AND message_sent_at <= datetime('now', '-7 days') " +
+        "ORDER BY message_sent_at ASC " +
+        "LIMIT 20",
+    );
+    return { followups_due_count: rows.length, followups_due: rows };
+  }
+
+  async function draftFollowups(body) {
+    const prospects = body.prospects || "[]";
     let parsed = [];
     try {
-      parsed = typeof leads === "string" ? JSON.parse(leads) : leads;
+      parsed = typeof prospects === "string" ? JSON.parse(prospects) : prospects;
     } catch (e) {
       /* skip */
     }
-    return stub({ drafted: 0, leads: parsed, note: "AI drafting not yet wired (INT-2)" });
+    return stub({ drafted: 0, prospects: parsed, note: "AI drafting not yet wired (INT-2)" });
+  }
+
+  async function sendAlert(body) {
+    const signals = body.signals || "{}";
+    let parsed = {};
+    try {
+      parsed = typeof signals === "string" ? JSON.parse(signals) : signals;
+    } catch (e) {
+      /* skip */
+    }
+    // Log the alert. Slack/Discord delivery wired in INT-2.
+    console.log("[outreach-alert]", JSON.stringify(parsed));
+    return stub({ alerted: true, channel: "log", data: parsed });
+  }
+
+  async function getPipelineStatus() {
+    const totals = await sqliteQuery(
+      outreachDbPath,
+      "SELECT COUNT(*) as total, " +
+        "SUM(CASE WHEN message_sent_at IS NOT NULL THEN 1 ELSE 0 END) as sent, " +
+        "SUM(CASE WHEN signal_type='green' THEN 1 ELSE 0 END) as green, " +
+        "SUM(CASE WHEN signal_type='yellow' THEN 1 ELSE 0 END) as yellow, " +
+        "SUM(CASE WHEN signal_type='red' THEN 1 ELSE 0 END) as red " +
+        "FROM prospects",
+    );
+    const byLane = await sqliteQuery(
+      outreachDbPath,
+      "SELECT lane, COUNT(*) as total, " +
+        "SUM(CASE WHEN message_sent_at IS NOT NULL THEN 1 ELSE 0 END) as sent, " +
+        "SUM(CASE WHEN signal_type='green' THEN 1 ELSE 0 END) as green " +
+        "FROM prospects GROUP BY lane",
+    );
+    return {
+      totals: totals[0] || {},
+      by_lane: byLane,
+      response_rate: totals[0]
+        ? (((totals[0].green || 0) / Math.max(totals[0].sent || 1, 1)) * 100).toFixed(1) + "%"
+        : "0%",
+    };
+  }
+
+  // --- Narrowcast Pipeline handlers (P3) ---
+
+  async function scanCommunities() {
+    // Query existing narrowcast_scans and threads from last 24h
+    const recentScans = await sqliteQuery(
+      outreachDbPath,
+      "SELECT * FROM narrowcast_scans ORDER BY scan_date DESC LIMIT 5",
+    );
+    const recentThreads = await sqliteQuery(
+      outreachDbPath,
+      "SELECT * FROM narrowcast_threads WHERE engaged_at IS NULL ORDER BY discovered_at DESC LIMIT 10",
+    );
+    return {
+      threads_found: recentThreads.length,
+      threads: recentThreads,
+      recent_scans: recentScans,
+    };
+  }
+
+  async function evaluateAndSource(body) {
+    const threads = body.threads || "[]";
+    let parsed = [];
+    try {
+      parsed = typeof threads === "string" ? JSON.parse(threads) : threads;
+    } catch (e) {
+      /* skip */
+    }
+    // Evaluate threads for prospect sourcing potential
+    // Real AI evaluation wired in INT-2
+    return stub({
+      threads_evaluated: parsed.length,
+      prospects_added: 0,
+      note: "AI evaluation not yet wired (INT-2)",
+    });
   }
 
   // --- Pilot Pipeline handlers (still stubbed -- needs GitHub API + codeguard telemetry) ---
@@ -685,10 +776,17 @@ module.exports = function register(api) {
   // --- Morning Brief handlers (still stubbed -- needs multi-source aggregation) ---
 
   const WEBHOOK_HANDLERS = {
-    "/webhook/lead-pipeline": {
-      check_new_leads: checkNewLeads,
+    "/webhook/outreach-pipeline": {
+      check_response_signals: checkResponseSignals,
       check_landing_signups: checkLandingSignups,
-      compose_followups: composeFollowups,
+      check_followups_due: checkFollowupsDue,
+      draft_followups: draftFollowups,
+      send_alert: sendAlert,
+      pipeline_status: getPipelineStatus,
+    },
+    "/webhook/narrowcast-pipeline": {
+      scan_communities: scanCommunities,
+      evaluate_and_source: evaluateAndSource,
     },
     "/webhook/pilot-pipeline": {
       check_pilot_repos: () => stub({ issues_count: 0, repos: [] }),
