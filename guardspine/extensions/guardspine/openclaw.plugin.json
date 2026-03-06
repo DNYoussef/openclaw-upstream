@@ -29,7 +29,11 @@
       },
       "slack_approval_channel": {
         "type": "string",
-        "description": "Slack channel for L4 approvals (e.g. channel:C0123456789 or #alerts). Reactions used for approve/deny."
+        "description": "Slack channel ID for L4 notification cards (e.g. channel:C0123456789). Notification-only; approve via guardspine_approve tool."
+      },
+      "approve_secret": {
+        "type": "string",
+        "description": "Shared secret for guardspine_approve tool auth. If set, callers must provide this secret. Also settable via GUARDSPINE_APPROVE_SECRET env var."
       }
     }
   }

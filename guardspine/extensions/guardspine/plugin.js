@@ -765,10 +765,11 @@ async function checkDiscordReaction(approvalId, targetUserId) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// L4: SLACK REMOTE APPROVAL (Block Kit cards with reaction checking)
+// L4: SLACK NOTIFICATION (Block Kit cards, notification-only -- no reaction approval yet)
 // ═══════════════════════════════════════════════════════════════
 
-// Store Slack message timestamps for reaction checking (approvalId -> {channel, ts})
+// Store Slack message timestamps for future reaction checking (approvalId -> {channel, ts})
+// NOTE: Slack reaction approval is not yet implemented. Cards are notification-only.
 const slackApprovalMessages = new Map();
 
 function buildSlackApprovalBlocks(toolName, params, reason, councilResult, approvalId, expiresAt) {
@@ -852,9 +853,9 @@ function buildSlackApprovalBlocks(toolName, params, reason, councilResult, appro
       {
         type: "mrkdwn",
         text:
-          "React :thumbsup: to approve | :thumbsdown: to deny | Or use: `/approve " +
+          ':bell: *Notification only* -- approve via tool: `guardspine_approve("' +
           approvalId +
-          " allow-once`",
+          '", "approve")`',
       },
     ],
   });
@@ -869,7 +870,7 @@ async function sendSlackApproval(message, slackTarget, approvalId, blocks) {
     if (result && result.messageId) {
       slackApprovalMessages.set(approvalId, {
         ts: result.messageId,
-        channel: result.channelId || slackTarget.replace(/^(channel:|#)/, ""),
+        channel: result.channelId || slackTarget,
       });
     }
     return { ok: true, ...result };
@@ -944,17 +945,6 @@ function register(api) {
   if (slackRT && slackRT.sendMessageSlack) {
     _sendSlack = slackRT.sendMessageSlack;
     console.log("[guardspine] Slack send bound from OpenClaw runtime");
-  } else {
-    console.log(
-      "[guardspine] Slack binding debug: runtime=" +
-        !!api.runtime +
-        " channel=" +
-        !!(api.runtime && api.runtime.channel) +
-        " slack=" +
-        !!(api.runtime && api.runtime.channel && api.runtime.channel.slack) +
-        " keys=" +
-        (slackRT ? Object.keys(slackRT).join(",") : "null"),
-    );
   }
 
   // Bind Discord token for reaction checking (from main openclaw config or env)
@@ -1368,8 +1358,8 @@ function register(api) {
             abort: true,
             reason:
               `[GuardSpine] L4 approval PENDING for ${toolName}. ` +
-              `React with thumbsup on Discord/Slack OR /approve ${approval.approval_id} allow-once | ` +
-              `Or tool: guardspine_approve(approval_id="${approval.approval_id}", action="approve"). ` +
+              (discordTarget ? `React with thumbsup on Discord OR ` : ``) +
+              `Use tool: guardspine_approve(approval_id="${approval.approval_id}", action="approve"). ` +
               `Then retry the action.`,
           };
         }
@@ -1525,16 +1515,36 @@ function register(api) {
     () => ({
       name: "guardspine_approve",
       description:
-        "Approve or deny a pending L4 action by approval ID. Only the human operator should use this.",
+        "Approve or deny a pending L4 action by approval ID. Requires approve_secret if configured.",
       parameters: {
         type: "object",
         properties: {
           approval_id: { type: "string", description: "The approval ID to respond to" },
           action: { type: "string", enum: ["approve", "deny"], description: "approve or deny" },
+          secret: {
+            type: "string",
+            description: "Shared secret (required when approve_secret is configured)",
+          },
         },
         required: ["approval_id", "action"],
       },
       execute: async (params) => {
+        // Auth gate: if approve_secret is configured, caller must provide it
+        const expectedSecret =
+          config.approve_secret || process.env.GUARDSPINE_APPROVE_SECRET || null;
+        if (expectedSecret) {
+          if (!params.secret || params.secret !== expectedSecret) {
+            evidence.add({
+              type: "approval_auth_failed",
+              approval_id: params.approval_id,
+              tier: "L4",
+            });
+            return {
+              error:
+                "Invalid or missing secret. Set approve_secret in plugin config or GUARDSPINE_APPROVE_SECRET env var.",
+            };
+          }
+        }
         const pending = pendingApprovals.get(params.approval_id);
         if (!pending) return { error: "No pending approval with that ID" };
         if (new Date() > new Date(pending.expires_at)) {
