@@ -22,12 +22,12 @@ const https = require("https");
 const http = require("http");
 
 module.exports = function register(api) {
-  const config = api.config || {};
+  const pluginCfg = api.pluginConfig || {};
   const baseUrl =
-    config.n8n_base_url ||
+    pluginCfg.n8n_base_url ||
     process.env.N8N_BASE_URL ||
     "https://n8n-production-32ffd.up.railway.app";
-  const apiKey = config.n8n_api_key || process.env.N8N_API_KEY || "";
+  const apiKey = pluginCfg.n8n_api_key || process.env.N8N_API_KEY || "";
 
   if (!apiKey) {
     console.log(
@@ -523,6 +523,94 @@ module.exports = function register(api) {
     }),
     { priority: 0 },
   );
+
+  // ---------------------------------------------------------------
+  // Webhook routes: endpoints that n8n workflows POST to
+  // ---------------------------------------------------------------
+
+  function parseJsonBody(req) {
+    return new Promise((resolve, reject) => {
+      let data = "";
+      req.on("data", (chunk) => {
+        data += chunk;
+      });
+      req.on("end", () => {
+        try {
+          resolve(data ? JSON.parse(data) : {});
+        } catch (e) {
+          reject(new Error("Invalid JSON body"));
+        }
+      });
+      req.on("error", reject);
+    });
+  }
+
+  function jsonResponse(res, status, body) {
+    res.statusCode = status;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(body));
+  }
+
+  // Stub webhook handlers. Returns well-shaped JSON so the n8n graph can
+  // be validated end-to-end without 404s. Every stub response includes
+  // _stub: true so callers can detect that real logic is not wired yet.
+  // Replace individual handlers as integrations land (outreach.db, GitHub
+  // API, etc.). Do NOT enable crons until stubs are replaced.
+  function stub(data) {
+    return Object.assign({ _stub: true }, data);
+  }
+
+  const WEBHOOK_HANDLERS = {
+    "/webhook/lead-pipeline": {
+      check_new_leads: () => stub({ new_leads_count: 0, new_leads: [] }),
+      check_landing_signups: () => stub({ signup_count: 0, signups: [] }),
+      compose_followups: (body) => stub({ drafted: 0, leads: body.leads || "[]" }),
+    },
+    "/webhook/pilot-pipeline": {
+      check_pilot_repos: () => stub({ issues_count: 0, repos: [] }),
+      check_evidence_bundles: () => stub({ bundle_count: 0, evidence_summary: [] }),
+      generate_pilot_report: (body) =>
+        stub({ report: "stub", repos: body.repos || "[]", bundles: body.bundles || "[]" }),
+    },
+    "/webhook/morning-brief": {
+      gather_data: () => stub({ outreach: {}, github: {}, railway: {}, calendar: {} }),
+      format_brief: (body) =>
+        stub({
+          formatted_brief: "Morning brief stub. Data: " + (body.data || "{}").substring(0, 200),
+        }),
+      deliver_brief: (body) => stub({ delivered: true, channel: body.channel || "discord" }),
+    },
+  };
+
+  for (const [routePath, actions] of Object.entries(WEBHOOK_HANDLERS)) {
+    api.registerHttpRoute({
+      path: routePath,
+      auth: "gateway",
+      match: "exact",
+      handler: async (req, res) => {
+        if (req.method !== "POST") {
+          jsonResponse(res, 405, { error: "Method not allowed" });
+          return true;
+        }
+        try {
+          const body = await parseJsonBody(req);
+          const action = body.action;
+          if (!action || !actions[action]) {
+            jsonResponse(res, 400, {
+              error: "Unknown action: " + (action || "(none)"),
+              available: Object.keys(actions),
+            });
+            return true;
+          }
+          const result = actions[action](body);
+          jsonResponse(res, 200, result);
+        } catch (e) {
+          jsonResponse(res, 500, { error: e.message });
+        }
+        return true;
+      },
+    });
+  }
 
   // ---------------------------------------------------------------
   // Inject context on agent start

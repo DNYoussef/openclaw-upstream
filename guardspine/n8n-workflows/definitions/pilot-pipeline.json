@@ -58,6 +58,17 @@
     },
     {
       "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "name": "Merge Pilot Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": { "caseSensitive": true, "leftValue": "" },
           "conditions": [
@@ -73,7 +84,7 @@
       "name": "Issues Found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [690, 200]
+      "position": [910, 300]
     },
     {
       "parameters": {
@@ -99,14 +110,14 @@
       "name": "Generate Pilot Report",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [910, 200]
+      "position": [1130, 200]
     },
     {
       "parameters": {},
       "name": "All Clear",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [910, 350]
+      "position": [1130, 400]
     }
   ],
   "connections": {
@@ -119,6 +130,12 @@
       ]
     },
     "Check Pilot Repos": {
+      "main": [[{ "node": "Merge Pilot Data", "type": "main", "index": 0 }]]
+    },
+    "Check Evidence Bundles": {
+      "main": [[{ "node": "Merge Pilot Data", "type": "main", "index": 1 }]]
+    },
+    "Merge Pilot Data": {
       "main": [[{ "node": "Issues Found?", "type": "main", "index": 0 }]]
     },
     "Issues Found?": {

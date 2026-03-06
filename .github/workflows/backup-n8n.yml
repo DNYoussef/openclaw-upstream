@@ -28,12 +28,10 @@ jobs:
 
       - name: Push changes
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add guardspine/n8n-workflows/ || true
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "chore(n8n): automated workflow backup [$(date -u '+%Y-%m-%d')]"
+          # Script already handles git config + commit.
+          # Just push if there are new commits.
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse @{u} 2>/dev/null || echo '')" ]; then
             git push
+          else
+            echo "No new commits to push."
           fi

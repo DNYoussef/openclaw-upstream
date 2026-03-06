@@ -95,15 +95,16 @@ gh notification list --since "24 hours ago" 2>/dev/null || echo "No notification
 
 Check health of guardspine-ai-ops project services:
 
-| Service  | Public URL                              | Expected       |
-| -------- | --------------------------------------- | -------------- |
-| LiteLLM  | litellm-production-f6f2.up.railway.app  | 200 on /health |
-| n8n      | n8n-production-32ffd.up.railway.app     | 200 on /       |
-| OpenClaw | openclaw-production-4349.up.railway.app | 200 on /health |
+| Service  | Public URL                              | Expected                                                |
+| -------- | --------------------------------------- | ------------------------------------------------------- |
+| LiteLLM  | litellm-production-f6f2.up.railway.app  | 200 on /health/readiness (unauthenticated readiness ep) |
+| n8n      | n8n-production-32ffd.up.railway.app     | 200 on /                                                |
+| OpenClaw | openclaw-production-4349.up.railway.app | 200 on /health                                          |
 
 ```bash
 # Health checks (timeout 10s each)
-curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://litellm-production-f6f2.up.railway.app/health
+# NOTE: LiteLLM /health requires auth. Use /health/readiness for unauthenticated checks.
+curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://litellm-production-f6f2.up.railway.app/health/readiness
 curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://n8n-production-32ffd.up.railway.app/
 curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://openclaw-production-4349.up.railway.app/health
 ```

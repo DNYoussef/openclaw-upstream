@@ -7,7 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-EXPORT_DIR="$REPO_ROOT/guardspine/n8n-workflows"
+EXPORT_DIR="$REPO_ROOT/guardspine/n8n-workflows/backups"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
@@ -119,6 +119,12 @@ cd "$REPO_ROOT"
 if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
   log "Not inside a git repo. Skipping commit."
   exit 0
+fi
+
+# Set git identity if not already configured (needed in CI)
+if [ -z "$(git config user.name 2>/dev/null)" ]; then
+  git config user.name "github-actions[bot]"
+  git config user.email "github-actions[bot]@users.noreply.github.com"
 fi
 
 git add "$EXPORT_DIR"/*.json 2>/dev/null || true
