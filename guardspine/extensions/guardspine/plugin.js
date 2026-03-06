@@ -944,6 +944,17 @@ function register(api) {
   if (slackRT && slackRT.sendMessageSlack) {
     _sendSlack = slackRT.sendMessageSlack;
     console.log("[guardspine] Slack send bound from OpenClaw runtime");
+  } else {
+    console.log(
+      "[guardspine] Slack binding debug: runtime=" +
+        !!api.runtime +
+        " channel=" +
+        !!(api.runtime && api.runtime.channel) +
+        " slack=" +
+        !!(api.runtime && api.runtime.channel && api.runtime.channel.slack) +
+        " keys=" +
+        (slackRT ? Object.keys(slackRT).join(",") : "null"),
+    );
   }
 
   // Bind Discord token for reaction checking (from main openclaw config or env)
