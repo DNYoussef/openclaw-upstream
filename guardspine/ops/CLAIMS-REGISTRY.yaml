@@ -1,0 +1,93 @@
+# CLAIMS-REGISTRY.yaml -- Single source of truth for all quantitative claims
+# Last verified: 2026-02-23
+# Methodology: Live measurement (pytest --co -q, npm test, grep -rc)
+#
+# RULE: Every number in outreach, investor docs, landing pages, and strategy
+#       docs MUST trace back to an entry here. If it's not here, it's not verified.
+
+tests:
+  total: 737
+  breakdown:
+    codeguard-action: 172       # python -m pytest --co -q
+    guardspine-backend: 489     # python -m pytest --co -q (1 collection error in test_bundle_import.py)
+    guardspine-kernel-ts: 32    # npm test (vitest)
+    guardspine-kernel-py: 29    # python -m pytest --co -q
+    guardspine-local-council: 15  # python -m pytest --co -q
+    guardspine-verify: 0        # no package.json found
+  verified_date: "2026-02-23"
+  verified_by: "pytest --co -q / npm test in each repo"
+
+routes:
+  total: 210
+  source: "grep -rc '@router\\.' D:/Projects/GuardSpine/backend/app/routers/"
+  verified_date: "2026-02-23"
+
+pricing:
+  source_of_truth: "guardspine-landing/src/components/SecurityPageContent.tsx"
+  tiers:
+    starter:
+      monthly: 499
+      annual_monthly: 399
+      label: "Starter"
+    team:
+      monthly: 2000
+      annual_monthly: 1600
+      label: "Team"
+    org:
+      monthly: 12000
+      annual_monthly: 9600
+      label: "Organization"
+    enterprise:
+      monthly: "custom"
+      label: "Enterprise"
+  verified_date: "2026-02-23"
+
+repos:
+  total_oss: 8
+  license: "Apache-2.0"  # Decision 2026-02-23: standardize all to Apache 2.0
+  list:
+    - codeguard-action
+    - guardspine-kernel
+    - guardspine-kernel-py
+    - guardspine-verify
+    - guardspine-local-council
+    - guardspine-spec
+    - pii-shield
+    - guardspine-rubric-packs
+  verified_date: "2026-02-23"
+
+backend:
+  services: 33
+  db_tables: 9
+  frontend_pages: 24
+  verified_date: "2026-02-23"
+
+outreach:
+  total_prospects: 300
+  sent: 127
+  responded: 10
+  green_signals: 9
+  yellow_signals: 1
+  source: "SELECT count(*) FROM prospects / WHERE status='sent' etc."
+  verified_date: "2026-02-23"
+
+compliance:
+  # Decision 2026-02-23: downgrade all to "roadmap" (not "supported")
+  dora: "roadmap"
+  eu_ai_act: "roadmap"
+  iso_27001: "roadmap"
+  soc2: "roadmap"
+  note: "Designed to support evidence collection, not certified/compliant"
+
+gross_margins:
+  byok_headline: "97%+"
+  fully_loaded: "87-91%"
+  note: "Fully loaded includes infrastructure + opex allocation"
+
+guard_lanes:
+  shipped:
+    - CodeGuard
+  roadmap_h2_2026:
+    - PDFGuard
+    - SheetGuard
+    - ImageGuard
