@@ -54,7 +54,7 @@ for wf in data.get('data', []):
   if [ -n "$existing_id" ]; then
     # Update existing workflow
     response=$(curl -s --max-time 30 \
-      -X PATCH "${N8N_BASE_URL}/api/v1/workflows/${existing_id}" \
+      -X PUT "${N8N_BASE_URL}/api/v1/workflows/${existing_id}" \
       -H "Accept: application/json" \
       -H "Content-Type: application/json" \
       -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
