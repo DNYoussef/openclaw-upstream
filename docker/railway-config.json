@@ -11,7 +11,8 @@
         "enabled": true,
         "config": {
           "enforcement_mode": "audit",
-          "council_endpoint": "http://localhost:11434"
+          "council_endpoint": "http://localhost:11434",
+          "slack_approval_channel": "${GUARDSPINE_SLACK_CHANNEL}"
         }
       },
       "n8n-pipeline": {
@@ -24,6 +25,12 @@
           "outreach_db_path": "/app/.openclaw/data/outreach.db"
         }
       }
+    }
+  },
+  "channels": {
+    "slack": {
+      "botToken": "${SLACK_BOT_TOKEN}",
+      "appToken": "${SLACK_APP_TOKEN}"
     }
   },
   "agents": {

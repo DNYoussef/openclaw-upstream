@@ -693,8 +693,9 @@ function generateApprovalRequest(toolName, params, reason, councilResult) {
   return { approval_id: approvalId, message: discordMessage };
 }
 
-// Send L4 approval request to Discord via OpenClaw runtime API (injected at register time)
+// Send L4 approval request to Discord/Slack via OpenClaw runtime API (injected at register time)
 let _sendDiscord = null; // set during register()
+let _sendSlack = null; // set during register()
 let _discordToken = null; // for reaction checking
 
 // Store message IDs for reaction checking (approvalId -> messageId)
@@ -763,6 +764,120 @@ async function checkDiscordReaction(approvalId, targetUserId) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// L4: SLACK REMOTE APPROVAL (Block Kit cards with reaction checking)
+// ═══════════════════════════════════════════════════════════════
+
+// Store Slack message timestamps for reaction checking (approvalId -> {channel, ts})
+const slackApprovalMessages = new Map();
+
+function buildSlackApprovalBlocks(toolName, params, reason, councilResult, approvalId, expiresAt) {
+  const paramsPreview = JSON.stringify(params).substring(0, 200);
+  const blocks = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: "GuardSpine L4 Approval Required" },
+    },
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: "*Tool:*\n`" + toolName + "`" },
+        { type: "mrkdwn", text: "*Risk Reason:*\n" + reason },
+        { type: "mrkdwn", text: "*Approval ID:*\n`" + approvalId + "`" },
+        { type: "mrkdwn", text: "*Expires:*\n" + expiresAt },
+      ],
+    },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: "*Params:*\n```" + paramsPreview + "```" },
+    },
+  ];
+
+  // Council details
+  if (councilResult && councilResult.votes) {
+    let councilText =
+      "*Council Verdict:* " +
+      councilResult.verdict +
+      " (" +
+      councilResult.pass_count +
+      " PASS / " +
+      councilResult.fail_count +
+      " FAIL / " +
+      councilResult.escalate_count +
+      " ESCALATE)\n";
+    for (const vote of councilResult.votes) {
+      councilText +=
+        "> `" +
+        vote.auditor +
+        "` " +
+        vote.model +
+        " -> *" +
+        vote.verdict +
+        "* (" +
+        vote.elapsed_ms +
+        "ms)\n";
+      if (vote.reason) councilText += ">   " + vote.reason + "\n";
+    }
+    // Risk areas
+    const avgScores = {};
+    let totalWeight = 0;
+    for (const vote of councilResult.votes) {
+      if (vote.scores) {
+        for (const [k, v] of Object.entries(vote.scores)) {
+          avgScores[k] = (avgScores[k] || 0) + v * vote.weight;
+        }
+        totalWeight += vote.weight;
+      }
+    }
+    if (totalWeight > 0) {
+      const riskAreas = [];
+      for (const [k, v] of Object.entries(avgScores)) {
+        const avg = v / totalWeight;
+        if (avg < 3) riskAreas.push(k.replace(/_/g, " ") + " (" + avg.toFixed(1) + "/5)");
+      }
+      if (riskAreas.length > 0) {
+        councilText += "*Risk Areas:* " + riskAreas.join(", ");
+      }
+    }
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: councilText },
+    });
+  }
+
+  blocks.push({ type: "divider" });
+  blocks.push({
+    type: "context",
+    elements: [
+      {
+        type: "mrkdwn",
+        text:
+          "React :thumbsup: to approve | :thumbsdown: to deny | Or use: `/approve " +
+          approvalId +
+          " allow-once`",
+      },
+    ],
+  });
+
+  return blocks;
+}
+
+async function sendSlackApproval(message, slackTarget, approvalId, blocks) {
+  if (!_sendSlack) return { ok: false, error: "sendMessageSlack not available" };
+  try {
+    const result = await _sendSlack(slackTarget, message, { blocks });
+    if (result && result.messageId) {
+      slackApprovalMessages.set(approvalId, {
+        ts: result.messageId,
+        channel: result.channelId || slackTarget.replace(/^(channel:|#)/, ""),
+      });
+    }
+    return { ok: true, ...result };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // Check dev_inbox for approval (file-based fallback)
 function checkDevInboxApproval(approvalId) {
   const inboxDir = path.join(LOG_DIR, "dev_inbox");
@@ -814,6 +929,12 @@ function register(api) {
   if (api.runtime && api.runtime.discord && api.runtime.discord.sendMessageDiscord) {
     _sendDiscord = api.runtime.discord.sendMessageDiscord;
     console.log("[guardspine] Discord send bound from OpenClaw runtime");
+  }
+
+  // Bind Slack send from OpenClaw runtime (if available)
+  if (api.runtime && api.runtime.slack && api.runtime.slack.sendMessageSlack) {
+    _sendSlack = api.runtime.slack.sendMessageSlack;
+    console.log("[guardspine] Slack send bound from OpenClaw runtime");
   }
 
   // Bind Discord token for reaction checking (from main openclaw config or env)
@@ -1110,6 +1231,39 @@ function register(api) {
               .catch((e) => console.log(`[guardspine] L4 Discord send error: ${e.message}`));
           }
 
+          // Send to Slack via OpenClaw runtime (non-blocking, best-effort)
+          const slackTarget = config.slack_approval_channel || null;
+
+          if (slackTarget) {
+            const pending = pendingApprovals.get(approval.approval_id);
+            const blocks = buildSlackApprovalBlocks(
+              toolName,
+              params,
+              risk.reason,
+              councilResult,
+              approval.approval_id,
+              pending ? pending.expires_at : "5m",
+            );
+            sendSlackApproval(
+              "[GuardSpine L4] " +
+                toolName +
+                " requires approval (ID: " +
+                approval.approval_id +
+                ")",
+              slackTarget,
+              approval.approval_id,
+              blocks,
+            )
+              .then((r) => {
+                if (r.ok)
+                  console.log(
+                    `[guardspine] L4 approval sent to Slack: ${slackTarget} (ts: ${r.messageId || "unknown"})`,
+                  );
+                else console.log(`[guardspine] L4 Slack send failed: ${r.error || r.status}`);
+              })
+              .catch((e) => console.log(`[guardspine] L4 Slack send error: ${e.message}`));
+          }
+
           console.log(
             `[guardspine] L4 approval required for ${toolName}. ID: ${approval.approval_id}`,
           );
@@ -1194,7 +1348,7 @@ function register(api) {
             abort: true,
             reason:
               `[GuardSpine] L4 approval PENDING for ${toolName}. ` +
-              `React with \uD83D\uDC4D on Discord OR /approve ${approval.approval_id} allow-once | ` +
+              `React with thumbsup on Discord/Slack OR /approve ${approval.approval_id} allow-once | ` +
               `Or tool: guardspine_approve(approval_id="${approval.approval_id}", action="approve"). ` +
               `Then retry the action.`,
           };
