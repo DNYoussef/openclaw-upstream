@@ -17,7 +17,8 @@
       "n8n-pipeline": {
         "enabled": true,
         "config": {
-          "n8n_base_url": "http://n8n.railway.internal:5678"
+          "n8n_base_url": "http://n8n.railway.internal:5678",
+          "n8n_api_key": "${N8N_API_KEY}"
         }
       }
     }
