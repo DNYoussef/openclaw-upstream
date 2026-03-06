@@ -1,3 +1,13 @@
 node_modules
 .git
 *.log
+test
+docs
+Swabble
+git-hooks
+assets
+.github
+.eslintrc*
+.prettier*
+jest.config*
+tsconfig.test*
