@@ -843,9 +843,33 @@ module.exports = function register(api) {
     async () => {
       return {
         prependContext:
-          "[N8N] n8n Pipeline Manager active. You can create, list, execute, and monitor n8n workflows. " +
-          "Architecture: n8n handles 95% deterministic work, you handle 5% edge cases. " +
-          "Use n8n_list_workflows to see existing pipelines. Use n8n_create_workflow to build new ones.",
+          "[N8N] n8n Pipeline Manager active. Architecture: n8n handles 95% deterministic work, you handle 5% edge cases.\n" +
+          "\n" +
+          "DEPLOYED PIPELINES (all POST to OpenClaw webhook endpoints, auth=gateway token):\n" +
+          "\n" +
+          "P1 - Outreach Pipeline (n8n ID: HsnX6HGIEeraMhYu, schedule: every 6h, currently INACTIVE)\n" +
+          "  Endpoint: /webhook/outreach-pipeline\n" +
+          "  Actions: check_response_signals, check_landing_signups, check_followups_due, draft_followups, send_alert, pipeline_status\n" +
+          "  Flow: Schedule -> 3 parallel checks (signals, signups, followups) -> merge -> Revenue Signals? -> Alert | Follow-ups Due? -> Draft\n" +
+          "  CRM DB: /app/.openclaw/data/outreach.db (359 prospects, 4 lanes: builder/buyer/connector/investor)\n" +
+          "  Landing page signups checked via LANDING_BASE_URL + /api/admin/signups\n" +
+          "\n" +
+          "P3 - Narrowcast Pipeline (n8n ID: Zfu2QuhG8zrb0sx5, schedule: every 12h, currently INACTIVE)\n" +
+          "  Endpoint: /webhook/narrowcast-pipeline\n" +
+          "  Actions: scan_communities, evaluate_and_source\n" +
+          "  Flow: Schedule -> Scan Communities -> Threads Found? -> Evaluate & Source -> New Prospects? -> Alert (via outreach-pipeline)\n" +
+          "  Data: narrowcast_scans + narrowcast_threads tables in outreach.db\n" +
+          "\n" +
+          "P2 - Pilot Pipeline (n8n ID: 3yB7GreStiD0Tihf, STUBBED - needs GitHub API + codeguard telemetry)\n" +
+          "  Endpoint: /webhook/pilot-pipeline\n" +
+          "  Actions: check_pilot_repos, check_evidence_bundles, generate_pilot_report\n" +
+          "\n" +
+          "P8 - Morning Brief (n8n ID: Sy2WuqOFGqa4WbWc, STUBBED - needs multi-source aggregation)\n" +
+          "  Endpoint: /webhook/morning-brief\n" +
+          "  Actions: gather_data, format_brief, deliver_brief\n" +
+          "\n" +
+          "STUBS REMAINING (INT-2): draft_followups (AI drafting), evaluate_and_source (AI eval), send_alert (Slack/Discord delivery).\n" +
+          "Use n8n_list_workflows to see all pipelines. Use n8n_activate_workflow to enable cron schedules.",
       };
     },
     { priority: 10 },
