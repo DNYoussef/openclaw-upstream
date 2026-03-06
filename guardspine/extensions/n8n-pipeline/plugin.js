@@ -531,7 +531,7 @@ module.exports = function register(api) {
   function parseJsonBody(req) {
     return new Promise((resolve, reject) => {
       let data = "";
-      const MAX_BODY = 5_000_000; // 5MB (temporary: bulk_import needs ~1MB)
+      const MAX_BODY = 1_000_000; // 1MB
       req.on("data", (chunk) => {
         data += chunk;
         if (data.length > MAX_BODY) {
@@ -819,31 +819,6 @@ module.exports = function register(api) {
 
   // --- Morning Brief handlers (still stubbed -- needs multi-source aggregation) ---
 
-  // Temporary bulk import for data migration (remove after data is loaded)
-  async function bulkImport(body) {
-    const sql = body.sql;
-    if (!sql || typeof sql !== "string") {
-      return { error: "Missing 'sql' field with INSERT statements" };
-    }
-    if (sql.length > 5_000_000) {
-      return { error: "SQL too large (>5MB)" };
-    }
-    // Safety: only allow INSERT OR IGNORE statements
-    const lines = sql.split("\n").filter((l) => l.trim());
-    const unsafe = lines.find(
-      (l) => l.trim() && !l.trim().startsWith("INSERT OR IGNORE") && !l.trim().startsWith("--"),
-    );
-    if (unsafe) {
-      return { error: "Only INSERT OR IGNORE statements allowed. Got: " + unsafe.substring(0, 80) };
-    }
-    try {
-      execFileSync("sqlite3", [outreachDbPath], { input: sql, timeout: 30000 });
-      return { imported: lines.filter((l) => l.trim().startsWith("INSERT")).length };
-    } catch (e) {
-      return { error: "Import failed: " + e.message };
-    }
-  }
-
   const WEBHOOK_HANDLERS = {
     "/webhook/outreach-pipeline": {
       check_response_signals: checkResponseSignals,
@@ -852,7 +827,6 @@ module.exports = function register(api) {
       draft_followups: draftFollowups,
       send_alert: sendAlert,
       pipeline_status: getPipelineStatus,
-      bulk_import: bulkImport,
     },
     "/webhook/narrowcast-pipeline": {
       scan_communities: scanCommunities,
