@@ -926,14 +926,23 @@ function register(api) {
   const evidence = new EvidencePack(sessionId);
 
   // Bind Discord send from OpenClaw runtime (if available)
-  if (api.runtime && api.runtime.discord && api.runtime.discord.sendMessageDiscord) {
-    _sendDiscord = api.runtime.discord.sendMessageDiscord;
+  // Runtime shape: api.runtime.channel.discord.sendMessageDiscord (or legacy api.runtime.discord)
+  const discordRT =
+    (api.runtime && api.runtime.channel && api.runtime.channel.discord) ||
+    (api.runtime && api.runtime.discord) ||
+    null;
+  if (discordRT && discordRT.sendMessageDiscord) {
+    _sendDiscord = discordRT.sendMessageDiscord;
     console.log("[guardspine] Discord send bound from OpenClaw runtime");
   }
 
   // Bind Slack send from OpenClaw runtime (if available)
-  if (api.runtime && api.runtime.slack && api.runtime.slack.sendMessageSlack) {
-    _sendSlack = api.runtime.slack.sendMessageSlack;
+  const slackRT =
+    (api.runtime && api.runtime.channel && api.runtime.channel.slack) ||
+    (api.runtime && api.runtime.slack) ||
+    null;
+  if (slackRT && slackRT.sendMessageSlack) {
+    _sendSlack = slackRT.sendMessageSlack;
     console.log("[guardspine] Slack send bound from OpenClaw runtime");
   }
 
