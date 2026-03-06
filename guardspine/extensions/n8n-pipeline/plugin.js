@@ -551,20 +551,144 @@ module.exports = function register(api) {
     res.end(JSON.stringify(body));
   }
 
-  // Stub webhook handlers. Returns well-shaped JSON so the n8n graph can
-  // be validated end-to-end without 404s. Every stub response includes
-  // _stub: true so callers can detect that real logic is not wired yet.
-  // Replace individual handlers as integrations land (outreach.db, GitHub
-  // API, etc.). Do NOT enable crons until stubs are replaced.
+  // ---------------------------------------------------------------
+  // Webhook handler implementations
+  // ---------------------------------------------------------------
+
+  const landingBaseUrl =
+    pluginCfg.landing_base_url ||
+    process.env.LANDING_BASE_URL ||
+    "https://guardspine-landing-production.up.railway.app";
+  const landingAdminKey = pluginCfg.landing_admin_key || process.env.LANDING_ADMIN_API_KEY || "";
+  const outreachDbPath =
+    pluginCfg.outreach_db_path || process.env.OUTREACH_DB_PATH || "/data/outreach.db";
+
+  const fs = require("fs");
+  const { execFile } = require("child_process");
+  const url = require("url");
+
+  // HTTP GET helper (returns parsed JSON)
+  function httpGet(targetUrl, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const parsed = new URL(targetUrl);
+      const mod = parsed.protocol === "https:" ? https : http;
+      const req = mod.get(targetUrl, { timeout: timeoutMs || 10000 }, (res) => {
+        let data = "";
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+        res.on("end", () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(new Error("Invalid JSON from " + targetUrl));
+          }
+        });
+      });
+      req.on("error", reject);
+      req.on("timeout", () => {
+        req.destroy();
+        reject(new Error("Timeout: " + targetUrl));
+      });
+    });
+  }
+
+  // SQLite query helper (shells out to sqlite3 CLI)
+  function sqliteQuery(dbPath, query) {
+    return new Promise((resolve, reject) => {
+      if (!fs.existsSync(dbPath)) {
+        resolve([]);
+        return;
+      }
+      execFile("sqlite3", ["-json", dbPath, query], { timeout: 10000 }, (err, stdout) => {
+        if (err) {
+          resolve([]);
+          return;
+        }
+        try {
+          resolve(JSON.parse(stdout || "[]"));
+        } catch (e) {
+          resolve([]);
+        }
+      });
+    });
+  }
+
   function stub(data) {
     return Object.assign({ _stub: true }, data);
   }
 
+  // --- Lead Pipeline handlers ---
+
+  async function checkNewLeads() {
+    // Query outreach.db for prospects with signals in last 24h
+    const rows = await sqliteQuery(
+      outreachDbPath,
+      "SELECT name, company, signal_type, lane, message_sent_at " +
+        "FROM prospects " +
+        "WHERE signal_type IS NOT NULL AND signal_type != 'none' " +
+        "AND message_sent_at >= datetime('now', '-24 hours') " +
+        "ORDER BY message_sent_at DESC",
+    );
+    return { new_leads_count: rows.length, new_leads: rows };
+  }
+
+  async function checkLandingSignups() {
+    if (!landingAdminKey) {
+      return stub({
+        signup_count: 0,
+        signups: [],
+        demo_count: 0,
+        demos: [],
+        error: "No LANDING_ADMIN_API_KEY",
+      });
+    }
+    try {
+      const data = await httpGet(
+        landingBaseUrl + "/api/admin/signups?key=" + encodeURIComponent(landingAdminKey),
+        10000,
+      );
+      const signups = data.signups || [];
+      const demos = data.demoRequests || [];
+      // Filter to last 24h
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const recentSignups = signups.filter((s) => s.created_at >= cutoff);
+      const recentDemos = demos.filter((d) => d.created_at >= cutoff);
+      return {
+        signup_count: recentSignups.length,
+        signups: recentSignups,
+        demo_count: recentDemos.length,
+        demos: recentDemos,
+        total_signups: signups.length,
+        total_demos: demos.length,
+      };
+    } catch (e) {
+      return stub({ signup_count: 0, signups: [], error: e.message });
+    }
+  }
+
+  async function composeFollowups(body) {
+    // For now, return the leads that need follow-up drafts.
+    // Real AI drafting would call LiteLLM via the agent -- that's an INT-2 task.
+    const leads = body.leads || "[]";
+    let parsed = [];
+    try {
+      parsed = typeof leads === "string" ? JSON.parse(leads) : leads;
+    } catch (e) {
+      /* skip */
+    }
+    return stub({ drafted: 0, leads: parsed, note: "AI drafting not yet wired (INT-2)" });
+  }
+
+  // --- Pilot Pipeline handlers (still stubbed -- needs GitHub API + codeguard telemetry) ---
+
+  // --- Morning Brief handlers (still stubbed -- needs multi-source aggregation) ---
+
   const WEBHOOK_HANDLERS = {
     "/webhook/lead-pipeline": {
-      check_new_leads: () => stub({ new_leads_count: 0, new_leads: [] }),
-      check_landing_signups: () => stub({ signup_count: 0, signups: [] }),
-      compose_followups: (body) => stub({ drafted: 0, leads: body.leads || "[]" }),
+      check_new_leads: checkNewLeads,
+      check_landing_signups: checkLandingSignups,
+      compose_followups: composeFollowups,
     },
     "/webhook/pilot-pipeline": {
       check_pilot_repos: () => stub({ issues_count: 0, repos: [] }),
@@ -602,7 +726,7 @@ module.exports = function register(api) {
             });
             return true;
           }
-          const result = actions[action](body);
+          const result = await actions[action](body);
           jsonResponse(res, 200, result);
         } catch (e) {
           jsonResponse(res, 500, { error: e.message });
