@@ -7,6 +7,7 @@ Swabble
 git-hooks
 assets
 .github
+guardspine/ops
 .eslintrc*
 .prettier*
 jest.config*

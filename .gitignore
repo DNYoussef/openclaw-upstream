@@ -89,6 +89,11 @@ USER.md
 # local tooling
 .serena/
 
+# Data files -- data lives in services, not repos (R1: data structures first)
+*.db
+*.sqlite
+*.sqlite3
+
 # Agent credentials and memory (NEVER COMMIT)
 /memory/
 .agent/*.json

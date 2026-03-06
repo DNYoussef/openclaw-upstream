@@ -38,6 +38,9 @@ apps/macos/.build
 apps/ios/build
 **/*.trace
 
+# large directories not needed for Docker build
+guardspine/ops/
+
 # large app trees not needed for CLI build
 apps/
 assets/

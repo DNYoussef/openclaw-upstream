@@ -531,8 +531,13 @@ module.exports = function register(api) {
   function parseJsonBody(req) {
     return new Promise((resolve, reject) => {
       let data = "";
+      const MAX_BODY = 1_000_000; // 1MB
       req.on("data", (chunk) => {
         data += chunk;
+        if (data.length > MAX_BODY) {
+          req.destroy();
+          reject(new Error("Request body too large (>" + MAX_BODY + " bytes)"));
+        }
       });
       req.on("end", () => {
         try {
@@ -561,10 +566,11 @@ module.exports = function register(api) {
     "https://guardspine-landing-production.up.railway.app";
   const landingAdminKey = pluginCfg.landing_admin_key || process.env.LANDING_ADMIN_API_KEY || "";
   const outreachDbPath =
-    pluginCfg.outreach_db_path || process.env.OUTREACH_DB_PATH || "/data/outreach.db";
+    pluginCfg.outreach_db_path || process.env.OUTREACH_DB_PATH || "/app/.openclaw/data/outreach.db";
 
   const fs = require("fs");
-  const { execFile } = require("child_process");
+  const path = require("path");
+  const { execFile, execFileSync } = require("child_process");
   const url = require("url");
 
   // HTTP GET helper (returns parsed JSON)
@@ -593,21 +599,59 @@ module.exports = function register(api) {
     });
   }
 
+  // Ensure outreach DB exists with correct schema.
+  // Data lives on Railway volume (or local disk), never in git or Docker image.
+  // Schema lives in guardspine/data/migration.sql (code, not data).
+  function ensureDb(dbPath) {
+    if (fs.existsSync(dbPath)) return;
+    const dir = path.dirname(dbPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    // Find migration.sql relative to this plugin
+    const migrationPaths = [
+      path.join(__dirname, "..", "..", "data", "migration.sql"),
+      path.join(__dirname, "..", "data", "migration.sql"),
+      "/app/.openclaw/data/migration.sql",
+    ];
+    let migrationSql = null;
+    for (const p of migrationPaths) {
+      if (fs.existsSync(p)) {
+        migrationSql = fs.readFileSync(p, "utf8");
+        break;
+      }
+    }
+    if (!migrationSql) {
+      console.error("[n8n-pipeline] No migration.sql found. DB will not be created.");
+      return;
+    }
+    try {
+      execFileSync("sqlite3", [dbPath], { input: migrationSql, timeout: 10000 });
+      console.log("[n8n-pipeline] Created outreach DB from migration.sql at " + dbPath);
+    } catch (e) {
+      console.error("[n8n-pipeline] Failed to create DB:", e.message);
+    }
+  }
+
+  ensureDb(outreachDbPath);
+
   // SQLite query helper (shells out to sqlite3 CLI)
+  // Logs errors instead of swallowing them.
   function sqliteQuery(dbPath, query) {
     return new Promise((resolve, reject) => {
       if (!fs.existsSync(dbPath)) {
+        console.error("[n8n-pipeline] DB not found: " + dbPath);
         resolve([]);
         return;
       }
-      execFile("sqlite3", ["-json", dbPath, query], { timeout: 10000 }, (err, stdout) => {
+      execFile("sqlite3", ["-json", dbPath, query], { timeout: 10000 }, (err, stdout, stderr) => {
         if (err) {
+          console.error("[n8n-pipeline] sqlite3 error:", err.message, stderr || "");
           resolve([]);
           return;
         }
         try {
           resolve(JSON.parse(stdout || "[]"));
         } catch (e) {
+          console.error("[n8n-pipeline] sqlite3 JSON parse error:", e.message);
           resolve([]);
         }
       });
@@ -810,8 +854,12 @@ module.exports = function register(api) {
       auth: "gateway",
       match: "exact",
       handler: async (req, res) => {
+        const t0 = Date.now();
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method not allowed" });
+          console.log(
+            "[webhook] " + routePath + " 405 method=" + req.method + " " + (Date.now() - t0) + "ms",
+          );
           return true;
         }
         try {
@@ -822,12 +870,27 @@ module.exports = function register(api) {
               error: "Unknown action: " + (action || "(none)"),
               available: Object.keys(actions),
             });
+            console.log(
+              "[webhook] " +
+                routePath +
+                " 400 action=" +
+                (action || "none") +
+                " " +
+                (Date.now() - t0) +
+                "ms",
+            );
             return true;
           }
           const result = await actions[action](body);
           jsonResponse(res, 200, result);
+          console.log(
+            "[webhook] " + routePath + " 200 action=" + action + " " + (Date.now() - t0) + "ms",
+          );
         } catch (e) {
           jsonResponse(res, 500, { error: e.message });
+          console.error(
+            "[webhook] " + routePath + " 500 error=" + e.message + " " + (Date.now() - t0) + "ms",
+          );
         }
         return true;
       },
