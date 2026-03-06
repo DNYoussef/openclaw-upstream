@@ -36,7 +36,9 @@ ENV NODE_ENV=production
 
 # Bake LiteLLM-routed config OUTSIDE the /data volume mount
 # Uses ${VAR} env var substitution (resolved by OpenClaw config loader)
-RUN mkdir -p /app/.openclaw
+RUN mkdir -p /app/.openclaw /app/.openclaw/extensions
 COPY docker/railway-config.json /app/.openclaw/openclaw.json
+COPY guardspine/extensions/guardspine /app/.openclaw/extensions/guardspine
+COPY guardspine/extensions/n8n-pipeline /app/.openclaw/extensions/n8n-pipeline
 
 CMD ["node", "dist/index.js", "gateway", "--bind", "lan", "--port", "18789"]

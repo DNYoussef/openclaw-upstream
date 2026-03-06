@@ -1,0 +1,11 @@
+{
+  "name": "guardspine",
+  "version": "1.0.0",
+  "description": "GuardSpine governance layer for OpenClaw - deny-by-default tool gating with L0-L4 risk tiers",
+  "main": "plugin.js",
+  "openclaw": {
+    "extensions": [
+      "plugin.js"
+    ]
+  }
+}

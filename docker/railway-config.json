@@ -4,6 +4,24 @@
     "bind": "lan",
     "port": 18789
   },
+  "plugins": {
+    "allow": ["guardspine", "n8n-pipeline"],
+    "entries": {
+      "guardspine": {
+        "enabled": true,
+        "config": {
+          "enforcement_mode": "audit",
+          "council_endpoint": "http://localhost:11434"
+        }
+      },
+      "n8n-pipeline": {
+        "enabled": true,
+        "config": {
+          "n8n_base_url": "http://n8n.railway.internal:5678"
+        }
+      }
+    }
+  },
   "agents": {
     "defaults": {
       "model": {
@@ -27,12 +45,60 @@
         "apiKey": "${LITELLM_API_KEY}",
         "api": "openai-completions",
         "models": [
-          {"id": "claude-sonnet", "name": "Claude Sonnet", "reasoning": false, "input": ["text", "image"], "cost": {"input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75}, "contextWindow": 200000, "maxTokens": 8192},
-          {"id": "claude-opus", "name": "Claude Opus", "reasoning": true, "input": ["text", "image"], "cost": {"input": 15, "output": 75, "cacheRead": 1.5, "cacheWrite": 18.75}, "contextWindow": 200000, "maxTokens": 32000},
-          {"id": "claude-haiku", "name": "Claude Haiku", "reasoning": false, "input": ["text", "image"], "cost": {"input": 0.8, "output": 4, "cacheRead": 0.08, "cacheWrite": 1}, "contextWindow": 200000, "maxTokens": 8192},
-          {"id": "gpt-4o", "name": "GPT-4o", "reasoning": false, "input": ["text", "image"], "cost": {"input": 2.5, "output": 10, "cacheRead": 1.25, "cacheWrite": 2.5}, "contextWindow": 128000, "maxTokens": 16384},
-          {"id": "gemini-pro", "name": "Gemini Pro", "reasoning": true, "input": ["text", "image"], "cost": {"input": 1.25, "output": 10, "cacheRead": 0.31, "cacheWrite": 1.25}, "contextWindow": 1000000, "maxTokens": 65536},
-          {"id": "deepseek-chat", "name": "DeepSeek V3", "reasoning": false, "input": ["text"], "cost": {"input": 0.27, "output": 1.1, "cacheRead": 0.07, "cacheWrite": 0.27}, "contextWindow": 128000, "maxTokens": 8192}
+          {
+            "id": "claude-sonnet",
+            "name": "Claude Sonnet",
+            "reasoning": false,
+            "input": ["text", "image"],
+            "cost": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 },
+            "contextWindow": 200000,
+            "maxTokens": 8192
+          },
+          {
+            "id": "claude-opus",
+            "name": "Claude Opus",
+            "reasoning": true,
+            "input": ["text", "image"],
+            "cost": { "input": 15, "output": 75, "cacheRead": 1.5, "cacheWrite": 18.75 },
+            "contextWindow": 200000,
+            "maxTokens": 32000
+          },
+          {
+            "id": "claude-haiku",
+            "name": "Claude Haiku",
+            "reasoning": false,
+            "input": ["text", "image"],
+            "cost": { "input": 0.8, "output": 4, "cacheRead": 0.08, "cacheWrite": 1 },
+            "contextWindow": 200000,
+            "maxTokens": 8192
+          },
+          {
+            "id": "gpt-4o",
+            "name": "GPT-4o",
+            "reasoning": false,
+            "input": ["text", "image"],
+            "cost": { "input": 2.5, "output": 10, "cacheRead": 1.25, "cacheWrite": 2.5 },
+            "contextWindow": 128000,
+            "maxTokens": 16384
+          },
+          {
+            "id": "gemini-pro",
+            "name": "Gemini Pro",
+            "reasoning": true,
+            "input": ["text", "image"],
+            "cost": { "input": 1.25, "output": 10, "cacheRead": 0.31, "cacheWrite": 1.25 },
+            "contextWindow": 1000000,
+            "maxTokens": 65536
+          },
+          {
+            "id": "deepseek-chat",
+            "name": "DeepSeek V3",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0.27, "output": 1.1, "cacheRead": 0.07, "cacheWrite": 0.27 },
+            "contextWindow": 128000,
+            "maxTokens": 8192
+          }
         ]
       }
     }

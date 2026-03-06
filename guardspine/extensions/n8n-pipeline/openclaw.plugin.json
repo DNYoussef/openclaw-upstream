@@ -1,0 +1,21 @@
+{
+  "id": "n8n-pipeline",
+  "name": "n8n Pipeline Manager",
+  "version": "1.0.0",
+  "description": "Create, execute, monitor, and modify n8n workflows from OpenClaw agents. Enables AI-driven pipeline creation and edge-case handling for the n8n automation layer.",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "enabled": { "type": "boolean", "default": true },
+      "n8n_base_url": {
+        "type": "string",
+        "default": "https://n8n-production-32ffd.up.railway.app",
+        "description": "Base URL for n8n REST API"
+      },
+      "n8n_api_key": {
+        "type": "string",
+        "description": "n8n API key (or set N8N_API_KEY env var)"
+      }
+    }
+  }
+}

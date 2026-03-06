@@ -1,0 +1,11 @@
+{
+  "name": "n8n-pipeline",
+  "version": "1.0.0",
+  "description": "n8n pipeline manager for OpenClaw - create, execute, and monitor n8n workflows via REST API",
+  "main": "plugin.js",
+  "openclaw": {
+    "extensions": [
+      "plugin.js"
+    ]
+  }
+}
