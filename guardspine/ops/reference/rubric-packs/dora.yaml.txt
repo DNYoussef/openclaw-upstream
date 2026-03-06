@@ -1,0 +1,183 @@
+name: dora
+version: "1.0"
+description: "DORA (Digital Operational Resilience Act) compliance rubric for EU financial entities"
+rules:
+  # ICT Risk Management (Article 5-16)
+  - id: DORA-001
+    name: ict_risk_framework
+    category: governance
+    severity: critical
+    description: "ICT risk management framework must be documented and maintained"
+    patterns:
+      - "TODO.*risk.*(framework|management|assessment)"
+      - "FIXME.*risk"
+    exceptions:
+      - "*_test.py"
+      - "test_*.py"
+      - "**/tests/**"
+
+  - id: DORA-002
+    name: incident_classification
+    category: governance
+    severity: high
+    description: "ICT incidents must have classification and severity taxonomy"
+    patterns:
+      - "severity\\s*=\\s*[\"']unknown[\"']"
+      - "incident_type\\s*=\\s*[\"']unclassified[\"']"
+    exceptions: []
+
+  - id: DORA-003
+    name: recovery_time_objective
+    category: resilience
+    severity: critical
+    description: "Recovery Time Objectives (RTO) and Recovery Point Objectives (RPO) must be defined"
+    patterns:
+      - "TODO.*(RTO|RPO|recovery)"
+      - "FIXME.*(backup|restore|recovery)"
+    exceptions:
+      - "**/tests/**"
+
+  # ICT Incident Reporting (Article 17-23)
+  - id: DORA-004
+    name: incident_reporting_timeline
+    category: reporting
+    severity: critical
+    description: "Major ICT incidents must be reported within regulatory timelines"
+    patterns:
+      - "time\\.sleep\\(\\d{4,}\\)"
+      - "timeout\\s*=\\s*None"
+    exceptions:
+      - "*_test.py"
+
+  - id: DORA-005
+    name: incident_root_cause
+    category: reporting
+    severity: high
+    description: "Root cause analysis must be performed for major incidents"
+    patterns:
+      - "pass\\s*#.*incident"
+      - "except.*:\\s*pass"
+    exceptions:
+      - "*_test.py"
+      - "test_*.py"
+      - "**/tests/**"
+      - "**/migrations/**"
+
+  # Digital Operational Resilience Testing (Article 24-27)
+  - id: DORA-006
+    name: threat_led_penetration_testing
+    category: testing
+    severity: high
+    description: "Threat-Led Penetration Testing (TLPT) evidence must be maintained"
+    patterns:
+      - "skip.*security.*test"
+      - "pytest\\.mark\\.skip.*security"
+    exceptions: []
+
+  - id: DORA-007
+    name: resilience_testing_coverage
+    category: testing
+    severity: medium
+    description: "ICT systems must have resilience testing with documented results"
+    patterns:
+      - "TODO.*test.*(resilience|failover|disaster)"
+      - "FIXME.*test"
+    exceptions:
+      - "**/tests/**"
+
+  # ICT Third-Party Risk (Article 28-44)
+  - id: DORA-008
+    name: third_party_register
+    category: supply_chain
+    severity: critical
+    description: "Register of all ICT third-party service providers must be maintained"
+    patterns:
+      - "pip install.*--trusted-host"
+      - "npm install.*--ignore-scripts"
+    exceptions: []
+
+  - id: DORA-009
+    name: concentration_risk
+    category: supply_chain
+    severity: high
+    description: "ICT concentration risk on single providers must be assessed"
+    patterns:
+      - "single.point.of.failure"
+      - "TODO.*redundan"
+    exceptions:
+      - "**/tests/**"
+
+  - id: DORA-010
+    name: subcontracting_chain
+    category: supply_chain
+    severity: medium
+    description: "ICT subcontracting chains must be transparent and auditable"
+    patterns:
+      - "proxy.*=.*[\"']http"
+      - "forward_to_subcontractor.*=.*True"
+    exceptions:
+      - "*_test.py"
+      - "test_*.py"
+      - "**/settings/**"
+      - "**/config/**"
+
+  # Information Sharing (Article 45)
+  - id: DORA-011
+    name: threat_intelligence_sharing
+    category: information_sharing
+    severity: medium
+    description: "Cyber threat intelligence sharing arrangements must be documented"
+    patterns:
+      - "TODO.*threat.*intel"
+      - "FIXME.*sharing"
+    exceptions: []
+
+  # Data Protection & Business Continuity
+  - id: DORA-012
+    name: encryption_at_rest
+    category: data_protection
+    severity: critical
+    description: "Sensitive data must be encrypted at rest"
+    patterns:
+      - "open\\([^)]*[\"']w[\"']\\).*\\.write\\(.*password"
+      - "plaintext.*=.*True"
+      - "encrypt.*=.*False"
+    exceptions:
+      - "*_test.py"
+      - "**/tests/**"
+
+  - id: DORA-013
+    name: data_integrity_checks
+    category: data_protection
+    severity: high
+    description: "Data integrity checks must be in place for critical operations"
+    patterns:
+      - "TODO.*integrity"
+      - "FIXME.*checksum"
+      - "FIXME.*hash"
+    exceptions:
+      - "**/tests/**"
+
+  - id: DORA-014
+    name: business_continuity_plan
+    category: resilience
+    severity: critical
+    description: "Business continuity and disaster recovery plans must exist"
+    patterns:
+      - "TODO.*(continuity|disaster|failover)"
+      - "FIXME.*(backup|restore)"
+    exceptions:
+      - "**/tests/**"
+
+  - id: DORA-015
+    name: audit_trail_retention
+    category: governance
+    severity: high
+    description: "Audit trails must be retained per regulatory requirements"
+    patterns:
+      - "retention.*=.*0"
+      - "ttl.*=.*0"
+      - "delete.*audit"
+    exceptions:
+      - "*_test.py"
+      - "**/tests/**"

@@ -1,0 +1,103 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "guardspine-product"
+version = "1.0.0"
+description = "Enterprise Content Governance for AI-Powered Organizations"
+readme = "README.md"
+license = {text = "Proprietary"}
+authors = [
+    { name = "David Youssef", email = "david@guardspine.io" }
+]
+keywords = [
+    "content-governance",
+    "ai-governance",
+    "risk-management",
+    "compliance",
+    "code-review",
+    "document-verification",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: Other/Proprietary License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0.0",
+    "httpx>=0.25.0",
+    "aiofiles>=23.0.0",
+    "guardspine-kernel",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+code-guard = [
+    "litellm>=1.0.0",
+    "tomli>=2.0.0",
+]
+pdf-guard = [
+    "pypdf2>=3.0.0",
+    "pdfplumber>=0.10.0",
+    "pytesseract>=0.3.10",
+]
+image-guard = [
+    "pillow>=10.0.0",
+    "opencv-python>=4.8.0",
+]
+sheet-guard = [
+    "openpyxl>=3.1.0",
+    "xlrd>=2.0.0",
+]
+all = [
+    "guardspine-product[code-guard,pdf-guard,image-guard,sheet-guard]",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://guardspine.io"
+Documentation = "https://docs.guardspine.io"
+Repository = "https://github.com/guardspine/guardspine-product"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "code_guard",
+    "pdf_guard",
+    "image_guard",
+    "sheet_guard",
+    "common",
+    "compression",
+    "adapters",
+    "connectors",
+    "decision",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "I", "N", "W"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = ["--ignore=__init__.py"]
