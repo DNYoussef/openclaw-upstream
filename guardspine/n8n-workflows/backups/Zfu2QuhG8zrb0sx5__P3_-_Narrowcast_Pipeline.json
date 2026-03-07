@@ -1,0 +1,340 @@
+{
+    "updatedAt": "2026-03-06T17:13:25.760Z",
+    "createdAt": "2026-03-06T17:13:25.760Z",
+    "id": "Zfu2QuhG8zrb0sx5",
+    "name": "P3 - Narrowcast Pipeline",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 12
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                300
+            ],
+            "id": "2ebf50e9-1a02-4b1b-9dff-3b8e5ddb6219"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/narrowcast-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "scan_communities"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "name": "Scan Communities",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                470,
+                300
+            ],
+            "id": "aabf73da-c387-4149-bcbf-527cc99d785c"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": ""
+                    },
+                    "conditions": [
+                        {
+                            "id": "has-threads",
+                            "leftValue": "={{ $json.threads_found || 0 }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "gt"
+                            }
+                        }
+                    ]
+                }
+            },
+            "name": "Threads Found?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                690,
+                300
+            ],
+            "id": "73ec93db-f239-4d8b-a011-9347434c2522"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/narrowcast-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "evaluate_and_source"
+                        },
+                        {
+                            "name": "threads",
+                            "value": "={{ JSON.stringify($json.threads || []) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "name": "Evaluate & Source Prospects",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                910,
+                200
+            ],
+            "id": "1613a421-4c96-4496-af92-f139c765aa42"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": ""
+                    },
+                    "conditions": [
+                        {
+                            "id": "has-prospects",
+                            "leftValue": "={{ $json.prospects_added || 0 }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "gt"
+                            }
+                        }
+                    ]
+                }
+            },
+            "name": "New Prospects?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                1130,
+                200
+            ],
+            "id": "2729e24e-d769-4b66-a1d8-d2057f09e28a"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "send_alert"
+                        },
+                        {
+                            "name": "signals",
+                            "value": "={{ JSON.stringify({ type: 'narrowcast', prospects_added: $json.prospects_added, threads_evaluated: $json.threads_evaluated }) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "name": "Alert: New Prospects",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1350,
+                100
+            ],
+            "id": "ad25f76b-7b7b-4245-b34c-ca6a8393a75e"
+        },
+        {
+            "parameters": {},
+            "name": "No New Prospects",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                1350,
+                300
+            ],
+            "id": "8e5b519b-1d5c-4466-ad80-f6cab9223b1d"
+        },
+        {
+            "parameters": {},
+            "name": "No Threads",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                910,
+                400
+            ],
+            "id": "4d83cd96-080d-4af0-9760-42dfab0de27b"
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Scan Communities",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Scan Communities": {
+            "main": [
+                [
+                    {
+                        "node": "Threads Found?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Threads Found?": {
+            "main": [
+                [
+                    {
+                        "node": "Evaluate & Source Prospects",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "No Threads",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Evaluate & Source Prospects": {
+            "main": [
+                [
+                    {
+                        "node": "New Prospects?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "New Prospects?": {
+            "main": [
+                [
+                    {
+                        "node": "Alert: New Prospects",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "No New Prospects",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "df83da7c-fa9b-4509-ac24-4e8594b31a66",
+    "activeVersionId": null,
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "shared": [
+        {
+            "updatedAt": "2026-03-06T17:13:25.762Z",
+            "createdAt": "2026-03-06T17:13:25.762Z",
+            "role": "workflow:owner",
+            "workflowId": "Zfu2QuhG8zrb0sx5",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": null
+}

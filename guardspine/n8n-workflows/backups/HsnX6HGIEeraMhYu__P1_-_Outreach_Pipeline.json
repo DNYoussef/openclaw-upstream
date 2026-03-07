@@ -1,0 +1,496 @@
+{
+    "updatedAt": "2026-03-06T17:13:22.030Z",
+    "createdAt": "2026-03-06T17:13:22.030Z",
+    "id": "HsnX6HGIEeraMhYu",
+    "name": "P1 - Outreach Pipeline",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 6
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                300
+            ],
+            "id": "e354da73-a9d5-41dc-a588-fcd124014056"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "check_response_signals"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "name": "Check Response Signals",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                470,
+                100
+            ],
+            "id": "426f8862-c9f3-4521-a459-6052c608405f"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "check_landing_signups"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "name": "Check Landing Signups",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                470,
+                300
+            ],
+            "id": "83905290-2e73-49da-b14d-01b06f5a622a"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "check_followups_due"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "name": "Check Follow-ups Due",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                470,
+                500
+            ],
+            "id": "348c57f6-1c15-4f96-9394-ed27d9d9a428"
+        },
+        {
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineAll",
+                "options": {}
+            },
+            "name": "Merge Signals + Signups",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                690,
+                200
+            ],
+            "id": "80d8bcd5-e212-44d6-a29a-3f4692e85616"
+        },
+        {
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineAll",
+                "options": {}
+            },
+            "name": "Merge All Sources",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                910,
+                350
+            ],
+            "id": "0af3a6b5-f4a5-4bf0-b109-e1e4cc29ae8f"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": ""
+                    },
+                    "conditions": [
+                        {
+                            "id": "has-green-or-yellow",
+                            "leftValue": "={{ ($json.green_count || 0) + ($json.yellow_count || 0) + ($json.demo_count || 0) }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "gt"
+                            }
+                        }
+                    ]
+                }
+            },
+            "name": "Revenue Signals?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                1130,
+                250
+            ],
+            "id": "51955067-0e44-403f-afd6-e0a228d11d16"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "send_alert"
+                        },
+                        {
+                            "name": "signals",
+                            "value": "={{ JSON.stringify($json) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "name": "Alert: Revenue Signal",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1350,
+                150
+            ],
+            "id": "0ba9a018-6ced-4b15-a8ce-c5d5c0fb475c"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": ""
+                    },
+                    "conditions": [
+                        {
+                            "id": "has-followups",
+                            "leftValue": "={{ $json.followups_due_count || 0 }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "gt"
+                            }
+                        }
+                    ]
+                }
+            },
+            "name": "Follow-ups Due?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                1130,
+                450
+            ],
+            "id": "f5d70973-ad2d-4439-81ac-7f155cfd422f"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "draft_followups"
+                        },
+                        {
+                            "name": "prospects",
+                            "value": "={{ JSON.stringify($json.followups_due || []) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "name": "Draft Follow-ups",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1350,
+                350
+            ],
+            "id": "9ff38245-a9c9-42fd-a876-4a563eca92b9"
+        },
+        {
+            "parameters": {},
+            "name": "No Follow-ups",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                1350,
+                550
+            ],
+            "id": "f5b6dd99-9908-4e65-a0cc-8cb9822816d2"
+        },
+        {
+            "parameters": {},
+            "name": "Quiet Period",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                1560,
+                150
+            ],
+            "id": "2ffb1e74-4b73-441b-ad52-c4937c8f549b"
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Check Response Signals",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check Landing Signups",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check Follow-ups Due",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Response Signals": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Signals + Signups",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Landing Signups": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Signals + Signups",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge Signals + Signups": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All Sources",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Follow-ups Due": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All Sources",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge All Sources": {
+            "main": [
+                [
+                    {
+                        "node": "Revenue Signals?",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Follow-ups Due?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Revenue Signals?": {
+            "main": [
+                [
+                    {
+                        "node": "Alert: Revenue Signal",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Quiet Period",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Follow-ups Due?": {
+            "main": [
+                [
+                    {
+                        "node": "Draft Follow-ups",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "No Follow-ups",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "56d62d04-f942-489d-993f-6c3b39594bbc",
+    "activeVersionId": null,
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "shared": [
+        {
+            "updatedAt": "2026-03-06T17:13:22.032Z",
+            "createdAt": "2026-03-06T17:13:22.032Z",
+            "role": "workflow:owner",
+            "workflowId": "HsnX6HGIEeraMhYu",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": null
+}
