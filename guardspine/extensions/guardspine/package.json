@@ -1,8 +1,27 @@
 {
-  "name": "guardspine",
+  "name": "guardspine-openclaw",
   "version": "1.0.0",
-  "description": "GuardSpine governance layer for OpenClaw - deny-by-default tool gating with L0-L4 risk tiers",
+  "description": "GuardSpine governance plugin for OpenClaw - deny-by-default tool gating with L0-L4 risk tiers, 3-model council, and evidence packs",
+  "keywords": [
+    "ai-safety",
+    "evidence-packs",
+    "governance",
+    "guardspine",
+    "multi-model-council",
+    "ollama",
+    "openclaw",
+    "risk-tiers"
+  ],
+  "license": "Apache-2.0",
+  "author": "David Youssef",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DNYoussef/guardspine-openclaw"
+  },
   "main": "plugin.js",
+  "scripts": {
+    "test": "node --test"
+  },
   "openclaw": {
     "extensions": [
       "plugin.js"
