@@ -4,26 +4,23 @@
     "bind": "lan",
     "port": 18789
   },
-  "plugins": {
-    "allow": ["guardspine", "n8n-pipeline"],
-    "entries": {
-      "guardspine": {
-        "enabled": true,
-        "config": {
-          "enforcement_mode": "enforce",
-          "council_endpoint": "http://localhost:11434",
-          "slack_approval_channel": "${GUARDSPINE_SLACK_CHANNEL}"
-        }
-      },
-      "n8n-pipeline": {
-        "enabled": true,
-        "config": {
-          "n8n_base_url": "http://n8n.railway.internal:5678",
-          "n8n_api_key": "${N8N_API_KEY}",
-          "landing_base_url": "${LANDING_BASE_URL}",
-          "landing_admin_key": "${LANDING_ADMIN_API_KEY}",
-          "outreach_db_path": "/app/.openclaw/data/outreach.db"
-        }
+  "extensions": {
+    "guardspine": {
+      "enabled": true,
+      "config": {
+        "enforcement_mode": "enforce",
+        "council_endpoint": "http://localhost:11434",
+        "slack_approval_channel": "${GUARDSPINE_SLACK_CHANNEL}"
+      }
+    },
+    "n8n-pipeline": {
+      "enabled": true,
+      "config": {
+        "n8n_base_url": "http://n8n.railway.internal:5678",
+        "n8n_api_key": "${N8N_API_KEY}",
+        "landing_base_url": "${LANDING_BASE_URL}",
+        "landing_admin_key": "${LANDING_ADMIN_API_KEY}",
+        "outreach_db_path": "/app/.openclaw/data/outreach.db"
       }
     }
   },
