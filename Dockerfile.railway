@@ -46,7 +46,7 @@ COPY guardspine/data/migration.sql /app/.openclaw/data/migration.sql
 
 # Non-root user for runtime security
 RUN groupadd -r openclaw && useradd -r -g openclaw -d /app -s /bin/bash openclaw && \
-    chown -R openclaw:openclaw /app/.openclaw
+    chown -R openclaw:openclaw /app/.openclaw/data
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
