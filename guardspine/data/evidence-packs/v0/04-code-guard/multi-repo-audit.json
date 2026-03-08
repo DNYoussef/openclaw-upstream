@@ -1,0 +1,995 @@
+{
+  "guardspine-kernel": {
+    "repo": "guardspine-kernel",
+    "timestamp": "2026-01-30T17:55:12.695887+00:00",
+    "files_scanned": [
+      "canonical.ts",
+      "errors.ts",
+      "index.ts",
+      "seal.ts",
+      "verify.ts"
+    ],
+    "file_count": 5,
+    "rubric_results": [
+      {
+        "rubric": "clarity",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "connascence",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "mece",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "nasa-safety",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "safety-violations",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "six-sigma",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "theater-detection",
+        "violations_found": 0,
+        "violations": []
+      }
+    ],
+    "total_violations": 0
+  },
+  "guardspine-backend": {
+    "repo": "guardspine-backend",
+    "timestamp": "2026-01-30T17:55:12.842482+00:00",
+    "files_scanned": [
+      "tier_config.py",
+      "kernel.py",
+      "tier_mapping.py",
+      "main.py",
+      "auth_schemas.py",
+      "connector_schemas.py",
+      "evidence_schemas.py",
+      "external_link_schemas.py",
+      "policy_schemas.py",
+      "schemas.py",
+      "alerts.py",
+      "approvals.py",
+      "artifacts.py",
+      "auth.py",
+      "beads.py",
+      "board_packets.py",
+      "bundles.py",
+      "compression.py",
+      "connectors.py",
+      "dashboard.py",
+      "diffs.py",
+      "events.py",
+      "governance.py",
+      "health.py",
+      "policies.py",
+      "search.py",
+      "slack.py",
+      "webhooks.py",
+      "alert_service.py",
+      "approval_service.py",
+      "artifact_service.py",
+      "auth_service.py",
+      "beads_service.py",
+      "board_packet_service.py",
+      "bundle_service.py",
+      "connector_service.py",
+      "dashboard_service.py",
+      "diff_service.py",
+      "export_service.py",
+      "governance_service.py",
+      "integration_processing.py",
+      "message_routing.py",
+      "nomotic_interrupt_service.py",
+      "policy_service.py",
+      "sarif_exporter.py",
+      "search_service.py",
+      "signing_service.py",
+      "slack_integration.py",
+      "__main__.py",
+      "audit.py",
+      "auditor_pack.py",
+      "context.py",
+      "reader.py",
+      "board_packet.py",
+      "classifier.py",
+      "cli.py",
+      "config.py",
+      "consistency.py",
+      "index.py",
+      "diff.py",
+      "notify.py",
+      "workflow.py",
+      "evidence.py",
+      "filelock.py",
+      "governance.py",
+      "anchors.py",
+      "events.py",
+      "evidence.py",
+      "hashing.py",
+      "storage.py",
+      "bundle.py",
+      "cli.py",
+      "diff.py",
+      "bundle.py",
+      "cli.py",
+      "diff.py",
+      "review.py",
+      "visual.py",
+      "bundle.py",
+      "cli.py",
+      "diff.py",
+      "review.py",
+      "visual.py",
+      "beads.py",
+      "github.py",
+      "logger.py",
+      "base.py",
+      "litellm_adapter.py",
+      "ollama_adapter.py",
+      "openrouter_adapter.py",
+      "pipeline.py",
+      "postcard.py",
+      "prompts.py",
+      "report.py",
+      "evaluator.py",
+      "loader.py",
+      "schema.py",
+      "artifacts.py",
+      "diff.py",
+      "evidence_integration.py",
+      "ingest.py",
+      "overlay.py",
+      "postcard.py",
+      "schemas.py"
+    ],
+    "file_count": 104,
+    "rubric_results": [
+      {
+        "rubric": "clarity",
+        "violations_found": 53,
+        "violations": [
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-006",
+            "severity": "high",
+            "line_number": 124,
+            "description": "Complex boolean expressions are hard to reason about: 'if not connector_service.delete_connector(connecto...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-009",
+            "severity": "low",
+            "line_number": 59,
+            "description": "Public functions should have docstrings: 'def list_connector_types():...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-009",
+            "severity": "low",
+            "line_number": 95,
+            "description": "Public functions should have docstrings: 'def create_connector(data: ConnectorCreate):...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-009",
+            "severity": "low",
+            "line_number": 106,
+            "description": "Public functions should have docstrings: 'def update_connector(connector_id: str, data: Conn...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-009",
+            "severity": "low",
+            "line_number": 115,
+            "description": "Public functions should have docstrings: 'def delete_connector(connector_id: str):...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-009",
+            "severity": "low",
+            "line_number": 132,
+            "description": "Public functions should have docstrings: 'def start_oauth_flow(connector_id: str):...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-009",
+            "severity": "low",
+            "line_number": 147,
+            "description": "Public functions should have docstrings: 'def complete_oauth_flow(connector_id: str, data: C...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-009",
+            "severity": "low",
+            "line_number": 165,
+            "description": "Public functions should have docstrings: 'def refresh_oauth_token(connector_id: str):...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-009",
+            "severity": "low",
+            "line_number": 180,
+            "description": "Public functions should have docstrings: 'def check_connector_health(connector_id: str):...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-009",
+            "severity": "low",
+            "line_number": 196,
+            "description": "Public functions should have docstrings: 'def check_all_connectors_health():...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "CLR-009",
+            "severity": "low",
+            "line_number": 204,
+            "description": "Public functions should have docstrings: 'def get_webhook_config(connector_id: str):...'"
+          },
+          {
+            "file": "webhooks.py",
+            "rule_id": "CLR-006",
+            "severity": "high",
+            "line_number": 101,
+            "description": "Complex boolean expressions are hard to reason about: 'elif connector_type in [ConnectorType.JIRA, Connec...'"
+          },
+          {
+            "file": "webhooks.py",
+            "rule_id": "CLR-006",
+            "severity": "high",
+            "line_number": 139,
+            "description": "Complex boolean expressions are hard to reason about: 'elif event.connector_type in [ConnectorType.MICROS...'"
+          },
+          {
+            "file": "approval_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 56,
+            "description": "Avoid deeply nested code blocks: 'if status and approval.status.value != status:...'"
+          },
+          {
+            "file": "approval_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 58,
+            "description": "Avoid deeply nested code blocks: 'if risk_tier and approval.risk_tier.value != risk_...'"
+          },
+          {
+            "file": "approval_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 79,
+            "description": "Avoid deeply nested code blocks: 'if data.get(\"id\") == approval_id:...'"
+          },
+          {
+            "file": "auth_service.py",
+            "rule_id": "CLR-005",
+            "severity": "high",
+            "line_number": 711,
+            "description": "Too many parameters indicate need for refactoring: 'def _log_auth_event(...'"
+          },
+          {
+            "file": "beads_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 92,
+            "description": "Avoid deeply nested code blocks: 'if blocked != is_blocked:...'"
+          },
+          {
+            "file": "beads_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 243,
+            "description": "Avoid deeply nested code blocks: 'if bead_id and data.get(\"bead_id\") != bead_id:...'"
+          },
+          {
+            "file": "beads_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 271,
+            "description": "Avoid deeply nested code blocks: 'if bead:...'"
+          },
+          {
+            "file": "connector_service.py",
+            "rule_id": "CLR-006",
+            "severity": "high",
+            "line_number": 249,
+            "description": "Complex boolean expressions are hard to reason about: 'if not connector or not connector.credentials:...'"
+          },
+          {
+            "file": "connector_service.py",
+            "rule_id": "CLR-006",
+            "severity": "high",
+            "line_number": 278,
+            "description": "Complex boolean expressions are hard to reason about: 'if not connector or not connector.webhook_secret:...'"
+          },
+          {
+            "file": "connector_service.py",
+            "rule_id": "CLR-006",
+            "severity": "high",
+            "line_number": 397,
+            "description": "Complex boolean expressions are hard to reason about: 'if data.connector_type in [ConnectorType.GITHUB, C...'"
+          },
+          {
+            "file": "export_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 185,
+            "description": "Avoid deeply nested code blocks: 'for e in bundle.audit_trail.entries...'"
+          },
+          {
+            "file": "export_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 256,
+            "description": "Avoid deeply nested code blocks: 'for item in bundle.items...'"
+          },
+          {
+            "file": "export_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 283,
+            "description": "Avoid deeply nested code blocks: 'for sig in bundle.signatures...'"
+          },
+          {
+            "file": "export_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 299,
+            "description": "Avoid deeply nested code blocks: 'for entry in bundle.audit_trail.entries...'"
+          },
+          {
+            "file": "export_service.py",
+            "rule_id": "CLR-003",
+            "severity": "high",
+            "line_number": 468,
+            "description": "Avoid deeply nested code blocks: 'for e in bundle.immutability_proof.hash_chain.entr...'"
+          },
+          {
+            "file": "export_service.py",
+            "rule_id": "CLR-006",
+            "severity": "high",
+            "line_number": 66,
+            "description": "Complex boolean expressions are hard to reason about: 'if request.format == ExportFormat.JSON:...'"
+          },
+          {
+            "file": "export_service.py",
+            "rule_id": "CLR-006",
+            "severity": "high",
+            "line_number": 68,
+            "description": "Complex boolean expressions are hard to reason about: 'elif request.format == ExportFormat.ZIP:...'"
+          }
+        ]
+      },
+      {
+        "rubric": "connascence",
+        "violations_found": 39,
+        "violations": [
+          {
+            "file": "events.py",
+            "rule_id": "CON-007",
+            "severity": "high",
+            "line_number": 123,
+            "description": "Connascence of Timing (CoT2) - Timing of execution matters: 'await asyncio.sleep(10)...'"
+          },
+          {
+            "file": "events.py",
+            "rule_id": "CON-008",
+            "severity": "high",
+            "line_number": 56,
+            "description": "Connascence of Value (CoV) - Values must be synchronized: '# Global event bus instance...'"
+          },
+          {
+            "file": "alert_service.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 184,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def create_alert(...'"
+          },
+          {
+            "file": "alert_service.py",
+            "rule_id": "CON-008",
+            "severity": "high",
+            "line_number": 541,
+            "description": "Connascence of Value (CoV) - Values must be synchronized: 'global _alert_service...'"
+          },
+          {
+            "file": "auth_service.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 711,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def _log_auth_event(...'"
+          },
+          {
+            "file": "board_packet_service.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 25,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def __init__(...'"
+          },
+          {
+            "file": "board_packet_service.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 61,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def __init__(...'"
+          },
+          {
+            "file": "board_packet_service.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 94,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def __init__(...'"
+          },
+          {
+            "file": "board_packet_service.py",
+            "rule_id": "CON-008",
+            "severity": "high",
+            "line_number": 688,
+            "description": "Connascence of Value (CoV) - Values must be synchronized: 'global _board_packet_service...'"
+          },
+          {
+            "file": "bundle_service.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 113,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def _create_demo_bundle(...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 17,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def __init__(...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 68,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def __init__(...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 257,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def detect_change(...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "CON-008",
+            "severity": "high",
+            "line_number": 565,
+            "description": "Connascence of Value (CoV) - Values must be synchronized: 'global _governance_service...'"
+          },
+          {
+            "file": "policy_service.py",
+            "rule_id": "CON-008",
+            "severity": "high",
+            "line_number": 5,
+            "description": "Connascence of Value (CoV) - Values must be synchronized: '1. Core Primitives (global triggers)...'"
+          },
+          {
+            "file": "policy_service.py",
+            "rule_id": "CON-008",
+            "severity": "high",
+            "line_number": 42,
+            "description": "Connascence of Value (CoV) - Values must be synchronized: '# These are global triggers that apply across all ...'"
+          },
+          {
+            "file": "search_service.py",
+            "rule_id": "CON-008",
+            "severity": "high",
+            "line_number": 587,
+            "description": "Connascence of Value (CoV) - Values must be synchronized: 'global _search_service...'"
+          },
+          {
+            "file": "slack_integration.py",
+            "rule_id": "CON-008",
+            "severity": "high",
+            "line_number": 557,
+            "description": "Connascence of Value (CoV) - Values must be synchronized: 'global _slack_service...'"
+          },
+          {
+            "file": "board_packet.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 225,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def add_artifact(...'"
+          },
+          {
+            "file": "board_packet.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 898,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def create_packet(...'"
+          },
+          {
+            "file": "board_packet.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 936,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def add_artifact(...'"
+          },
+          {
+            "file": "cli.py",
+            "rule_id": "CON-001",
+            "severity": "low",
+            "line_number": 43,
+            "description": "Connascence of Name (CoN) - Components must agree on names: 'from .guards.pdfguard.cli import app as pdfguard_a...'"
+          },
+          {
+            "file": "cli.py",
+            "rule_id": "CON-001",
+            "severity": "low",
+            "line_number": 44,
+            "description": "Connascence of Name (CoN) - Components must agree on names: 'from .guards.sheetguard.cli import app as sheetgua...'"
+          },
+          {
+            "file": "cli.py",
+            "rule_id": "CON-001",
+            "severity": "low",
+            "line_number": 45,
+            "description": "Connascence of Name (CoN) - Components must agree on names: 'from .guards.imageguard.cli import app as imagegua...'"
+          },
+          {
+            "file": "config.py",
+            "rule_id": "CON-001",
+            "severity": "low",
+            "line_number": 17,
+            "description": "Connascence of Name (CoN) - Components must agree on names: 'import tomllib as tomli  # Python 3.11+...'"
+          },
+          {
+            "file": "evidence.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 125,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def build_evidence_bundle(...'"
+          },
+          {
+            "file": "events.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 34,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def build_event(...'"
+          },
+          {
+            "file": "evidence.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 13,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def build_evidence_bundle(...'"
+          },
+          {
+            "file": "bundle.py",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 11,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'def write_image_bundle(...'"
+          },
+          {
+            "file": "diff.py",
+            "rule_id": "CON-001",
+            "severity": "low",
+            "line_number": 8,
+            "description": "Connascence of Name (CoN) - Components must agree on names: 'import numpy as np...'"
+          }
+        ]
+      },
+      {
+        "rubric": "mece",
+        "violations_found": 5,
+        "violations": [
+          {
+            "file": "alerts.py",
+            "rule_id": "MECE-004",
+            "severity": "low",
+            "line_number": 216,
+            "description": "Detect duplicate exception handling blocks: 'except ValueError:...'"
+          },
+          {
+            "file": "auth_service.py",
+            "rule_id": "MECE-010",
+            "severity": "medium",
+            "line_number": 319,
+            "description": "Detect dict.get() without default or missing KeyError handling: 'params[\"domain_hint\"] = config.domain_hint...'"
+          },
+          {
+            "file": "slack_integration.py",
+            "rule_id": "MECE-010",
+            "severity": "medium",
+            "line_number": 150,
+            "description": "Detect dict.get() without default or missing KeyError handling: '\"text\": f\"{config['emoji']} Approval Required: {ri...'"
+          },
+          {
+            "file": "slack_integration.py",
+            "rule_id": "MECE-010",
+            "severity": "medium",
+            "line_number": 160,
+            "description": "Detect dict.get() without default or missing KeyError handling: '\"text\": f\"*Risk Tier:* {risk_tier} | *Urgency:* {c...'"
+          },
+          {
+            "file": "openrouter_adapter.py",
+            "rule_id": "MECE-008",
+            "severity": "high",
+            "line_number": 98,
+            "description": "Detect potential null/None access without checks: 'error_msg = f\"OpenRouter: {error_data['error'].get...'"
+          }
+        ]
+      },
+      {
+        "rubric": "nasa-safety",
+        "violations_found": 6,
+        "violations": [
+          {
+            "file": "auth_service.py",
+            "rule_id": "NASA-004",
+            "severity": "medium",
+            "line_number": 711,
+            "description": "No function should be longer than 60 lines of code: 'def _log_auth_event(...'"
+          },
+          {
+            "file": "auth_service.py",
+            "rule_id": "NASA-005",
+            "severity": "medium",
+            "line_number": 711,
+            "description": "Use assertions at a density of at least 2 per function: 'def _log_auth_event(...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "NASA-004",
+            "severity": "medium",
+            "line_number": 17,
+            "description": "No function should be longer than 60 lines of code: 'def __init__(...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "NASA-004",
+            "severity": "medium",
+            "line_number": 68,
+            "description": "No function should be longer than 60 lines of code: 'def __init__(...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "NASA-005",
+            "severity": "medium",
+            "line_number": 17,
+            "description": "Use assertions at a density of at least 2 per function: 'def __init__(...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "NASA-005",
+            "severity": "medium",
+            "line_number": 68,
+            "description": "Use assertions at a density of at least 2 per function: 'def __init__(...'"
+          }
+        ]
+      },
+      {
+        "rubric": "safety-violations",
+        "violations_found": 14,
+        "violations": [
+          {
+            "file": "tier_config.py",
+            "rule_id": "SAF-008",
+            "severity": "high",
+            "line_number": 15,
+            "description": "Imports with deep module paths: 'from app.core.schemas.tier_mapping import (...'"
+          },
+          {
+            "file": "events.py",
+            "rule_id": "SAF-009",
+            "severity": "high",
+            "line_number": 56,
+            "description": "Dependencies injected via global state or singletons: '# Global event bus instance...'"
+          },
+          {
+            "file": "alert_service.py",
+            "rule_id": "SAF-009",
+            "severity": "high",
+            "line_number": 541,
+            "description": "Dependencies injected via global state or singletons: 'global _alert_service...'"
+          },
+          {
+            "file": "auth_service.py",
+            "rule_id": "SAF-004",
+            "severity": "high",
+            "line_number": 711,
+            "description": "Functions with too many parameters: 'def _log_auth_event(...'"
+          },
+          {
+            "file": "board_packet_service.py",
+            "rule_id": "SAF-009",
+            "severity": "high",
+            "line_number": 688,
+            "description": "Dependencies injected via global state or singletons: 'global _board_packet_service...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "SAF-004",
+            "severity": "high",
+            "line_number": 17,
+            "description": "Functions with too many parameters: 'def __init__(...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "SAF-004",
+            "severity": "high",
+            "line_number": 68,
+            "description": "Functions with too many parameters: 'def __init__(...'"
+          },
+          {
+            "file": "governance_service.py",
+            "rule_id": "SAF-009",
+            "severity": "high",
+            "line_number": 565,
+            "description": "Dependencies injected via global state or singletons: 'global _governance_service...'"
+          },
+          {
+            "file": "policy_service.py",
+            "rule_id": "SAF-009",
+            "severity": "high",
+            "line_number": 5,
+            "description": "Dependencies injected via global state or singletons: '1. Core Primitives (global triggers)...'"
+          },
+          {
+            "file": "policy_service.py",
+            "rule_id": "SAF-009",
+            "severity": "high",
+            "line_number": 42,
+            "description": "Dependencies injected via global state or singletons: '# These are global triggers that apply across all ...'"
+          },
+          {
+            "file": "search_service.py",
+            "rule_id": "SAF-009",
+            "severity": "high",
+            "line_number": 587,
+            "description": "Dependencies injected via global state or singletons: 'global _search_service...'"
+          },
+          {
+            "file": "slack_integration.py",
+            "rule_id": "SAF-009",
+            "severity": "high",
+            "line_number": 557,
+            "description": "Dependencies injected via global state or singletons: 'global _slack_service...'"
+          },
+          {
+            "file": "diff.py",
+            "rule_id": "SAF-018",
+            "severity": "high",
+            "line_number": 49,
+            "description": "Shared mutable state without synchronization: 'shared_sheets = sorted(sheet_names_original & shee...'"
+          },
+          {
+            "file": "postcard.py",
+            "rule_id": "SAF-018",
+            "severity": "high",
+            "line_number": 573,
+            "description": "Shared mutable state without synchronization: 'shared_sheets=diff_result.get(\"shared_sheets\", [])...'"
+          }
+        ]
+      },
+      {
+        "rubric": "six-sigma",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "theater-detection",
+        "violations_found": 5,
+        "violations": [
+          {
+            "file": "policy_schemas.py",
+            "rule_id": "THR-009",
+            "severity": "medium",
+            "line_number": 50,
+            "description": "Compliance activities that meet letter but not spirit: 'SAAS = \"saas\"  # SOC2-ish...'"
+          },
+          {
+            "file": "connectors.py",
+            "rule_id": "THR-002",
+            "severity": "high",
+            "line_number": 284,
+            "description": "Tests that run code but don't assert outcomes: 'def test_connector(connector_id: str):...'"
+          },
+          {
+            "file": "webhooks.py",
+            "rule_id": "THR-002",
+            "severity": "high",
+            "line_number": 473,
+            "description": "Tests that run code but don't assert outcomes: 'async def test_webhook(connector_id: str, request:...'"
+          },
+          {
+            "file": "diff.py",
+            "rule_id": "THR-004",
+            "severity": "high",
+            "line_number": 10,
+            "description": "Artificial coverage inflation without meaningful tests: 'except ImportError:  # pragma: no cover - handled ...'"
+          },
+          {
+            "file": "diff.py",
+            "rule_id": "THR-004",
+            "severity": "high",
+            "line_number": 12,
+            "description": "Artificial coverage inflation without meaningful tests: 'except ImportError:  # pragma: no cover - handled ...'"
+          }
+        ]
+      }
+    ],
+    "total_violations": 122
+  },
+  "guardspine-local-council": {
+    "repo": "guardspine-local-council",
+    "timestamp": "2026-01-30T17:55:21.617973+00:00",
+    "files_scanned": [
+      "aggregator.py",
+      "council.py",
+      "ollama.py",
+      "types.py"
+    ],
+    "file_count": 4,
+    "rubric_results": [
+      {
+        "rubric": "clarity",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "connascence",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "mece",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "nasa-safety",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "safety-violations",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "six-sigma",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "theater-detection",
+        "violations_found": 0,
+        "violations": []
+      }
+    ],
+    "total_violations": 0
+  },
+  "guardspine-adapter-webhook": {
+    "repo": "guardspine-adapter-webhook",
+    "timestamp": "2026-01-30T17:55:21.702076+00:00",
+    "files_scanned": [
+      "bundle-emitter.ts",
+      "index.ts",
+      "generic.ts",
+      "github.ts",
+      "gitlab.ts",
+      "types.ts",
+      "webhook-handler.ts"
+    ],
+    "file_count": 7,
+    "rubric_results": [
+      {
+        "rubric": "clarity",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "connascence",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "mece",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "nasa-safety",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "safety-violations",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "six-sigma",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "theater-detection",
+        "violations_found": 0,
+        "violations": []
+      }
+    ],
+    "total_violations": 0
+  },
+  "n8n-nodes-guardspine": {
+    "repo": "n8n-nodes-guardspine",
+    "timestamp": "2026-01-30T17:55:21.831879+00:00",
+    "files_scanned": [
+      "ApprovalWait.node.ts",
+      "BeadsCreate.node.ts",
+      "BeadsUpdate.node.ts",
+      "CodeGuard.node.ts",
+      "CouncilVote.node.ts",
+      "EvidenceSeal.node.ts",
+      "GuardGate.node.ts",
+      "GuardSpineCompress.node.ts",
+      "GuardSpineImageGuard.node.ts",
+      "GuardSpinePDFGuard.node.ts",
+      "GuardSpineSheetGuard.node.ts",
+      "types.ts"
+    ],
+    "file_count": 12,
+    "rubric_results": [
+      {
+        "rubric": "clarity",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "connascence",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "mece",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "nasa-safety",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "safety-violations",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "six-sigma",
+        "violations_found": 0,
+        "violations": []
+      },
+      {
+        "rubric": "theater-detection",
+        "violations_found": 0,
+        "violations": []
+      }
+    ],
+    "total_violations": 0
+  }
+}

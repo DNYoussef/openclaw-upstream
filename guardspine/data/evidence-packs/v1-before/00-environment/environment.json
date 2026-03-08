@@ -1,0 +1,16 @@
+﻿{
+    "timestamp":  "2026-01-30T10:26:20.4529744-05:00",
+    "runtimes":  {
+                     "node":  "v20.17.0",
+                     "npm":  "11.4.2",
+                     "python":  "Python 3.12.5"
+                 },
+    "repos":  {
+                  "GuardSpine":  "b8200d0 chore: Update codeguard-action submodule",
+                  "guardspine-spec":  "2959c6e docs: Update README with v1.0.0 stable release",
+                  "n8n-nodes-guardspine":  "e8e2f73 feat: add all n8n nodes for GuardSpine integration",
+                  "guardspine-adapter-webhook":  "cbdb3f0 Initial commit: guardspine-adapter-webhook v0.1.0 - webhook providers for evidence bundle delivery",
+                  "guardspine-kernel":  "a887bb9 Initial commit: guardspine-kernel v0.1.0 - offline evidence bundle verification with timing-safe comparisons",
+                  "guardspine-local-council":  "c5ccdd9 Initial commit: guardspine-local-council v0.1.0 - local LLM council for offline artifact review via Ollama"
+              }
+}

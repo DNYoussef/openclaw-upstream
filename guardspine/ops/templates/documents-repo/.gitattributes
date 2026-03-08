@@ -1,0 +1,9 @@
+# Git LFS tracking for binary document files
+pdfs/**/*.pdf filter=lfs diff=lfs merge=lfs -text
+sheets/**/*.xlsx filter=lfs diff=lfs merge=lfs -text
+sheets/**/*.xlsm filter=lfs diff=lfs merge=lfs -text
+images/**/*.png filter=lfs diff=lfs merge=lfs -text
+images/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+images/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+images/**/*.bmp filter=lfs diff=lfs merge=lfs -text
+images/**/*.tiff filter=lfs diff=lfs merge=lfs -text

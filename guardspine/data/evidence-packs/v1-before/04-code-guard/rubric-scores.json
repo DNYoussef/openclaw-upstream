@@ -1,0 +1,794 @@
+{
+  "timestamp": "2026-01-30T15:26:49.985994+00:00",
+  "target": "D:\\Projects\\guardspine-kernel\\src",
+  "rubrics_dir": "D:\\Projects\\GuardSpine\\rubrics",
+  "rubric_results": [
+    {
+      "rubric": "clarity",
+      "rules_count": 15,
+      "violations_found": 10,
+      "violations": [
+        {
+          "file": "canonical.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 62,
+          "description": "Variable and function names should be self-documenting: 'const s = JSON.stringify(n);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 44,
+          "description": "Variable and function names should be self-documenting: 'function serializeNumber(n: number): string {...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 66,
+          "description": "Variable and function names should be self-documenting: 'function serializeString(s: string): string {...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 47,
+          "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < items.length; i++) {...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 49,
+          "description": "Variable and function names should be self-documenting: 'const previousHash = i === 0 ? \"genesis\" : chain[i...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 45,
+          "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < chain.length; i++) {...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 58,
+          "description": "Variable and function names should be self-documenting: 'const expectedPrev = i === 0 ? \"genesis\" : chain[i...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 178,
+          "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < bundle.items.length && i < cha...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 14,
+          "description": "Variable and function names should be self-documenting: 'function safeEqual(a: string, b: string): boolean ...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 14,
+          "description": "Variable and function names should be self-documenting: 'function safeEqual(a: string, b: string): boolean ...'"
+        }
+      ]
+    },
+    {
+      "rubric": "connascence",
+      "error": "Invalid YAML in D:\\Projects\\GuardSpine\\rubrics\\connascence.yaml: while scanning a double-quoted scalar\n  in \"D:\\Projects\\GuardSpine\\rubrics\\connascence.yaml\", line 103, column 9\nfound unknown escape character '.'\n  in \"D:\\Projects\\GuardSpine\\rubrics\\connascence.yaml\", line 103, column 11"
+    },
+    {
+      "rubric": "hipaa-safeguards",
+      "rules_count": 13,
+      "violations_found": 125,
+      "violations": [
+        {
+          "file": "canonical.ts",
+          "rule_id": "HIPAA-308.a.1",
+          "severity": "critical",
+          "line_number": 5,
+          "description": "Risk analysis and management: '* - Object keys sorted lexicographically by Unicod...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "HIPAA-312.b",
+          "severity": "critical",
+          "line_number": 7,
+          "description": "Hardware, software, and procedural mechanisms: '* - Numbers: no leading zeros, no trailing zeros i...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "HIPAA-312.d",
+          "severity": "critical",
+          "line_number": 6,
+          "description": "Verify person or entity identity: '* - No whitespace between tokens...'"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 6,
+          "description": "ePHI integrity mechanisms: 'HASH_CHAIN_BROKEN = \"HASH_CHAIN_BROKEN\",...'"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 6,
+          "description": "ePHI integrity mechanisms: 'HASH_CHAIN_BROKEN = \"HASH_CHAIN_BROKEN\",...'"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 7,
+          "description": "ePHI integrity mechanisms: 'ROOT_HASH_MISMATCH = \"ROOT_HASH_MISMATCH\",...'"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 7,
+          "description": "ePHI integrity mechanisms: 'ROOT_HASH_MISMATCH = \"ROOT_HASH_MISMATCH\",...'"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 8,
+          "description": "ePHI integrity mechanisms: 'CONTENT_HASH_MISMATCH = \"CONTENT_HASH_MISMATCH\",...'"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 8,
+          "description": "ePHI integrity mechanisms: 'CONTENT_HASH_MISMATCH = \"CONTENT_HASH_MISMATCH\",...'"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 9,
+          "description": "ePHI integrity mechanisms: 'SIGNATURE_INVALID = \"SIGNATURE_INVALID\",...'"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 9,
+          "description": "ePHI integrity mechanisms: 'SIGNATURE_INVALID = \"SIGNATURE_INVALID\",...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 11,
+          "description": "ePHI integrity mechanisms: 'computeContentHash,...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 12,
+          "description": "ePHI integrity mechanisms: 'buildHashChain,...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 13,
+          "description": "ePHI integrity mechanisms: 'computeRootHash,...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 20,
+          "description": "ePHI integrity mechanisms: 'verifyHashChain,...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 21,
+          "description": "ePHI integrity mechanisms: 'verifyRootHash,...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 22,
+          "description": "ePHI integrity mechanisms: 'verifyContentHashes,...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 35,
+          "description": "ePHI integrity mechanisms: 'HashChainLink,...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 36,
+          "description": "ePHI integrity mechanisms: 'HashChain,...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "HIPAA-312.c.1",
+          "severity": "critical",
+          "line_number": 2,
+          "description": "ePHI integrity mechanisms: '* Bundle sealing and hash-chain construction for @...'"
+        }
+      ]
+    },
+    {
+      "rubric": "mece",
+      "rules_count": 12,
+      "violations_found": 51,
+      "violations": [
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 33,
+          "description": "Detect potential null/None access without checks: 'if (Array.isArray(value)) {...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 52,
+          "description": "Detect potential null/None access without checks: 'if (Number.isInteger(n) && Math.abs(n) < Number.MA...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 52,
+          "description": "Detect potential null/None access without checks: 'if (Number.isInteger(n) && Math.abs(n) < Number.MA...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 54,
+          "description": "Detect potential null/None access without checks: 'if (Math.abs(n) < 1e20) {...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 55,
+          "description": "Detect potential null/None access without checks: 'return n.toString();...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 62,
+          "description": "Detect potential null/None access without checks: 'const s = JSON.stringify(n);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 69,
+          "description": "Detect potential null/None access without checks: 'return JSON.stringify(s);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 73,
+          "description": "Detect potential null/None access without checks: 'const items = arr.map((item) => serializeValue(ite...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 74,
+          "description": "Detect potential null/None access without checks: 'return \"[\" + items.join(\",\") + \"]\";...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 78,
+          "description": "Detect potential null/None access without checks: 'const keys = Object.keys(obj).sort();...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 78,
+          "description": "Detect potential null/None access without checks: 'const keys = Object.keys(obj).sort();...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 87,
+          "description": "Detect potential null/None access without checks: 'pairs.push(serializeString(key) + \":\" + serializeV...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 90,
+          "description": "Detect potential null/None access without checks: 'return \"{\" + pairs.join(\",\") + \"}\";...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "MECE-010",
+          "severity": "medium",
+          "line_number": 82,
+          "description": "Detect dict.get() without default or missing KeyError handling: 'const val = obj[key];...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 22,
+          "description": "Detect potential null/None access without checks: 'const hash = createHash(\"sha256\").update(canonical...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 22,
+          "description": "Detect potential null/None access without checks: 'const hash = createHash(\"sha256\").update(canonical...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 30,
+          "description": "Detect potential null/None access without checks: 'const hash = createHash(\"sha256\").update(data, \"ut...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 30,
+          "description": "Detect potential null/None access without checks: 'const hash = createHash(\"sha256\").update(data, \"ut...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 53,
+          "description": "Detect potential null/None access without checks: 'chain.push({...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "MECE-008",
+          "severity": "high",
+          "line_number": 69,
+          "description": "Detect potential null/None access without checks: 'const concat = chain.map((link) => link.chain_hash...'"
+        }
+      ]
+    },
+    {
+      "rubric": "nasa-safety",
+      "rules_count": 10,
+      "violations_found": 14,
+      "violations": [
+        {
+          "file": "canonical.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 14,
+          "description": "Check return values of all non-void functions: 'return serializeValue(value);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 27,
+          "description": "Check return values of all non-void functions: 'return serializeNumber(value);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 30,
+          "description": "Check return values of all non-void functions: 'return serializeString(value);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 34,
+          "description": "Check return values of all non-void functions: 'return serializeArray(value);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 36,
+          "description": "Check return values of all non-void functions: 'return serializeObject(value as Record<string, unk...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 21,
+          "description": "Check return values of all non-void functions: 'const canonical = canonicalJson(content);...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 48,
+          "description": "Check return values of all non-void functions: 'const contentHash = computeContentHash(items[i].co...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 94,
+          "description": "Check return values of all non-void functions: 'const chain = buildHashChain(chainInputs);...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 95,
+          "description": "Check return values of all non-void functions: 'const rootHash = computeRootHash(chain);...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 20,
+          "description": "Check return values of all non-void functions: 'return timingSafeEqual(bufA, bufB);...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 117,
+          "description": "Check return values of all non-void functions: 'const expected = contentHash(item.content);...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 165,
+          "description": "Check return values of all non-void functions: 'const contentResult = verifyContentHashes(bundle.i...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 169,
+          "description": "Check return values of all non-void functions: 'const chainResult = verifyHashChain(bundle.immutab...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 173,
+          "description": "Check return values of all non-void functions: 'const rootResult = verifyRootHash(bundle.immutabil...'"
+        }
+      ]
+    },
+    {
+      "rubric": "nomotic",
+      "rules_count": 15,
+      "violations_found": 5,
+      "violations": [
+        {
+          "file": "verify.ts",
+          "rule_id": "NOM-TRACE-001",
+          "severity": "high",
+          "line_number": 42,
+          "description": "All decisions must be traceable with logged rationale: 'export function verifyHashChain(chain: HashChain):...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NOM-TRACE-001",
+          "severity": "high",
+          "line_number": 93,
+          "description": "All decisions must be traceable with logged rationale: 'export function verifyRootHash(proof: Immutability...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NOM-TRACE-001",
+          "severity": "high",
+          "line_number": 113,
+          "description": "All decisions must be traceable with logged rationale: 'export function verifyContentHashes(items: Evidenc...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NOM-TRACE-001",
+          "severity": "high",
+          "line_number": 135,
+          "description": "All decisions must be traceable with logged rationale: '* Full bundle verification: required fields, conte...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NOM-TRACE-001",
+          "severity": "high",
+          "line_number": 137,
+          "description": "All decisions must be traceable with logged rationale: 'export function verifyBundle(bundle: EvidenceBundl...'"
+        }
+      ]
+    },
+    {
+      "rubric": "pci-dss-requirements",
+      "rules_count": 16,
+      "violations_found": 4,
+      "violations": [
+        {
+          "file": "canonical.ts",
+          "rule_id": "PCI-6.5.1",
+          "severity": "critical",
+          "line_number": 14,
+          "description": "Prevent injection attacks: 'return serializeValue(value);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "PCI-6.5.1",
+          "severity": "critical",
+          "line_number": 17,
+          "description": "Prevent injection attacks: 'function serializeValue(value: unknown): string {...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "PCI-6.5.1",
+          "severity": "critical",
+          "line_number": 73,
+          "description": "Prevent injection attacks: 'const items = arr.map((item) => serializeValue(ite...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "PCI-6.5.1",
+          "severity": "critical",
+          "line_number": 87,
+          "description": "Prevent injection attacks: 'pairs.push(serializeString(key) + \":\" + serializeV...'"
+        }
+      ]
+    },
+    {
+      "rubric": "safety-violations",
+      "rules_count": 18,
+      "violations_found": 8,
+      "violations": [
+        {
+          "file": "seal.ts",
+          "rule_id": "SAF-003",
+          "severity": "high",
+          "line_number": 6,
+          "description": "Modules that import too many dependencies: 'import { createHash } from \"node:crypto\";...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "SAF-003",
+          "severity": "high",
+          "line_number": 7,
+          "description": "Modules that import too many dependencies: 'import { canonicalJson } from \"./canonical.js\";...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "SAF-003",
+          "severity": "high",
+          "line_number": 8,
+          "description": "Modules that import too many dependencies: 'import type {...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "SAF-003",
+          "severity": "high",
+          "line_number": 6,
+          "description": "Modules that import too many dependencies: 'import { createHash, timingSafeEqual } from \"node:...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "SAF-003",
+          "severity": "high",
+          "line_number": 7,
+          "description": "Modules that import too many dependencies: 'import { canonicalJson } from \"./canonical.js\";...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "SAF-003",
+          "severity": "high",
+          "line_number": 8,
+          "description": "Modules that import too many dependencies: 'import { ErrorCode } from \"./errors.js\";...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "SAF-003",
+          "severity": "high",
+          "line_number": 22,
+          "description": "Modules that import too many dependencies: 'import type { VerificationError, VerificationResul...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "SAF-003",
+          "severity": "high",
+          "line_number": 23,
+          "description": "Modules that import too many dependencies: 'import type {...'"
+        }
+      ]
+    },
+    {
+      "rubric": "six-sigma",
+      "rules_count": 15,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "soc2-controls",
+      "rules_count": 10,
+      "violations_found": 36,
+      "violations": [
+        {
+          "file": "canonical.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 13,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export function canonicalJson(value: unknown)"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 49,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: '// RFC 8785: use the shortest representation "
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 51,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: '// For floats, use toString which gives short"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 60,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: '// round-tripping representation. RFC 8785 de"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 61,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: '// serialization rules (ECMAScript NumberToSt"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 83,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: '// Skip undefined values (like JSON.stringify"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 5,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export enum ErrorCode {...'"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 14,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export interface VerificationError {...'"
+        },
+        {
+          "file": "errors.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 20,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export interface VerificationResult {...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 7,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export { canonicalJson } from \"./canonical.js"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 10,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export {...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 16,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export type { ChainInput, SealResult } from \""
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 19,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export {...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 27,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export { ErrorCode } from \"./errors.js\";...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 28,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export type { VerificationError, Verification"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 31,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export type {...'"
+        },
+        {
+          "file": "index.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 39,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export type {...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 6,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'import { createHash } from \"node:crypto\";...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 7,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'import { canonicalJson } from \"./canonical.js"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "SOC2-CC6.1",
+          "severity": "high",
+          "line_number": 8,
+          "description": "Changes to infrastructure, data, software, and procedures are authorized: 'import type {...'"
+        }
+      ]
+    },
+    {
+      "rubric": "theater-detection",
+      "rules_count": 15,
+      "violations_found": 0,
+      "violations": []
+    }
+  ],
+  "total_violations": 253,
+  "files_scanned": [
+    "canonical.ts",
+    "errors.ts",
+    "index.ts",
+    "seal.ts",
+    "verify.ts"
+  ]
+}

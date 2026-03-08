@@ -1,0 +1,81 @@
+{
+  "timestamp": "2026-01-30T16:54:54.161923+00:00",
+  "target": "D:\\Projects\\guardspine-kernel\\src",
+  "rubrics_dir": "D:\\Projects\\GuardSpine\\rubrics",
+  "rubric_results": [
+    {
+      "rubric": "clarity",
+      "rules_count": 15,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "connascence",
+      "rules_count": 9,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "hipaa-safeguards",
+      "rules_count": 13,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "mece",
+      "rules_count": 12,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "nasa-safety",
+      "rules_count": 10,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "nomotic",
+      "rules_count": 15,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "pci-dss-requirements",
+      "rules_count": 16,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "safety-violations",
+      "rules_count": 18,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "six-sigma",
+      "rules_count": 15,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "soc2-controls",
+      "rules_count": 10,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "theater-detection",
+      "rules_count": 15,
+      "violations_found": 0,
+      "violations": []
+    }
+  ],
+  "total_violations": 0,
+  "files_scanned": [
+    "canonical.ts",
+    "errors.ts",
+    "index.ts",
+    "seal.ts",
+    "verify.ts"
+  ]
+}

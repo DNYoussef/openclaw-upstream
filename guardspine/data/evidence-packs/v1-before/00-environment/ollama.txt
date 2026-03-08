@@ -1,0 +1,3 @@
+﻿NAME                          ID              SIZE      MODIFIED     
+mistral:7b-instruct-q4_K_M    1a85656b534f    4.4 GB    4 months ago    
+

@@ -1,0 +1,52 @@
+{
+  "title": "GuardSpine Dogfood Pack - Self-Audit Board Packet",
+  "generated": "2026-01-30T16:54:54.161923+00:00",
+  "target": "D:\\Projects\\guardspine-kernel\\src",
+  "department_summary": {
+    "clarity": {
+      "status": "pass",
+      "violations": 0
+    },
+    "connascence": {
+      "status": "pass",
+      "violations": 0
+    },
+    "hipaa-safeguards": {
+      "status": "pass",
+      "violations": 0
+    },
+    "mece": {
+      "status": "pass",
+      "violations": 0
+    },
+    "nasa-safety": {
+      "status": "pass",
+      "violations": 0
+    },
+    "nomotic": {
+      "status": "pass",
+      "violations": 0
+    },
+    "pci-dss-requirements": {
+      "status": "pass",
+      "violations": 0
+    },
+    "safety-violations": {
+      "status": "pass",
+      "violations": 0
+    },
+    "six-sigma": {
+      "status": "pass",
+      "violations": 0
+    },
+    "soc2-controls": {
+      "status": "pass",
+      "violations": 0
+    },
+    "theater-detection": {
+      "status": "pass",
+      "violations": 0
+    }
+  },
+  "findings": []
+}

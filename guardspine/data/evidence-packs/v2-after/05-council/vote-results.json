@@ -1,0 +1,59 @@
+﻿python.exe : Council models: ['qwen3:8b', 'falcon3:7b', 'mistral:7b-instruct-q4_K_M']
+At D:\Projects\GuardSpine\dogfood-pack.ps1:111 char:5
++     & D:\Projects\GuardSpine\.venv\Scripts\python.exe D:\Projects\gua ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Council models:...struct-q4_K_M']:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+{
+  "request_id": "408d34a12cab",
+  "consensus_decision": "approve",
+  "consensus_confidence": 1.0,
+  "quorum_met": true,
+  "votes": [
+    {
+      "reviewer_id": "ollama-qwen3:8b-b59cc3",
+      "decision": "approve",
+      "confidence": 0.95,
+      "rationale": "The code implements cryptographic evidence bundle verification with robust error handling and security measures. It uses constant-time comparisons to prevent timing attacks, validates required fields, and checks hash chains and root hashes. The design is modular and provides detailed error information for auditability.",
+      "findings": [
+        {
+          "severity": "medium",
+          "category": "security",
+          "description": "The serializeNumber function is cut off in canonical.ts, which may lead to incomplete or incorrect canonical JSON serialization."
+        },
+        {
+          "severity": "low",
+          "category": "code_quality",
+          "description": "The canonicalJson function could benefit from more detailed documentation about its handling of special cases like dates or NaN."
+        }
+      ]
+    },
+    {
+      "reviewer_id": "ollama-falcon3:7b-fb51e0",
+      "decision": "approve",
+      "confidence": 0.95,
+      "rationale": "The code demonstrates robust cryptographic verification with clear error handling and validation logic. It adheres to best practices in constant-time comparisons and uses cryptographic hash functions appropriately. The modular structure with distinct verification functions for different aspects of the bundle is well-designed for maintainability and readability.",
+      "findings": [
+        {
+          "severity": "low",
+          "category": "Code Style",
+          "description": "Function names and variable names could be more descriptive, enhancing code readability."
+        },
+        {
+          "severity": "low",
+          "category": "Code Style",
+          "description": "Consistent use of arrow functions could improve consistency across the codebase."
+        }
+      ]
+    },
+    {
+      "reviewer_id": "ollama-mistral:7b-instruct-q4_K_M-b86ccd",
+      "decision": "approve",
+      "confidence": 0.95,
+      "rationale": "All sub-verifications (content hashes, hash chain, root hash, cross-check) passed successfully. No critical errors found.",
+      "findings": []
+    }
+  ],
+  "dissenting_count": 0
+}

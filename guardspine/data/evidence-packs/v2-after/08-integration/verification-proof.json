@@ -1,0 +1,14 @@
+{
+  "positive_verification": {
+    "test": "positive",
+    "valid": true,
+    "errors": 0
+  },
+  "negative_verification": {
+    "test": "negative_tampered",
+    "valid": false,
+    "errors": 1,
+    "firstErrorCode": "CONTENT_HASH_MISMATCH"
+  },
+  "proof": "If positive=true AND negative=false, cryptographic integrity is proven"
+}

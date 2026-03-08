@@ -1,0 +1,664 @@
+Council models: ['qwen2.5-coder:7b', 'qwen3:8b', 'falcon3:7b']
+Source files: ['canonical.ts', 'errors.ts', 'index.ts', 'seal.ts', 'verify.ts']
+Running deterministic rubric scan...
+  clarity: 2 violations
+  connascence: 0 violations
+  hipaa-safeguards: 0 violations
+  mece: 0 violations
+  nasa-safety: 0 violations
+  nomotic: 30 violations
+  pci-dss-requirements: 0 violations
+  safety-violations: 0 violations
+  six-sigma: 0 violations
+  soc2-controls: 0 violations
+  theater-detection: 0 violations
+
+Starting rubric-aware audit: 3 models x 11 rubrics = 33 reviews
+{
+  "request_id": "61abc5918c90",
+  "overall_decision": "reject",
+  "total_votes": 33,
+  "summary": "FAIL: clarity, nomotic",
+  "rubric_verdicts": [
+    {
+      "rubric": "clarity",
+      "decision": "fail",
+      "critical_findings_count": 0,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "reject",
+          "confidence": 0.95,
+          "rationale": "The scanner identified two violations, but it missed a significant one in the 'verify.ts' file. Specifically, the function 'safeEqual' is not documented with a docstring, even though it is a public fu",
+          "findings_count": 2
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "reject",
+          "confidence": 0.95,
+          "rationale": "The scanner identified two low-severity violations for missing docstrings on public functions. These are true positives as both functions are public and lack documentation. However, the scanner missed",
+          "findings_count": 5
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "approve",
+          "confidence": 0.85,
+          "rationale": "The audit found no critical issues and validated existing violations. Documentation provides clear rationale for each verification step, ensuring the code's clarity and maintainability are upheld.",
+          "findings_count": 2
+        }
+      ]
+    },
+    {
+      "rubric": "connascence",
+      "decision": "pass",
+      "critical_findings_count": 0,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "reject",
+          "confidence": 0.95,
+          "rationale": "The scanner did not find any violations, but the code contains several potential connascence issues that could be missed by a regex-based scanner. For example, there is implicit connascence in the way",
+          "findings_count": 1
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The codebase adheres to the connascence rubric with no violations found. All verification functions are well-structured with clear error handling and traceability. The scanner's findings are accurate ",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "approve",
+          "confidence": 0.95,
+          "rationale": "The code under review appears to implement a robust verification system for cryptographic evidence bundles, adhering to best practices in secure coding. The functions handle hash chain verification an",
+          "findings_count": 0
+        }
+      ]
+    },
+    {
+      "rubric": "hipaa-safeguards",
+      "decision": "pass",
+      "critical_findings_count": 0,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The code follows best practices for cryptographic and data integrity verification, including constant-time string comparison and error handling with typed codes and details.",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The code appears to comply with HIPAA safeguards as it implements cryptographic operations (SHA-256), constant-time comparisons to prevent timing attacks, and detailed error handling with specific err",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "approve",
+          "confidence": 0.9,
+          "rationale": "The code under review demonstrates robust verification mechanisms for cryptographic evidence bundles, adhering to best practices for secure hash computations, deterministic error handling, and input v",
+          "findings_count": 0
+        }
+      ]
+    },
+    {
+      "rubric": "mece",
+      "decision": "pass",
+      "critical_findings_count": 0,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "abstain",
+          "confidence": 0.75,
+          "rationale": "The deterministic scanner did not find any violations, and the code appears to be well-structured with clear error handling and verification steps. However, the scanner's regex may have blind spots th",
+          "findings_count": 1
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The scanner did not find any violations, and after review, no MECE violations are present. All verification functions properly handle error cases with typed errors and detailed tracing. The code follo",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "approve",
+          "confidence": 0.95,
+          "rationale": "The verify.ts file contains a comprehensive set of functions designed to validate different aspects of an evidence bundle. The file structure is clean, with clear delineation between input validation,",
+          "findings_count": 0
+        }
+      ]
+    },
+    {
+      "rubric": "nasa-safety",
+      "decision": "pass",
+      "critical_findings_count": 0,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The code appears to follow best practices for safety-critical systems, including input validation, error handling with detailed error codes and messages, and constant-time comparisons to prevent timin",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The code adheres to NASA Power of 10 safety-critical development standards. All critical safety checks are implemented with deterministic error handling, cryptographic safety measures (timing-safe com",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "approve",
+          "confidence": 0.85,
+          "rationale": "The audit found no scanner violations, and upon manual review, all identified issues were validated as true positives. Additionally, while the deterministic scanner did not miss any critical errors, i",
+          "findings_count": 0
+        }
+      ]
+    },
+    {
+      "rubric": "nomotic",
+      "decision": "fail",
+      "critical_findings_count": 1,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "reject",
+          "confidence": 0.95,
+          "rationale": "While the scanner correctly identified some issues related to side effects and contracts, it failed to detect a few critical missing documentation and contract enforcement. The 'safeEqual' function in",
+          "findings_count": 2
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "reject",
+          "confidence": 0.95,
+          "rationale": "The scanner identified multiple violations of NOM-OBS-002 and NOM-ARCH-002 across canonical.ts, seal.ts, and verify.ts. These violations relate to side effects and contract enforcement. The code appea",
+          "findings_count": 18
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "abstain",
+          "confidence": 0.0,
+          "rationale": "",
+          "findings_count": 0
+        }
+      ]
+    },
+    {
+      "rubric": "pci-dss-requirements",
+      "decision": "pass",
+      "critical_findings_count": 0,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The code appears to implement a robust verification process for evidence bundles, including hash chains, root hashes, and content integrity checks. The code uses constant-time string comparison to pre",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The code appears to be compliant with PCI DSS requirements as it implements cryptographic operations with SHA-256, uses constant-time comparisons to prevent timing attacks, and provides detailed error",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "approve",
+          "confidence": 0.95,
+          "rationale": "The code reviewed is meticulous in its verification process, utilizing constant-time string comparisons to mitigate timing side-channel attacks and ensuring that cryptographic hashes are computed accu",
+          "findings_count": 0
+        }
+      ]
+    },
+    {
+      "rubric": "safety-violations",
+      "decision": "pass",
+      "critical_findings_count": 0,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "abstain",
+          "confidence": 0.8,
+          "rationale": "The deterministic scanner did not find any violations, which is accurate based on the provided code. The code appears to have proper error handling and validation logic. However, manual review reveals",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The scanner did not find any violations, and upon review, no dangerous patterns like god objects, parameter bombs, or critical violations are present. The code follows good practices with clear separa",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "approve",
+          "confidence": 0.9,
+          "rationale": "The code in the verify.ts file demonstrates careful handling of cryptographic operations and error checking, which aligns well with best practices for security and integrity verification. While the de",
+          "findings_count": 0
+        }
+      ]
+    },
+    {
+      "rubric": "six-sigma",
+      "decision": "pass",
+      "critical_findings_count": 0,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "abstain",
+          "confidence": 0.5,
+          "rationale": "The provided code does not contain any clear violations of Six Sigma quality metrics for software development. However, the scanner did not find any issues, and there is no evidence to confirm whether",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The code adheres to Six Sigma quality metrics for software development. All verification functions provide detailed error codes and messages, ensuring traceability and deterministic outcomes. The use ",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "approve",
+          "confidence": 0.95,
+          "rationale": "The audit found no issues reported by the deterministic scanner, suggesting it is effective in identifying common vulnerabilities. Upon manual review, no additional critical issues were detected. The ",
+          "findings_count": 0
+        }
+      ]
+    },
+    {
+      "rubric": "soc2-controls",
+      "decision": "pass",
+      "critical_findings_count": 0,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The code appears to follow best practices for cryptographic verification, input validation, and error handling. There are no clear indications of vulnerabilities that would compromise SOC 2 compliance",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The code appears to implement SOC 2 controls effectively. The verification functions handle cryptographic operations securely with constant-time comparisons, validate input structures, and provide det",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "approve",
+          "confidence": 0.95,
+          "rationale": "The code under review demonstrates a robust verification process for evidence bundles, adhering to best practices in cryptographic and error handling categories. The use of constant-time string compar",
+          "findings_count": 0
+        }
+      ]
+    },
+    {
+      "rubric": "theater-detection",
+      "decision": "pass",
+      "critical_findings_count": 2,
+      "votes": [
+        {
+          "reviewer_id": "ollama-qwen2.5-coder:7b-5b40d9",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The code appears to follow best practices for cryptographic and input validation, error handling, and security. It uses constant-time string comparison, verifies hashes, and checks for required fields",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-qwen3:8b-f6a360",
+          "decision": "approve",
+          "confidence": 1.0,
+          "rationale": "The scanner found no violations, and the code appears to implement robust verification mechanisms for theater detection. The code includes cryptographic operations with timing-safe comparisons, detail",
+          "findings_count": 0
+        },
+        {
+          "reviewer_id": "ollama-falcon3:7b-364295",
+          "decision": "approve",
+          "confidence": 0.85,
+          "rationale": "The code exhibits robust verification practices and error handling, ensuring cryptographic integrity and immutability proofs are correctly validated. The use of constant-time string comparison and exp",
+          "findings_count": 5
+        }
+      ]
+    }
+  ],
+  "by_file": {
+    "verify.ts": {
+      "critical_count": 6,
+      "total_findings": 25,
+      "findings": [
+        {
+          "rubric": "nomotic",
+          "reviewer": "scanner",
+          "severity": "critical",
+          "category": "documentation",
+          "description": "Documentation of contracts between components is missing in various functions. Contracts should be explicit and enforced to maintain integrity and security.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen2.5-coder:7b-5b40d9",
+          "severity": "critical",
+          "category": "documentation",
+          "description": "Documentation of contracts between components is missing in various functions. Contracts should be explicit and enforced to maintain integrity and security.",
+          "line": null
+        },
+        {
+          "rubric": "theater-detection",
+          "reviewer": "scanner",
+          "severity": "high",
+          "category": "cryptographic",
+          "description": "The `verifyHashChain` function correctly identifies and logs discrepancies in the hash chain, ensuring that the chain is unbroken and each link references the correct predecessor.",
+          "line": null
+        },
+        {
+          "rubric": "theater-detection",
+          "reviewer": "scanner",
+          "severity": "high",
+          "category": "cryptographic",
+          "description": "The `verifyRootHash` function accurately verifies the root hash against the concatenation of all chain hashes, providing assurance against tampering.",
+          "line": null
+        },
+        {
+          "rubric": "theater-detection",
+          "reviewer": "ollama-falcon3:7b-364295",
+          "severity": "high",
+          "category": "cryptographic",
+          "description": "The `verifyHashChain` function correctly identifies and logs discrepancies in the hash chain, ensuring that the chain is unbroken and each link references the correct predecessor.",
+          "line": null
+        },
+        {
+          "rubric": "theater-detection",
+          "reviewer": "ollama-falcon3:7b-364295",
+          "severity": "high",
+          "category": "cryptographic",
+          "description": "The `verifyRootHash` function accurately verifies the root hash against the concatenation of all chain hashes, providing assurance against tampering.",
+          "line": null
+        },
+        {
+          "rubric": "clarity",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "bug",
+          "description": "The error message in 'verifyContentHashes' contains a line break in the middle of a string, which could cause issues with string handling and formatting.",
+          "line": null
+        },
+        {
+          "rubric": "clarity",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "bug",
+          "description": "The 'verifyBundle' function references 'chain_hash' which is not defined in the error message, potentially leading to a bug or runtime error.",
+          "line": null
+        },
+        {
+          "rubric": "clarity",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "type",
+          "description": "The 'verifyHashChain' function may have a type mismatch if the 'chain' parameter is not an array, leading to potential runtime errors.",
+          "line": null
+        },
+        {
+          "rubric": "connascence",
+          "reviewer": "ollama-qwen2.5-coder:7b-5b40d9",
+          "severity": "medium",
+          "category": "code-structure",
+          "description": "There is an implicit connascence in the way error codes and messages are defined and used across different functions. Each function returns a `VerificationResult` with specific error codes, but there is no explicit mapping or documentation that links these codes to their corresponding messages.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen2.5-coder:7b-5b40d9",
+          "severity": "medium",
+          "category": "contract-enforcement",
+          "description": "Side effects must be explicitly declared and documented for 'safeEqual' function.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The safeEqual function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The sha256 function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The contentHash function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The verifyHashChain function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The verifyRootHash function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The verifyContentHashes function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The verifyBundle function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "theater-detection",
+          "reviewer": "ollama-falcon3:7b-364295",
+          "severity": "medium",
+          "category": "cryptographic",
+          "description": "The `verifyContentHashes` function thoroughly checks each item's content hash against its canonical JSON representation, detecting any potential content tampering.",
+          "line": null
+        },
+        {
+          "rubric": "theater-detection",
+          "reviewer": "ollama-falcon3:7b-364295",
+          "severity": "medium",
+          "category": "input-validation",
+          "description": "Robust input validation is present in all verification functions, ensuring that incorrect or incomplete inputs do not lead to unexpected behavior.",
+          "line": null
+        },
+        {
+          "rubric": "clarity",
+          "reviewer": "ollama-qwen2.5-coder:7b-5b40d9",
+          "severity": "low",
+          "category": "documentation",
+          "description": "Public function 'safeEqual' in 'verify.ts' should have a docstring.",
+          "line": null
+        },
+        {
+          "rubric": "clarity",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "low",
+          "category": "documentation",
+          "description": "Public function 'verifyContentHashes' lacks a docstring as required by the clarity rubric.",
+          "line": null
+        },
+        {
+          "rubric": "clarity",
+          "reviewer": "ollama-falcon3:7b-364295",
+          "severity": "low",
+          "category": "verification",
+          "description": "The function `verifyContentHashes` lacks a docstring, which is recommended for public functions to enhance code clarity and ease of understanding.",
+          "line": null
+        },
+        {
+          "rubric": "mece",
+          "reviewer": "ollama-qwen2.5-coder:7b-5b40d9",
+          "severity": "low",
+          "category": "complex-logic",
+          "description": "The scanner might not be able to detect certain subtle issues, such as complex logic within functions that are not easily captured by regex patterns.",
+          "line": null
+        },
+        {
+          "rubric": "theater-detection",
+          "reviewer": "ollama-falcon3:7b-364295",
+          "severity": "low",
+          "category": "error-handling",
+          "description": "The use of typed errors in the `VerificationError` objects enhances the clarity and traceability of issues, aiding in debugging and system maintenance.",
+          "line": null
+        }
+      ]
+    },
+    "seal.ts": {
+      "critical_count": 0,
+      "total_findings": 8,
+      "findings": [
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The computeContentHash function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The sha256 function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The buildHashChain function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The computeRootHash function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The sealBundle function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "clarity",
+          "reviewer": "ollama-qwen2.5-coder:7b-5b40d9",
+          "severity": "low",
+          "category": "documentation",
+          "description": "Public function 'computeContentHash' in 'seal.ts' should have a docstring.",
+          "line": null
+        },
+        {
+          "rubric": "clarity",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "low",
+          "category": "documentation",
+          "description": "Public function 'computeContentHash' lacks a docstring as required by the clarity rubric.",
+          "line": null
+        },
+        {
+          "rubric": "clarity",
+          "reviewer": "ollama-falcon3:7b-364295",
+          "severity": "low",
+          "category": "computation",
+          "description": "The `computeContentHash` function is missing a docstring, which is suggested for public functions to improve code readability and documentation.",
+          "line": null
+        }
+      ]
+    },
+    "canonical.ts": {
+      "critical_count": 0,
+      "total_findings": 6,
+      "findings": [
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The canonicalJson function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The serializeValue function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The serializeNumber function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The serializeString function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The serializeArray function should explicitly declare and document any side effects.",
+          "line": null
+        },
+        {
+          "rubric": "nomotic",
+          "reviewer": "ollama-qwen3:8b-f6a360",
+          "severity": "medium",
+          "category": "side-effects",
+          "description": "The serializeObject function should explicitly declare and document any side effects.",
+          "line": null
+        }
+      ]
+    }
+  }
+}

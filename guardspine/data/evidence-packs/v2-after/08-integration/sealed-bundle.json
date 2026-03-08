@@ -1,0 +1,646 @@
+{
+  "bundle_id": "dogfood-pack-1769790809835",
+  "version": "1.0.0",
+  "created_at": "2026-01-30T16:33:29.835Z",
+  "source": "guardspine-dogfood-pack",
+  "items": [
+    {
+      "item_id": "audit-meta",
+      "content_type": "guardspine/audit-metadata",
+      "content": {
+        "tool": "codeguard",
+        "version": "0.3.0",
+        "target": "D:\\Projects\\guardspine-kernel\\src",
+        "timestamp": "2026-01-30T16:33:00.176376+00:00",
+        "files_scanned": [
+          "canonical.ts",
+          "errors.ts",
+          "index.ts",
+          "seal.ts",
+          "verify.ts"
+        ],
+        "total_violations": 57
+      },
+      "content_hash": "sha256:e2385847c6e4d40d44d0ebcf8e7c942f3f2346b1959df7c1402598a10be6b496",
+      "sequence": 0
+    },
+    {
+      "item_id": "rubric-clarity",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "clarity",
+        "rules_count": 15,
+        "violations_found": 5,
+        "violations": [
+          {
+            "file": "seal.ts",
+            "rule_id": "CLR-001",
+            "severity": "medium",
+            "line_number": 47,
+            "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < items.length; i++) {...'"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "CLR-001",
+            "severity": "medium",
+            "line_number": 49,
+            "description": "Variable and function names should be self-documenting: 'const previousHash = i === 0 ? \"genesis\" : chain[i...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CLR-001",
+            "severity": "medium",
+            "line_number": 53,
+            "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < chain.length; i++) {...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CLR-001",
+            "severity": "medium",
+            "line_number": 66,
+            "description": "Variable and function names should be self-documenting: 'const expectedPrev = i === 0 ? \"genesis\" : chain[i...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CLR-001",
+            "severity": "medium",
+            "line_number": 197,
+            "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < bundle.items.length && i < cha...'"
+          }
+        ],
+        "error": null
+      },
+      "content_hash": "sha256:cb9cf461803ca9ea6a13f475deb23f94f5110079c77f3e4168361577610f8005",
+      "sequence": 1
+    },
+    {
+      "item_id": "rubric-connascence",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "connascence",
+        "rules_count": 9,
+        "violations_found": 24,
+        "violations": [
+          {
+            "file": "seal.ts",
+            "rule_id": "CON-003",
+            "severity": "medium",
+            "line_number": 49,
+            "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'const previousHash = i === 0 ? \"genesis\" : chain"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 53,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'chain.push({...'"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "CON-005",
+            "severity": "medium",
+            "line_number": 20,
+            "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'export function computeContentHash(content: object"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "CON-005",
+            "severity": "medium",
+            "line_number": 22,
+            "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'const hash = createHash(\"sha256\").update(canonical"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "CON-005",
+            "severity": "medium",
+            "line_number": 30,
+            "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'const hash = createHash(\"sha256\").update(data, \"ut"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "CON-005",
+            "severity": "medium",
+            "line_number": 48,
+            "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'const contentHash = computeContentHash(items[i].co"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "CON-005",
+            "severity": "medium",
+            "line_number": 68,
+            "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'export function computeRootHash(chain: HashChain):"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "CON-005",
+            "severity": "medium",
+            "line_number": 95,
+            "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'const rootHash = computeRootHash(chain);...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-003",
+            "severity": "medium",
+            "line_number": 66,
+            "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'const expectedPrev = i === 0 ? \"genesis\" : chain"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-003",
+            "severity": "medium",
+            "line_number": 95,
+            "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'return { valid: errors.length === 0, errors };.."
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-003",
+            "severity": "medium",
+            "line_number": 118,
+            "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'return { valid: errors.length === 0, errors };.."
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-003",
+            "severity": "medium",
+            "line_number": 145,
+            "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'return { valid: errors.length === 0, errors };.."
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-003",
+            "severity": "medium",
+            "line_number": 211,
+            "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'return { valid: errors.length === 0, errors };.."
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 58,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 68,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 83,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 111,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 133,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-004",
+            "severity": "medium",
+            "line_number": 199,
+            "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "CON-005",
+            "severity": "medium",
+            "line_number": 35,
+            "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'return `sha256:${createHash(\"sha256\").update(data,"
+          }
+        ],
+        "error": null
+      },
+      "content_hash": "sha256:c9f39268cd716ef7fc942371deb1c85f62f0d0ea8a5735160e4d627a7e28595f",
+      "sequence": 2
+    },
+    {
+      "item_id": "rubric-hipaa-safeguards",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "hipaa-safeguards",
+        "rules_count": 13,
+        "violations_found": 1,
+        "violations": [
+          {
+            "file": "verify.ts",
+            "rule_id": "HIPAA-312.b",
+            "severity": "critical",
+            "line_number": 154,
+            "description": "Hardware, software, and procedural mechanisms: '* for deterministic audit trail reconstruction....'"
+          }
+        ],
+        "error": null
+      },
+      "content_hash": "sha256:cf8e71b1dd41da9541d4e2ca3e00c148691d34ed773e4030f427ac6b4a3f6e5b",
+      "sequence": 3
+    },
+    {
+      "item_id": "rubric-mece",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "mece",
+        "rules_count": 12,
+        "violations_found": 3,
+        "violations": [
+          {
+            "file": "seal.ts",
+            "rule_id": "MECE-012",
+            "severity": "medium",
+            "line_number": 47,
+            "description": "Detect related constants scattered across files: 'for (let i = 0; i < items.length; i++) {...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "MECE-012",
+            "severity": "medium",
+            "line_number": 53,
+            "description": "Detect related constants scattered across files: 'for (let i = 0; i < chain.length; i++) {...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "MECE-012",
+            "severity": "medium",
+            "line_number": 197,
+            "description": "Detect related constants scattered across files: 'for (let i = 0; i < bundle.items.length && i < cha...'"
+          }
+        ],
+        "error": null
+      },
+      "content_hash": "sha256:5e20529fb63fa5f4dc164559ab9d9fc07d1d8ae0de9e4db967b4070265e19a28",
+      "sequence": 4
+    },
+    {
+      "item_id": "rubric-nasa-safety",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "nasa-safety",
+        "rules_count": 10,
+        "violations_found": 14,
+        "violations": [
+          {
+            "file": "canonical.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 14,
+            "description": "Check return values of all non-void functions: 'return serializeValue(value);...'"
+          },
+          {
+            "file": "canonical.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 27,
+            "description": "Check return values of all non-void functions: 'return serializeNumber(value);...'"
+          },
+          {
+            "file": "canonical.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 30,
+            "description": "Check return values of all non-void functions: 'return serializeString(value);...'"
+          },
+          {
+            "file": "canonical.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 34,
+            "description": "Check return values of all non-void functions: 'return serializeArray(value);...'"
+          },
+          {
+            "file": "canonical.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 36,
+            "description": "Check return values of all non-void functions: 'return serializeObject(value as Record<string, unk...'"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 21,
+            "description": "Check return values of all non-void functions: 'const canonical = canonicalJson(content);...'"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 48,
+            "description": "Check return values of all non-void functions: 'const contentHash = computeContentHash(items[i].co...'"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 94,
+            "description": "Check return values of all non-void functions: 'const chain = buildHashChain(chainInputs);...'"
+          },
+          {
+            "file": "seal.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 95,
+            "description": "Check return values of all non-void functions: 'const rootHash = computeRootHash(chain);...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 31,
+            "description": "Check return values of all non-void functions: 'return timingSafeEqual(bufLeft, bufRight);...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 131,
+            "description": "Check return values of all non-void functions: 'const expected = contentHash(item.content);...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 184,
+            "description": "Check return values of all non-void functions: 'const contentResult = verifyContentHashes(bundle.i...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 188,
+            "description": "Check return values of all non-void functions: 'const chainResult = verifyHashChain(bundle.immutab...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "NASA-007",
+            "severity": "high",
+            "line_number": 192,
+            "description": "Check return values of all non-void functions: 'const rootResult = verifyRootHash(bundle.immutabil...'"
+          }
+        ],
+        "error": null
+      },
+      "content_hash": "sha256:93d3f15f4c1d0e021760112d3d1754bc80ee3096d16ebb3f5f56877f65c3d790",
+      "sequence": 5
+    },
+    {
+      "item_id": "rubric-nomotic",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "nomotic",
+        "rules_count": 15,
+        "violations_found": 5,
+        "violations": [
+          {
+            "file": "verify.ts",
+            "rule_id": "NOM-TRACE-001",
+            "severity": "high",
+            "line_number": 50,
+            "description": "All decisions must be traceable with logged rationale: 'export function verifyHashChain(chain: HashChain):...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "NOM-TRACE-001",
+            "severity": "high",
+            "line_number": 104,
+            "description": "All decisions must be traceable with logged rationale: 'export function verifyRootHash(proof: Immutability...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "NOM-TRACE-001",
+            "severity": "high",
+            "line_number": 127,
+            "description": "All decisions must be traceable with logged rationale: 'export function verifyContentHashes(items: Evidenc...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "NOM-TRACE-001",
+            "severity": "high",
+            "line_number": 149,
+            "description": "All decisions must be traceable with logged rationale: '* Full bundle verification: required fields, conte...'"
+          },
+          {
+            "file": "verify.ts",
+            "rule_id": "NOM-TRACE-001",
+            "severity": "high",
+            "line_number": 156,
+            "description": "All decisions must be traceable with logged rationale: 'export function verifyBundle(bundle: EvidenceBundl...'"
+          }
+        ],
+        "error": null
+      },
+      "content_hash": "sha256:eda44334bbccc5c649383f1ceb8cfafeed5531b08caae441300b84040cb5a88a",
+      "sequence": 6
+    },
+    {
+      "item_id": "rubric-pci-dss-requirements",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "pci-dss-requirements",
+        "rules_count": 16,
+        "violations_found": 4,
+        "violations": [
+          {
+            "file": "canonical.ts",
+            "rule_id": "PCI-6.5.1",
+            "severity": "critical",
+            "line_number": 14,
+            "description": "Prevent injection attacks: 'return serializeValue(value);...'"
+          },
+          {
+            "file": "canonical.ts",
+            "rule_id": "PCI-6.5.1",
+            "severity": "critical",
+            "line_number": 17,
+            "description": "Prevent injection attacks: 'function serializeValue(value: unknown): string {...'"
+          },
+          {
+            "file": "canonical.ts",
+            "rule_id": "PCI-6.5.1",
+            "severity": "critical",
+            "line_number": 72,
+            "description": "Prevent injection attacks: 'const items = arr.map((item) => serializeValue(ite...'"
+          },
+          {
+            "file": "canonical.ts",
+            "rule_id": "PCI-6.5.1",
+            "severity": "critical",
+            "line_number": 86,
+            "description": "Prevent injection attacks: 'pairs.push(serializeString(key) + \":\" + serializeV...'"
+          }
+        ],
+        "error": null
+      },
+      "content_hash": "sha256:7f7c85875bab4d1a4c885b1e5d604ca5efa6aae00703a3df8451007784bfd989",
+      "sequence": 7
+    },
+    {
+      "item_id": "rubric-safety-violations",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "safety-violations",
+        "rules_count": 18,
+        "violations_found": 0,
+        "violations": [],
+        "error": null
+      },
+      "content_hash": "sha256:8aa74c797f30ca01a1de26619796cc5b9bd6ddb7de3b5ce697a47808b1c42e39",
+      "sequence": 8
+    },
+    {
+      "item_id": "rubric-six-sigma",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "six-sigma",
+        "rules_count": 15,
+        "violations_found": 0,
+        "violations": [],
+        "error": null
+      },
+      "content_hash": "sha256:ee6525d66ad6cb4fffc299cde4ba5aae1827dd3972d2408bedd0497322a2b4b2",
+      "sequence": 9
+    },
+    {
+      "item_id": "rubric-soc2-controls",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "soc2-controls",
+        "rules_count": 10,
+        "violations_found": 1,
+        "violations": [
+          {
+            "file": "verify.ts",
+            "rule_id": "SOC2-CC7.2",
+            "severity": "critical",
+            "line_number": 22,
+            "description": "Security incidents are detected, reported, and corrected: '* Constant-time string comparison to prevent timin...'"
+          }
+        ],
+        "error": null
+      },
+      "content_hash": "sha256:a1671b4b244b7fcea39e9702f58891cc667843d78a1dc242c1e8f5c8a7ac6e93",
+      "sequence": 10
+    },
+    {
+      "item_id": "rubric-theater-detection",
+      "content_type": "guardspine/rubric-result",
+      "content": {
+        "rubric": "theater-detection",
+        "rules_count": 15,
+        "violations_found": 0,
+        "violations": [],
+        "error": null
+      },
+      "content_hash": "sha256:924ffb1cd9922b68679011cf71a7f525056e5065a12ecdb285e8aa4ce9d5245d",
+      "sequence": 11
+    },
+    {
+      "item_id": "source-provenance",
+      "content_type": "guardspine/source-hashes",
+      "content": {
+        "canonical.ts": "sha256:c65d1792063dcc33ee21c020ac686171b3076faa7c55038cb7ed8b6658094886",
+        "errors.ts": "sha256:4a49aaf9cf5f22163c86b379a6cdd148207f50d1b9d2d6158408b0b56a19d7ff",
+        "index.ts": "sha256:ba4e2971959eae5375d31a1578345864756914e1456f85e88a640b01c9864d39",
+        "seal.ts": "sha256:0db99a798b3b1783ed8f9c6ee9f6a501049030e569c4c1ec409a32dc404a4e19",
+        "verify.ts": "sha256:0b87e2715cebfd47086952a26d49f52a295eddc66913a009d74fef5bdb7571f7"
+      },
+      "content_hash": "sha256:2212614297864b5569c6e62158ad0356cfa3b554f7e2577559ef69c04a1036be",
+      "sequence": 12
+    }
+  ],
+  "immutability_proof": {
+    "hash_chain": [
+      {
+        "sequence": 0,
+        "content_hash": "sha256:e2385847c6e4d40d44d0ebcf8e7c942f3f2346b1959df7c1402598a10be6b496",
+        "previous_hash": "genesis",
+        "chain_hash": "sha256:021bdd7cf4e7aa82ca1df59ce34cc572328ba3305382aafa24bb85245dc0374d"
+      },
+      {
+        "sequence": 1,
+        "content_hash": "sha256:cb9cf461803ca9ea6a13f475deb23f94f5110079c77f3e4168361577610f8005",
+        "previous_hash": "sha256:021bdd7cf4e7aa82ca1df59ce34cc572328ba3305382aafa24bb85245dc0374d",
+        "chain_hash": "sha256:b3306ae34b529bfbe9440408325a26abb652aecb0d2b3b7bbd5bd31008061ec7"
+      },
+      {
+        "sequence": 2,
+        "content_hash": "sha256:c9f39268cd716ef7fc942371deb1c85f62f0d0ea8a5735160e4d627a7e28595f",
+        "previous_hash": "sha256:b3306ae34b529bfbe9440408325a26abb652aecb0d2b3b7bbd5bd31008061ec7",
+        "chain_hash": "sha256:1f10317135032a22afd985118e1c465d3a3a5b344dd886f708b506b5e4b5d573"
+      },
+      {
+        "sequence": 3,
+        "content_hash": "sha256:cf8e71b1dd41da9541d4e2ca3e00c148691d34ed773e4030f427ac6b4a3f6e5b",
+        "previous_hash": "sha256:1f10317135032a22afd985118e1c465d3a3a5b344dd886f708b506b5e4b5d573",
+        "chain_hash": "sha256:b81dad483054dd87442f5ca121ceb4eaf9fbeaebc9ab9bf82abba3247fd1359c"
+      },
+      {
+        "sequence": 4,
+        "content_hash": "sha256:5e20529fb63fa5f4dc164559ab9d9fc07d1d8ae0de9e4db967b4070265e19a28",
+        "previous_hash": "sha256:b81dad483054dd87442f5ca121ceb4eaf9fbeaebc9ab9bf82abba3247fd1359c",
+        "chain_hash": "sha256:6594928487b2762289bfe134bae61c7d803b812e1b0d01b8741989216c40641d"
+      },
+      {
+        "sequence": 5,
+        "content_hash": "sha256:93d3f15f4c1d0e021760112d3d1754bc80ee3096d16ebb3f5f56877f65c3d790",
+        "previous_hash": "sha256:6594928487b2762289bfe134bae61c7d803b812e1b0d01b8741989216c40641d",
+        "chain_hash": "sha256:be5d52b73a321766ccfbf662c73a77bccc2b57845f149820fe2af1e655d7c349"
+      },
+      {
+        "sequence": 6,
+        "content_hash": "sha256:eda44334bbccc5c649383f1ceb8cfafeed5531b08caae441300b84040cb5a88a",
+        "previous_hash": "sha256:be5d52b73a321766ccfbf662c73a77bccc2b57845f149820fe2af1e655d7c349",
+        "chain_hash": "sha256:179713acef476281f092f407ae39136830dd39e70b56af2dfbf4026aa549d857"
+      },
+      {
+        "sequence": 7,
+        "content_hash": "sha256:7f7c85875bab4d1a4c885b1e5d604ca5efa6aae00703a3df8451007784bfd989",
+        "previous_hash": "sha256:179713acef476281f092f407ae39136830dd39e70b56af2dfbf4026aa549d857",
+        "chain_hash": "sha256:77f13c71f7f744d15743f20a6ca7a027a3420c5fe6a4e66cf1f612cb9ff0d646"
+      },
+      {
+        "sequence": 8,
+        "content_hash": "sha256:8aa74c797f30ca01a1de26619796cc5b9bd6ddb7de3b5ce697a47808b1c42e39",
+        "previous_hash": "sha256:77f13c71f7f744d15743f20a6ca7a027a3420c5fe6a4e66cf1f612cb9ff0d646",
+        "chain_hash": "sha256:1dc729a9661bc7afc7698ba1d2527ee7650e6d9d6f6a619ad0fc5ef39a18c747"
+      },
+      {
+        "sequence": 9,
+        "content_hash": "sha256:ee6525d66ad6cb4fffc299cde4ba5aae1827dd3972d2408bedd0497322a2b4b2",
+        "previous_hash": "sha256:1dc729a9661bc7afc7698ba1d2527ee7650e6d9d6f6a619ad0fc5ef39a18c747",
+        "chain_hash": "sha256:1224de264a442b35135b1b9a287f07cb44bda807a726e9b6511ff9561ce4756f"
+      },
+      {
+        "sequence": 10,
+        "content_hash": "sha256:a1671b4b244b7fcea39e9702f58891cc667843d78a1dc242c1e8f5c8a7ac6e93",
+        "previous_hash": "sha256:1224de264a442b35135b1b9a287f07cb44bda807a726e9b6511ff9561ce4756f",
+        "chain_hash": "sha256:e502b67d5d566afad5844a7b0534eb55cf0f9917d52d19ad49fb33dcacf06c7b"
+      },
+      {
+        "sequence": 11,
+        "content_hash": "sha256:924ffb1cd9922b68679011cf71a7f525056e5065a12ecdb285e8aa4ce9d5245d",
+        "previous_hash": "sha256:e502b67d5d566afad5844a7b0534eb55cf0f9917d52d19ad49fb33dcacf06c7b",
+        "chain_hash": "sha256:58364b3beec21687a2d215973079e494cfc2b82d756402e294f4f13732d61407"
+      },
+      {
+        "sequence": 12,
+        "content_hash": "sha256:2212614297864b5569c6e62158ad0356cfa3b554f7e2577559ef69c04a1036be",
+        "previous_hash": "sha256:58364b3beec21687a2d215973079e494cfc2b82d756402e294f4f13732d61407",
+        "chain_hash": "sha256:f69f9b746fb013994f67b5464c908213051b2fa8b25cc9a214e504744e68977c"
+      }
+    ],
+    "root_hash": "sha256:3b52c31e3799b591bd6113738588f9b6a65ed0dfd47c0debf54ed3adb725d209"
+  }
+}

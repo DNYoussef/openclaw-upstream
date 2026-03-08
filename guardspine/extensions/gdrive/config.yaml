@@ -1,0 +1,73 @@
+# Google Drive Connector Configuration
+# For GuardSpine Board Packet Workflow
+
+connector:
+  name: "acme-gdrive"
+  type: "google-drive"
+  version: "1.0.0"
+
+source:
+  # Watch these Google Drive folder IDs
+  folders:
+    - "1ABC123_BoardPackets"      # Board Packets folder ID
+    - "1DEF456_Contracts"         # Contracts folder ID
+
+  # OAuth credentials (from Google Cloud Console)
+  credentials_path: "credentials.json"
+  token_path: "token.json"
+
+  # How often to check for changes (seconds)
+  poll_interval: 60
+
+filters:
+  include_paths:
+    - "**/*.pdf"
+    - "**/*.xlsx"
+    - "**/*.pptx"
+    - "**/*.docx"
+  exclude_paths:
+    - "**/~$*"           # Office temp files
+    - "**/.~*"           # Hidden temp files
+    - "**/Archive/**"    # Archived documents
+
+risk_mapping:
+  default: "L1"
+  "**/Board Packets/**": "L4"
+  "**/Contracts/**": "L4"
+  "**/Financials/**": "L3"
+  "**/HR/**": "L3"
+  "**/Marketing/**": "L2"
+  "**/Internal/**": "L1"
+
+workflow:
+  # Board Packet specific settings
+  marker_file: ".ready-for-review"
+
+coherence:
+  enabled: true
+  rules_file: "coherence-rules.yaml"
+  fail_on_mismatch: true
+
+output:
+  mode: "guardspine"
+  guardspine_url: "http://localhost:8000"
+
+  # Evidence bundle settings
+  bundle_output_dir: ".guardspine/bundles"
+
+  # Retention policy
+  retention:
+    policy: "regulatory"
+    days: 2555  # 7 years for SOX compliance
+    compliance_frameworks:
+      - "SOX"
+      - "SEC"
+
+notifications:
+  slack:
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#board-prep"
+  email:
+    smtp_host: "${SMTP_HOST}"
+    recipients:
+      - "board-secretary@acme.com"
