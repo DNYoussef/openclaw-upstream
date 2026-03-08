@@ -12,6 +12,15 @@ OpenClaw exposes **first-class agent tools** for browser, canvas, nodes, and cro
 These replace the old `openclaw-*` skills: the tools are typed, no shelling,
 and the agent should rely on them directly.
 
+## Related docs
+
+- External multi-objective optimization / inverse solving:
+  [globalMOO Multi-Objective Optimization](/tools/globalmoo-multi-objective-optimization)
+- External game-theory / equilibrium reasoning via MCP:
+  [Mieza Game Theory MCP](/tools/mieza-game-theory-mcp)
+- Evaluating a visual repo-ops sidecar instead of chat-only control:
+  [PlateSpinner Sidecar UI](/tools/platespinner-sidecar-ui)
+
 ## Disabling tools
 
 You can globally allow/deny tools via `tools.allow` / `tools.deny` in `openclaw.json`

@@ -10,7 +10,7 @@
       "guardspine": {
         "enabled": true,
         "config": {
-          "enforcement_mode": "audit",
+          "enforcement_mode": "enforce",
           "council_endpoint": "http://localhost:11434",
           "slack_approval_channel": "${GUARDSPINE_SLACK_CHANNEL}"
         }

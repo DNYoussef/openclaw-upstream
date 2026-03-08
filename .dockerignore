@@ -41,6 +41,13 @@ apps/ios/build
 # large directories not needed for Docker build
 guardspine/ops/
 
+# Prevent PII / runtime databases from leaking into Docker layers
+*.db
+*.sqlite
+*.sqlite3
+outreach.db
+guardspine-logs/
+
 # large app trees not needed for CLI build
 apps/
 assets/
