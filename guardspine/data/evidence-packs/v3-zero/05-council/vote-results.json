@@ -1,0 +1,85 @@
+﻿python.exe : Council models: ['qwen3:8b', 'falcon3:7b', 'mistral:7b-instruct-q4_K_M']
+At D:\Projects\GuardSpine\dogfood-pack.ps1:111 char:5
++     & D:\Projects\GuardSpine\.venv\Scripts\python.exe D:\Projects\gua ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Council models:...struct-q4_K_M']:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+{
+  "request_id": "7105301ec954",
+  "consensus_decision": "abstain",
+  "consensus_confidence": 0.3958,
+  "quorum_met": false,
+  "votes": [
+    {
+      "reviewer_id": "ollama-qwen3:8b-9257cd",
+      "decision": "reject",
+      "confidence": 0.95,
+      "rationale": "The code lacks comprehensive error handling, has potential security vulnerabilities, and does not fully implement the required canonical JSON serialization.",
+      "findings": [
+        {
+          "severity": "critical",
+          "category": "security",
+          "description": "The canonicalJson function is incomplete and does not fully implement RFC 8785 requirements, which could lead to incorrect serialization and potential security vulnerabilities."
+        },
+        {
+          "severity": "high",
+          "category": "security",
+          "description": "The verifyBundle function does not handle cases where the items array length does not match the hash_chain length, which could allow for invalid bundle verification."
+        },
+        {
+          "severity": "medium",
+          "category": "code_quality",
+          "description": "The canonicalJson function is not fully implemented, missing key serialization rules such as handling of numbers, strings, and special characters."
+        },
+        {
+          "severity": "medium",
+          "category": "security",
+          "description": "The verifyBundle function does not validate the immutability_proof structure, which could allow for invalid or malformed proofs to pass verification."
+        }
+      ]
+    },
+    {
+      "reviewer_id": "ollama-falcon3:7b-8961d9",
+      "decision": "approve",
+      "confidence": 0.95,
+      "rationale": "The code demonstrates a robust verification process for cryptographic evidence bundles, using constant-time string comparisons and hashing algorithms. It includes comprehensive error handling and traceability through explicit error codes. The structure is clear and follows best practices for secure code.",
+      "findings": [
+        {
+          "severity": "low",
+          "category": "Code Clarity",
+          "description": "The function `sha256` could be refactored to use a static method or constant for the hash creation, improving readability."
+        },
+        {
+          "severity": "medium",
+          "category": "Security",
+          "description": "The error handling within the `verifyBundle` function returns early if critical fields are missing. While this is functional, consider logging these events to a secure audit log for comprehensive security monitoring."
+        }
+      ]
+    },
+    {
+      "reviewer_id": "ollama-mistral:7b-instruct-q4_K_M-3f1254",
+      "decision": "abstain",
+      "confidence": 0.5,
+      "rationale": "This artifact appears to be a TypeScript file for cryptographic evidence bundle verification. The code seems well-structured and modular, with clear interfaces between functions. However, there are several concerns that may warrant further investigation:",
+      "findings": [
+        {
+          "severity": "medium",
+          "category": "Usage of potentially unsafe methods",
+          "description": "The `safeEqual` function uses a custom comparison method that may not be secure against timing attacks. It is recommended to use a safer comparison method, such as the one provided in the `crypto` module."
+        },
+        {
+          "severity": "high",
+          "category": "Insecure data storage",
+          "description": "The artifact contains sensitive information (such as cryptographic hashes and private keys) that should not be stored in a public repository. This can expose these secrets to unauthorized users if the repository is compromised."
+        },
+        {
+          "severity": "medium",
+          "category": "Code duplication",
+          "description": "The `verifyHashChain` function contains some duplicate code from other functions in the same file, which may lead to inconsistencies or errors. It is recommended to refactor this code to avoid duplication."
+        }
+      ]
+    }
+  ],
+  "dissenting_count": 2
+}

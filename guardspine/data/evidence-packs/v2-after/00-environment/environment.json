@@ -1,0 +1,16 @@
+﻿{
+    "timestamp":  "2026-01-30T11:32:24.7768655-05:00",
+    "runtimes":  {
+                     "node":  "v20.17.0",
+                     "npm":  "11.4.2",
+                     "python":  "Python 3.12.5"
+                 },
+    "repos":  {
+                  "GuardSpine":  "9c84c4e feat: add evidence pack v1 (before) + tune rubric patterns",
+                  "guardspine-spec":  "2959c6e docs: Update README with v1.0.0 stable release",
+                  "n8n-nodes-guardspine":  "e8e2f73 feat: add all n8n nodes for GuardSpine integration",
+                  "guardspine-adapter-webhook":  "cbdb3f0 Initial commit: guardspine-adapter-webhook v0.1.0 - webhook providers for evidence bundle delivery",
+                  "guardspine-kernel":  "fb69abc refactor: improve variable clarity and add trace documentation",
+                  "guardspine-local-council":  "0bd8675 feat: add evidence-test.py for 3-model council review"
+              }
+}

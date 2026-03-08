@@ -1,0 +1,221 @@
+{
+  "title": "GuardSpine Dogfood Pack - Self-Audit Board Packet",
+  "generated": "2026-01-30T15:26:49.985994+00:00",
+  "target": "D:\\Projects\\guardspine-kernel\\src",
+  "department_summary": {
+    "clarity": {
+      "status": "fail",
+      "violations": 10
+    },
+    "connascence": {
+      "status": "pass",
+      "violations": 0
+    },
+    "hipaa-safeguards": {
+      "status": "fail",
+      "violations": 125
+    },
+    "mece": {
+      "status": "fail",
+      "violations": 51
+    },
+    "nasa-safety": {
+      "status": "fail",
+      "violations": 14
+    },
+    "nomotic": {
+      "status": "warn",
+      "violations": 5
+    },
+    "pci-dss-requirements": {
+      "status": "warn",
+      "violations": 4
+    },
+    "safety-violations": {
+      "status": "fail",
+      "violations": 8
+    },
+    "six-sigma": {
+      "status": "pass",
+      "violations": 0
+    },
+    "soc2-controls": {
+      "status": "fail",
+      "violations": 36
+    },
+    "theater-detection": {
+      "status": "pass",
+      "violations": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "canonical.ts",
+      "rule_id": "CLR-001",
+      "severity": "medium",
+      "line_number": 62,
+      "description": "Variable and function names should be self-documenting: 'const s = JSON.stringify(n);...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "CLR-001",
+      "severity": "medium",
+      "line_number": 44,
+      "description": "Variable and function names should be self-documenting: 'function serializeNumber(n: number): string {...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "CLR-001",
+      "severity": "medium",
+      "line_number": 66,
+      "description": "Variable and function names should be self-documenting: 'function serializeString(s: string): string {...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "HIPAA-308.a.1",
+      "severity": "critical",
+      "line_number": 5,
+      "description": "Risk analysis and management: '* - Object keys sorted lexicographically by Unicod...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "HIPAA-312.b",
+      "severity": "critical",
+      "line_number": 7,
+      "description": "Hardware, software, and procedural mechanisms: '* - Numbers: no leading zeros, no trailing zeros i...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "HIPAA-312.d",
+      "severity": "critical",
+      "line_number": 6,
+      "description": "Verify person or entity identity: '* - No whitespace between tokens...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "MECE-008",
+      "severity": "high",
+      "line_number": 33,
+      "description": "Detect potential null/None access without checks: 'if (Array.isArray(value)) {...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "MECE-008",
+      "severity": "high",
+      "line_number": 52,
+      "description": "Detect potential null/None access without checks: 'if (Number.isInteger(n) && Math.abs(n) < Number.MA...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "MECE-008",
+      "severity": "high",
+      "line_number": 52,
+      "description": "Detect potential null/None access without checks: 'if (Number.isInteger(n) && Math.abs(n) < Number.MA...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "NASA-007",
+      "severity": "high",
+      "line_number": 14,
+      "description": "Check return values of all non-void functions: 'return serializeValue(value);...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "NASA-007",
+      "severity": "high",
+      "line_number": 27,
+      "description": "Check return values of all non-void functions: 'return serializeNumber(value);...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "NASA-007",
+      "severity": "high",
+      "line_number": 30,
+      "description": "Check return values of all non-void functions: 'return serializeString(value);...'"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "NOM-TRACE-001",
+      "severity": "high",
+      "line_number": 42,
+      "description": "All decisions must be traceable with logged rationale: 'export function verifyHashChain(chain: HashChain):...'"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "NOM-TRACE-001",
+      "severity": "high",
+      "line_number": 93,
+      "description": "All decisions must be traceable with logged rationale: 'export function verifyRootHash(proof: Immutability...'"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "NOM-TRACE-001",
+      "severity": "high",
+      "line_number": 113,
+      "description": "All decisions must be traceable with logged rationale: 'export function verifyContentHashes(items: Evidenc...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "PCI-6.5.1",
+      "severity": "critical",
+      "line_number": 14,
+      "description": "Prevent injection attacks: 'return serializeValue(value);...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "PCI-6.5.1",
+      "severity": "critical",
+      "line_number": 17,
+      "description": "Prevent injection attacks: 'function serializeValue(value: unknown): string {...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "PCI-6.5.1",
+      "severity": "critical",
+      "line_number": 73,
+      "description": "Prevent injection attacks: 'const items = arr.map((item) => serializeValue(ite...'"
+    },
+    {
+      "file": "seal.ts",
+      "rule_id": "SAF-003",
+      "severity": "high",
+      "line_number": 6,
+      "description": "Modules that import too many dependencies: 'import { createHash } from \"node:crypto\";...'"
+    },
+    {
+      "file": "seal.ts",
+      "rule_id": "SAF-003",
+      "severity": "high",
+      "line_number": 7,
+      "description": "Modules that import too many dependencies: 'import { canonicalJson } from \"./canonical.js\";...'"
+    },
+    {
+      "file": "seal.ts",
+      "rule_id": "SAF-003",
+      "severity": "high",
+      "line_number": 8,
+      "description": "Modules that import too many dependencies: 'import type {...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "SOC2-CC6.1",
+      "severity": "high",
+      "line_number": 13,
+      "description": "Changes to infrastructure, data, software, and procedures are authorized: 'export function canonicalJson(value: unknown)"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "SOC2-CC6.1",
+      "severity": "high",
+      "line_number": 49,
+      "description": "Changes to infrastructure, data, software, and procedures are authorized: '// RFC 8785: use the shortest representation "
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "SOC2-CC6.1",
+      "severity": "high",
+      "line_number": 51,
+      "description": "Changes to infrastructure, data, software, and procedures are authorized: '// For floats, use toString which gives short"
+    }
+  ]
+}

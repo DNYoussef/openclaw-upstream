@@ -1,0 +1,193 @@
+{
+  "title": "GuardSpine Dogfood Pack - Self-Audit Board Packet",
+  "generated": "2026-01-30T16:33:00.176376+00:00",
+  "target": "D:\\Projects\\guardspine-kernel\\src",
+  "department_summary": {
+    "clarity": {
+      "status": "warn",
+      "violations": 5
+    },
+    "connascence": {
+      "status": "fail",
+      "violations": 24
+    },
+    "hipaa-safeguards": {
+      "status": "warn",
+      "violations": 1
+    },
+    "mece": {
+      "status": "warn",
+      "violations": 3
+    },
+    "nasa-safety": {
+      "status": "fail",
+      "violations": 14
+    },
+    "nomotic": {
+      "status": "warn",
+      "violations": 5
+    },
+    "pci-dss-requirements": {
+      "status": "warn",
+      "violations": 4
+    },
+    "safety-violations": {
+      "status": "pass",
+      "violations": 0
+    },
+    "six-sigma": {
+      "status": "pass",
+      "violations": 0
+    },
+    "soc2-controls": {
+      "status": "warn",
+      "violations": 1
+    },
+    "theater-detection": {
+      "status": "pass",
+      "violations": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "seal.ts",
+      "rule_id": "CLR-001",
+      "severity": "medium",
+      "line_number": 47,
+      "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < items.length; i++) {...'"
+    },
+    {
+      "file": "seal.ts",
+      "rule_id": "CLR-001",
+      "severity": "medium",
+      "line_number": 49,
+      "description": "Variable and function names should be self-documenting: 'const previousHash = i === 0 ? \"genesis\" : chain[i...'"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "CLR-001",
+      "severity": "medium",
+      "line_number": 53,
+      "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < chain.length; i++) {...'"
+    },
+    {
+      "file": "seal.ts",
+      "rule_id": "CON-003",
+      "severity": "medium",
+      "line_number": 49,
+      "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'const previousHash = i === 0 ? \"genesis\" : chain"
+    },
+    {
+      "file": "seal.ts",
+      "rule_id": "CON-004",
+      "severity": "medium",
+      "line_number": 53,
+      "description": "Connascence of Position (CoP) - Order of elements matters: 'chain.push({...'"
+    },
+    {
+      "file": "seal.ts",
+      "rule_id": "CON-005",
+      "severity": "medium",
+      "line_number": 20,
+      "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'export function computeContentHash(content: object"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "HIPAA-312.b",
+      "severity": "critical",
+      "line_number": 154,
+      "description": "Hardware, software, and procedural mechanisms: '* for deterministic audit trail reconstruction....'"
+    },
+    {
+      "file": "seal.ts",
+      "rule_id": "MECE-012",
+      "severity": "medium",
+      "line_number": 47,
+      "description": "Detect related constants scattered across files: 'for (let i = 0; i < items.length; i++) {...'"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "MECE-012",
+      "severity": "medium",
+      "line_number": 53,
+      "description": "Detect related constants scattered across files: 'for (let i = 0; i < chain.length; i++) {...'"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "MECE-012",
+      "severity": "medium",
+      "line_number": 197,
+      "description": "Detect related constants scattered across files: 'for (let i = 0; i < bundle.items.length && i < cha...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "NASA-007",
+      "severity": "high",
+      "line_number": 14,
+      "description": "Check return values of all non-void functions: 'return serializeValue(value);...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "NASA-007",
+      "severity": "high",
+      "line_number": 27,
+      "description": "Check return values of all non-void functions: 'return serializeNumber(value);...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "NASA-007",
+      "severity": "high",
+      "line_number": 30,
+      "description": "Check return values of all non-void functions: 'return serializeString(value);...'"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "NOM-TRACE-001",
+      "severity": "high",
+      "line_number": 50,
+      "description": "All decisions must be traceable with logged rationale: 'export function verifyHashChain(chain: HashChain):...'"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "NOM-TRACE-001",
+      "severity": "high",
+      "line_number": 104,
+      "description": "All decisions must be traceable with logged rationale: 'export function verifyRootHash(proof: Immutability...'"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "NOM-TRACE-001",
+      "severity": "high",
+      "line_number": 127,
+      "description": "All decisions must be traceable with logged rationale: 'export function verifyContentHashes(items: Evidenc...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "PCI-6.5.1",
+      "severity": "critical",
+      "line_number": 14,
+      "description": "Prevent injection attacks: 'return serializeValue(value);...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "PCI-6.5.1",
+      "severity": "critical",
+      "line_number": 17,
+      "description": "Prevent injection attacks: 'function serializeValue(value: unknown): string {...'"
+    },
+    {
+      "file": "canonical.ts",
+      "rule_id": "PCI-6.5.1",
+      "severity": "critical",
+      "line_number": 72,
+      "description": "Prevent injection attacks: 'const items = arr.map((item) => serializeValue(ite...'"
+    },
+    {
+      "file": "verify.ts",
+      "rule_id": "SOC2-CC7.2",
+      "severity": "critical",
+      "line_number": 22,
+      "description": "Security incidents are detected, reported, and corrected: '* Constant-time string comparison to prevent timin...'"
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+﻿=== POSITIVE VERIFICATION ===
+{
+  "valid": true,
+  "errorCount": 0,
+  "rootHash": "sha256:c25e840f0aee111c94332d0f3ce5812a18250a55b5e9a8736aa41d83015a9e46"
+}
+=== NEGATIVE VERIFICATION (tampered) ===
+{
+  "valid": false,
+  "errorCount": 1,
+  "firstError": "CONTENT_HASH_MISMATCH"
+}
+=== SEALED BUNDLE ===
+{
+  "bundle_id": "evidence-pack-proof-001",
+  "version": "1.0.0",
+  "created_at": "2026-01-30T16:32:29.480Z",
+  "items": [
+    {
+      "item_id": "finding-001",
+      "content_type": "audit/finding",
+      "content": {
+        "rule": "CON-001",
+        "severity": "low",
+        "message": "Connascence of Name detected"
+      },
+      "content_hash": "sha256:57cabc3450cfe439d20247c9a9235ae150e739522f2942241aa9b0ff35f1fa74",
+      "sequence": 0
+    },
+    {
+      "item_id": "finding-002",
+      "content_type": "audit/finding",
+      "content": {
+        "rule": "NASA-003",
+        "severity": "medium",
+        "message": "Function exceeds 60 lines"
+      },
+      "content_hash": "sha256:66350dd7aab316e0de655e603791d0468a2cb858b1ed96dec26a134255d3b436",
+      "sequence": 1
+    },
+    {
+      "item_id": "meta-001",
+      "content_type": "audit/metadata",
+      "content": {
+        "tool": "codeguard",
+        "version": "0.3.0",
+        "target": "guardspine-kernel/src",
+        "timestamp": "2026-01-30T16:32:29.478Z"
+      },
+      "content_hash": "sha256:43d568056eefb28bae39094f850775e5530ae8eef2b5c8781c77deb8635d909d",
+      "sequence": 2
+    }
+  ],
+  "immutability_proof": {
+    "hash_chain": [
+      {
+        "sequence": 0,
+        "content_hash": "sha256:57cabc3450cfe439d20247c9a9235ae150e739522f2942241aa9b0ff35f1fa74",
+        "previous_hash": "genesis",
+        "chain_hash": "sha256:a054a4a2d5dd6b04762bec5910c127ee29820c60af008b3f49fdfbe8e286728a"
+      },
+      {
+        "sequence": 1,
+        "content_hash": "sha256:66350dd7aab316e0de655e603791d0468a2cb858b1ed96dec26a134255d3b436",
+        "previous_hash": "sha256:a054a4a2d5dd6b04762bec5910c127ee29820c60af008b3f49fdfbe8e286728a",
+        "chain_hash": "sha256:94cc4777ce64fa288fc2a2a1ac64093893090f810c59dcdcf3db0fb9d31431cd"
+      },
+      {
+        "sequence": 2,
+        "content_hash": "sha256:43d568056eefb28bae39094f850775e5530ae8eef2b5c8781c77deb8635d909d",
+        "previous_hash": "sha256:94cc4777ce64fa288fc2a2a1ac64093893090f810c59dcdcf3db0fb9d31431cd",
+        "chain_hash": "sha256:48301e7f6a82a876c8445ff71e3a533ec674b018b1bd2c2492137abfa7a08763"
+      }
+    ],
+    "root_hash": "sha256:c25e840f0aee111c94332d0f3ce5812a18250a55b5e9a8736aa41d83015a9e46"
+  }
+}

@@ -1,0 +1,6 @@
+﻿NAME                          ID              SIZE      MODIFIED      
+qwen3:8b                      500a1f067a9f    5.2 GB    4 minutes ago    
+qwen3:8b-q4_K_M               500a1f067a9f    5.2 GB    4 minutes ago    
+falcon3:7b                    472ea1c89f64    4.6 GB    5 minutes ago    
+mistral:7b-instruct-q4_K_M    1a85656b534f    4.4 GB    4 months ago     
+

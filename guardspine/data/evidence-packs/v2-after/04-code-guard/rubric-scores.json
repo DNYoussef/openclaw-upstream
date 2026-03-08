@@ -1,0 +1,460 @@
+{
+  "timestamp": "2026-01-30T16:33:00.176376+00:00",
+  "target": "D:\\Projects\\guardspine-kernel\\src",
+  "rubrics_dir": "D:\\Projects\\GuardSpine\\rubrics",
+  "rubric_results": [
+    {
+      "rubric": "clarity",
+      "rules_count": 15,
+      "violations_found": 5,
+      "violations": [
+        {
+          "file": "seal.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 47,
+          "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < items.length; i++) {...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 49,
+          "description": "Variable and function names should be self-documenting: 'const previousHash = i === 0 ? \"genesis\" : chain[i...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 53,
+          "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < chain.length; i++) {...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 66,
+          "description": "Variable and function names should be self-documenting: 'const expectedPrev = i === 0 ? \"genesis\" : chain[i...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CLR-001",
+          "severity": "medium",
+          "line_number": 197,
+          "description": "Variable and function names should be self-documenting: 'for (let i = 0; i < bundle.items.length && i < cha...'"
+        }
+      ]
+    },
+    {
+      "rubric": "connascence",
+      "rules_count": 9,
+      "violations_found": 24,
+      "violations": [
+        {
+          "file": "seal.ts",
+          "rule_id": "CON-003",
+          "severity": "medium",
+          "line_number": 49,
+          "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'const previousHash = i === 0 ? \"genesis\" : chain"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "CON-004",
+          "severity": "medium",
+          "line_number": 53,
+          "description": "Connascence of Position (CoP) - Order of elements matters: 'chain.push({...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "CON-005",
+          "severity": "medium",
+          "line_number": 20,
+          "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'export function computeContentHash(content: object"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "CON-005",
+          "severity": "medium",
+          "line_number": 22,
+          "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'const hash = createHash(\"sha256\").update(canonical"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "CON-005",
+          "severity": "medium",
+          "line_number": 30,
+          "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'const hash = createHash(\"sha256\").update(data, \"ut"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "CON-005",
+          "severity": "medium",
+          "line_number": 48,
+          "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'const contentHash = computeContentHash(items[i].co"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "CON-005",
+          "severity": "medium",
+          "line_number": 68,
+          "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'export function computeRootHash(chain: HashChain):"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "CON-005",
+          "severity": "medium",
+          "line_number": 95,
+          "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'const rootHash = computeRootHash(chain);...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-003",
+          "severity": "medium",
+          "line_number": 66,
+          "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'const expectedPrev = i === 0 ? \"genesis\" : chain"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-003",
+          "severity": "medium",
+          "line_number": 95,
+          "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'return { valid: errors.length === 0, errors };.."
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-003",
+          "severity": "medium",
+          "line_number": 118,
+          "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'return { valid: errors.length === 0, errors };.."
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-003",
+          "severity": "medium",
+          "line_number": 145,
+          "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'return { valid: errors.length === 0, errors };.."
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-003",
+          "severity": "medium",
+          "line_number": 211,
+          "description": "Connascence of Meaning (CoM) - Components must agree on value meaning: 'return { valid: errors.length === 0, errors };.."
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-004",
+          "severity": "medium",
+          "line_number": 58,
+          "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-004",
+          "severity": "medium",
+          "line_number": 68,
+          "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-004",
+          "severity": "medium",
+          "line_number": 83,
+          "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-004",
+          "severity": "medium",
+          "line_number": 111,
+          "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-004",
+          "severity": "medium",
+          "line_number": 133,
+          "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-004",
+          "severity": "medium",
+          "line_number": 199,
+          "description": "Connascence of Position (CoP) - Order of elements matters: 'errors.push({...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "CON-005",
+          "severity": "medium",
+          "line_number": 35,
+          "description": "Connascence of Algorithm (CoA) - Components must agree on algorithm: 'return `sha256:${createHash(\"sha256\").update(data,"
+        }
+      ]
+    },
+    {
+      "rubric": "hipaa-safeguards",
+      "rules_count": 13,
+      "violations_found": 1,
+      "violations": [
+        {
+          "file": "verify.ts",
+          "rule_id": "HIPAA-312.b",
+          "severity": "critical",
+          "line_number": 154,
+          "description": "Hardware, software, and procedural mechanisms: '* for deterministic audit trail reconstruction....'"
+        }
+      ]
+    },
+    {
+      "rubric": "mece",
+      "rules_count": 12,
+      "violations_found": 3,
+      "violations": [
+        {
+          "file": "seal.ts",
+          "rule_id": "MECE-012",
+          "severity": "medium",
+          "line_number": 47,
+          "description": "Detect related constants scattered across files: 'for (let i = 0; i < items.length; i++) {...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "MECE-012",
+          "severity": "medium",
+          "line_number": 53,
+          "description": "Detect related constants scattered across files: 'for (let i = 0; i < chain.length; i++) {...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "MECE-012",
+          "severity": "medium",
+          "line_number": 197,
+          "description": "Detect related constants scattered across files: 'for (let i = 0; i < bundle.items.length && i < cha...'"
+        }
+      ]
+    },
+    {
+      "rubric": "nasa-safety",
+      "rules_count": 10,
+      "violations_found": 14,
+      "violations": [
+        {
+          "file": "canonical.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 14,
+          "description": "Check return values of all non-void functions: 'return serializeValue(value);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 27,
+          "description": "Check return values of all non-void functions: 'return serializeNumber(value);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 30,
+          "description": "Check return values of all non-void functions: 'return serializeString(value);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 34,
+          "description": "Check return values of all non-void functions: 'return serializeArray(value);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 36,
+          "description": "Check return values of all non-void functions: 'return serializeObject(value as Record<string, unk...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 21,
+          "description": "Check return values of all non-void functions: 'const canonical = canonicalJson(content);...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 48,
+          "description": "Check return values of all non-void functions: 'const contentHash = computeContentHash(items[i].co...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 94,
+          "description": "Check return values of all non-void functions: 'const chain = buildHashChain(chainInputs);...'"
+        },
+        {
+          "file": "seal.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 95,
+          "description": "Check return values of all non-void functions: 'const rootHash = computeRootHash(chain);...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 31,
+          "description": "Check return values of all non-void functions: 'return timingSafeEqual(bufLeft, bufRight);...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 131,
+          "description": "Check return values of all non-void functions: 'const expected = contentHash(item.content);...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 184,
+          "description": "Check return values of all non-void functions: 'const contentResult = verifyContentHashes(bundle.i...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 188,
+          "description": "Check return values of all non-void functions: 'const chainResult = verifyHashChain(bundle.immutab...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NASA-007",
+          "severity": "high",
+          "line_number": 192,
+          "description": "Check return values of all non-void functions: 'const rootResult = verifyRootHash(bundle.immutabil...'"
+        }
+      ]
+    },
+    {
+      "rubric": "nomotic",
+      "rules_count": 15,
+      "violations_found": 5,
+      "violations": [
+        {
+          "file": "verify.ts",
+          "rule_id": "NOM-TRACE-001",
+          "severity": "high",
+          "line_number": 50,
+          "description": "All decisions must be traceable with logged rationale: 'export function verifyHashChain(chain: HashChain):...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NOM-TRACE-001",
+          "severity": "high",
+          "line_number": 104,
+          "description": "All decisions must be traceable with logged rationale: 'export function verifyRootHash(proof: Immutability...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NOM-TRACE-001",
+          "severity": "high",
+          "line_number": 127,
+          "description": "All decisions must be traceable with logged rationale: 'export function verifyContentHashes(items: Evidenc...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NOM-TRACE-001",
+          "severity": "high",
+          "line_number": 149,
+          "description": "All decisions must be traceable with logged rationale: '* Full bundle verification: required fields, conte...'"
+        },
+        {
+          "file": "verify.ts",
+          "rule_id": "NOM-TRACE-001",
+          "severity": "high",
+          "line_number": 156,
+          "description": "All decisions must be traceable with logged rationale: 'export function verifyBundle(bundle: EvidenceBundl...'"
+        }
+      ]
+    },
+    {
+      "rubric": "pci-dss-requirements",
+      "rules_count": 16,
+      "violations_found": 4,
+      "violations": [
+        {
+          "file": "canonical.ts",
+          "rule_id": "PCI-6.5.1",
+          "severity": "critical",
+          "line_number": 14,
+          "description": "Prevent injection attacks: 'return serializeValue(value);...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "PCI-6.5.1",
+          "severity": "critical",
+          "line_number": 17,
+          "description": "Prevent injection attacks: 'function serializeValue(value: unknown): string {...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "PCI-6.5.1",
+          "severity": "critical",
+          "line_number": 72,
+          "description": "Prevent injection attacks: 'const items = arr.map((item) => serializeValue(ite...'"
+        },
+        {
+          "file": "canonical.ts",
+          "rule_id": "PCI-6.5.1",
+          "severity": "critical",
+          "line_number": 86,
+          "description": "Prevent injection attacks: 'pairs.push(serializeString(key) + \":\" + serializeV...'"
+        }
+      ]
+    },
+    {
+      "rubric": "safety-violations",
+      "rules_count": 18,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "six-sigma",
+      "rules_count": 15,
+      "violations_found": 0,
+      "violations": []
+    },
+    {
+      "rubric": "soc2-controls",
+      "rules_count": 10,
+      "violations_found": 1,
+      "violations": [
+        {
+          "file": "verify.ts",
+          "rule_id": "SOC2-CC7.2",
+          "severity": "critical",
+          "line_number": 22,
+          "description": "Security incidents are detected, reported, and corrected: '* Constant-time string comparison to prevent timin...'"
+        }
+      ]
+    },
+    {
+      "rubric": "theater-detection",
+      "rules_count": 15,
+      "violations_found": 0,
+      "violations": []
+    }
+  ],
+  "total_violations": 57,
+  "files_scanned": [
+    "canonical.ts",
+    "errors.ts",
+    "index.ts",
+    "seal.ts",
+    "verify.ts"
+  ]
+}
