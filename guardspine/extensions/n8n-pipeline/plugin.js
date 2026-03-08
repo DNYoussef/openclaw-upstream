@@ -35,11 +35,23 @@ module.exports = function register(api) {
     );
   }
 
+  // BUG N3: Configurable response size limit (default 100KB)
+  const maxResponseBytes =
+    Number(pluginCfg.max_response_bytes) || Number(process.env.N8N_MAX_RESPONSE_BYTES) || 102400;
+
+  // BUG N5: Workflow name-to-ID cache with TTL
+  let workflowNameCache = null;
+  let workflowCacheExpiry = 0;
+  const WORKFLOW_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
   // ---------------------------------------------------------------
   // HTTP client for n8n REST API
   // ---------------------------------------------------------------
 
-  function n8nRequest(method, path, body) {
+  // BUG N4: Status codes that should NOT be retried (client errors)
+  const NON_RETRYABLE_STATUS = new Set([400, 401, 403, 404, 405, 409, 422]);
+
+  function n8nRequestOnce(method, path, body) {
     return new Promise((resolve, reject) => {
       const url = new URL(baseUrl + path);
       const isHttps = url.protocol === "https:";
@@ -73,13 +85,37 @@ module.exports = function register(api) {
               } catch (e) {
                 msg += ": " + data.substring(0, 200);
               }
-              reject(new Error(msg));
+              // BUG N4: Attach status code and Retry-After header to error
+              const err = new Error(msg);
+              err.statusCode = res.statusCode;
+              err.retryAfter = res.headers["retry-after"]
+                ? Number(res.headers["retry-after"])
+                : null;
+              reject(err);
               return;
             }
+            // BUG N3: Truncate oversized responses before JSON.parse
+            let truncated = false;
+            if (data.length > maxResponseBytes) {
+              data = data.substring(0, maxResponseBytes);
+              truncated = true;
+            }
             try {
-              resolve(JSON.parse(data));
+              const parsed = JSON.parse(data);
+              if (truncated) {
+                parsed._truncated = "response exceeded " + maxResponseBytes + " byte limit";
+              }
+              resolve(parsed);
             } catch (e) {
-              resolve({ raw: data });
+              if (truncated) {
+                resolve({
+                  raw: data,
+                  _truncated:
+                    "response exceeded " + maxResponseBytes + " byte limit (parse failed)",
+                });
+              } else {
+                resolve({ raw: data });
+              }
             }
           });
         },
@@ -93,6 +129,121 @@ module.exports = function register(api) {
       if (payload) req.write(payload);
       req.end();
     });
+  }
+
+  // BUG N4: Retry wrapper - only retries on server/timeout/rate-limit errors
+  async function n8nRequest(method, path, body) {
+    const MAX_RETRIES = 3;
+    const BASE_DELAY_MS = 1000;
+    let lastErr = null;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        return await n8nRequestOnce(method, path, body);
+      } catch (e) {
+        lastErr = e;
+        const status = e.statusCode;
+
+        // Fail immediately on client errors - retrying won't help
+        if (status && NON_RETRYABLE_STATUS.has(status)) {
+          throw e;
+        }
+
+        // No more retries left
+        if (attempt >= MAX_RETRIES) {
+          throw e;
+        }
+
+        // Calculate delay: respect Retry-After on 429, else exponential backoff
+        let delayMs;
+        if (status === 429 && e.retryAfter && e.retryAfter > 0) {
+          delayMs = e.retryAfter * 1000;
+        } else {
+          delayMs = BASE_DELAY_MS * Math.pow(2, attempt); // 1s, 2s, 4s
+        }
+
+        console.log(
+          "[n8n-pipeline] " +
+            method +
+            " " +
+            path +
+            " failed (status=" +
+            (status || "network") +
+            "), retry " +
+            (attempt + 1) +
+            "/" +
+            MAX_RETRIES +
+            " in " +
+            delayMs +
+            "ms",
+        );
+
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+    throw lastErr;
+  }
+
+  // ---------------------------------------------------------------
+  // BUG N5: Workflow name-to-ID resolution
+  // ---------------------------------------------------------------
+
+  async function refreshWorkflowCache() {
+    try {
+      const result = await n8nRequest("GET", "/api/v1/workflows?limit=250");
+      const map = {};
+      for (const wf of result.data || []) {
+        map[wf.name] = wf.id;
+      }
+      workflowNameCache = map;
+      workflowCacheExpiry = Date.now() + WORKFLOW_CACHE_TTL_MS;
+      return map;
+    } catch (e) {
+      console.error("[n8n-pipeline] Failed to refresh workflow cache: " + e.message);
+      return workflowNameCache || {};
+    }
+  }
+
+  async function resolveWorkflowId(nameOrId) {
+    if (!nameOrId) {
+      throw new Error("workflow_id is required");
+    }
+    // If it looks like a pure numeric or n8n-style alphanumeric ID, try it directly
+    // but also check cache in case it's actually a name
+    const looksLikeId = /^[a-zA-Z0-9_-]+$/.test(nameOrId) && nameOrId.length <= 30;
+
+    // Refresh cache if expired or missing
+    if (!workflowNameCache || Date.now() > workflowCacheExpiry) {
+      await refreshWorkflowCache();
+    }
+
+    // Check by name first (exact match)
+    if (workflowNameCache && workflowNameCache[nameOrId]) {
+      return workflowNameCache[nameOrId];
+    }
+
+    // If it looks like an ID, return as-is
+    if (looksLikeId) {
+      return nameOrId;
+    }
+
+    // Force-refresh cache once in case workflow was just created
+    if (Date.now() <= workflowCacheExpiry) {
+      // Cache is fresh but name not found, try raw
+      return nameOrId;
+    }
+    await refreshWorkflowCache();
+    if (workflowNameCache && workflowNameCache[nameOrId]) {
+      return workflowNameCache[nameOrId];
+    }
+
+    throw new Error(
+      "Workflow not found: '" +
+        nameOrId +
+        "'. Not a known workflow name and does not look like a valid ID. " +
+        "Available workflows: " +
+        Object.keys(workflowNameCache || {}).join(", "),
+    );
   }
 
   // ---------------------------------------------------------------
@@ -147,13 +298,14 @@ module.exports = function register(api) {
       parameters: {
         type: "object",
         properties: {
-          workflow_id: { type: "string", description: "The workflow ID" },
+          workflow_id: { type: "string", description: "The workflow ID or name" },
         },
         required: ["workflow_id"],
       },
       execute: async (params) => {
         try {
-          const wf = await n8nRequest("GET", "/api/v1/workflows/" + params.workflow_id);
+          const resolvedId = await resolveWorkflowId(params.workflow_id);
+          const wf = await n8nRequest("GET", "/api/v1/workflows/" + resolvedId);
           return {
             id: wf.id,
             name: wf.name,
@@ -280,7 +432,7 @@ module.exports = function register(api) {
       parameters: {
         type: "object",
         properties: {
-          workflow_id: { type: "string", description: "The workflow ID to update" },
+          workflow_id: { type: "string", description: "The workflow ID or name to update" },
           name: { type: "string", description: "New workflow name" },
           nodes: { type: "array", description: "Updated nodes array" },
           connections: { type: "object", description: "Updated connections" },
@@ -303,7 +455,8 @@ module.exports = function register(api) {
             };
           }
 
-          const wf = await n8nRequest("PATCH", "/api/v1/workflows/" + params.workflow_id, body);
+          const resolvedId = await resolveWorkflowId(params.workflow_id);
+          const wf = await n8nRequest("PATCH", "/api/v1/workflows/" + resolvedId, body);
           return {
             id: wf.id,
             name: wf.name,
@@ -329,14 +482,15 @@ module.exports = function register(api) {
       parameters: {
         type: "object",
         properties: {
-          workflow_id: { type: "string", description: "The workflow ID" },
+          workflow_id: { type: "string", description: "The workflow ID or name" },
           active: { type: "boolean", description: "true to activate, false to deactivate" },
         },
         required: ["workflow_id", "active"],
       },
       execute: async (params) => {
         try {
-          const wf = await n8nRequest("PATCH", "/api/v1/workflows/" + params.workflow_id, {
+          const resolvedId = await resolveWorkflowId(params.workflow_id);
+          const wf = await n8nRequest("PATCH", "/api/v1/workflows/" + resolvedId, {
             active: params.active,
           });
           return { id: wf.id, name: wf.name, active: wf.active };
@@ -360,7 +514,7 @@ module.exports = function register(api) {
       parameters: {
         type: "object",
         properties: {
-          workflow_id: { type: "string", description: "The workflow ID to execute" },
+          workflow_id: { type: "string", description: "The workflow ID or name to execute" },
           data: { type: "object", description: "Input data to pass to the workflow trigger" },
         },
         required: ["workflow_id"],
@@ -370,32 +524,31 @@ module.exports = function register(api) {
           const body = {};
           if (params.data) body.data = params.data;
 
+          const resolvedId = await resolveWorkflowId(params.workflow_id);
+
           // n8n v1 API: POST /api/v1/workflows/{id}/run
           // Some versions use /executions with workflowId
           const result = await n8nRequest("POST", "/api/v1/executions", {
-            workflowId: params.workflow_id,
+            workflowId: resolvedId,
             data: params.data || {},
           });
 
           return {
             execution_id: result.id || result.data?.id,
             status: result.status || "started",
-            workflow_id: params.workflow_id,
+            workflow_id: resolvedId,
           };
         } catch (e) {
           // Fallback: try the /run endpoint
           try {
-            const result = await n8nRequest(
-              "POST",
-              "/api/v1/workflows/" + params.workflow_id + "/run",
-              {
-                data: params.data || {},
-              },
-            );
+            const fallbackId = await resolveWorkflowId(params.workflow_id);
+            const result = await n8nRequest("POST", "/api/v1/workflows/" + fallbackId + "/run", {
+              data: params.data || {},
+            });
             return {
               execution_id: result.id || result.data?.id,
               status: result.status || "started",
-              workflow_id: params.workflow_id,
+              workflow_id: fallbackId,
             };
           } catch (e2) {
             return { error: e.message + " (fallback: " + e2.message + ")" };
@@ -417,7 +570,7 @@ module.exports = function register(api) {
       parameters: {
         type: "object",
         properties: {
-          workflow_id: { type: "string", description: "Filter by workflow ID" },
+          workflow_id: { type: "string", description: "Filter by workflow ID or name" },
           status: {
             type: "string",
             enum: ["success", "error", "waiting", "running"],
@@ -429,7 +582,10 @@ module.exports = function register(api) {
       execute: async (params) => {
         try {
           let path = "/api/v1/executions?limit=" + (params.limit || 20);
-          if (params.workflow_id) path += "&workflowId=" + params.workflow_id;
+          if (params.workflow_id) {
+            const resolvedId = await resolveWorkflowId(params.workflow_id);
+            path += "&workflowId=" + resolvedId;
+          }
           if (params.status) path += "&status=" + params.status;
 
           const result = await n8nRequest("GET", path);
@@ -499,11 +655,18 @@ module.exports = function register(api) {
                 result.nodes[nodeName].error = lastRun.error.message || String(lastRun.error);
               }
               if (params.include_data && lastRun.data?.main?.[0]) {
-                // Truncate large outputs
+                // BUG N3: Safely truncate large outputs without crashing
                 const items = lastRun.data.main[0].map((item) => {
                   const json = item.json || {};
                   const str = JSON.stringify(json);
-                  return str.length > 2000 ? JSON.parse(str.substring(0, 2000) + '..."') : json;
+                  if (str.length > 2000) {
+                    return {
+                      _truncated: true,
+                      _original_bytes: str.length,
+                      preview: str.substring(0, 2000),
+                    };
+                  }
+                  return json;
                 });
                 result.nodes[nodeName].data = items;
               }
@@ -515,9 +678,149 @@ module.exports = function register(api) {
             result.error = ex.data.resultData.error.message || String(ex.data.resultData.error);
           }
 
+          // BUG N3: Final safety check - ensure serialized result is under limit
+          const serialized = JSON.stringify(result);
+          if (serialized.length > maxResponseBytes) {
+            // Strip node data to fit, keep metadata
+            if (result.nodes) {
+              for (const nodeName of Object.keys(result.nodes)) {
+                delete result.nodes[nodeName].data;
+              }
+            }
+            result._truncated =
+              "Full result exceeded " + maxResponseBytes + " byte limit; node data stripped";
+          }
+
           return result;
         } catch (e) {
           return { error: e.message };
+        }
+      },
+    }),
+    { priority: 0 },
+  );
+
+  // ---------------------------------------------------------------
+  // TOOL: n8n_request_approval (L3) - Escalate to n8n approval workflow
+  // ---------------------------------------------------------------
+
+  api.registerTool(
+    () => ({
+      name: "n8n_request_approval",
+      description:
+        "Request human approval via an n8n governance workflow. Creates an execution of the " +
+        "governance-approval-flow workflow, passing the action description, risk tier, requester " +
+        "info, and evidence hash. Returns the execution ID for tracking. Use this for L3-L4 " +
+        "escalations (outreach emails, dangerous operations, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          action_type: {
+            type: "string",
+            description:
+              "Type of action needing approval (e.g. 'outreach_email', 'deploy', 'config_change')",
+          },
+          action_description: {
+            type: "string",
+            description: "Human-readable description of what needs approval",
+          },
+          risk_tier: {
+            type: "string",
+            enum: ["L3", "L4"],
+            description: "GuardSpine risk tier (L3 = council review, L4 = human approval required)",
+          },
+          requester: {
+            type: "string",
+            description: "Who is requesting this action (agent name or human)",
+          },
+          evidence_hash: {
+            type: "string",
+            description: "SHA-256 hash of the action evidence for tamper-proof tracking",
+          },
+          context: {
+            type: "object",
+            description: "Additional context (prospect_id, recipient, subject, etc.)",
+          },
+          workflow_name: {
+            type: "string",
+            description: "n8n workflow name to trigger (default: 'governance-approval-flow')",
+            default: "governance-approval-flow",
+          },
+        },
+        required: ["action_type", "action_description", "risk_tier", "requester"],
+      },
+      execute: async (params) => {
+        const workflowName = params.workflow_name || "governance-approval-flow";
+        const approvalData = {
+          action_type: params.action_type,
+          action_description: params.action_description,
+          risk_tier: params.risk_tier,
+          requester: params.requester,
+          evidence_hash: params.evidence_hash || "none",
+          context: params.context || {},
+          requested_at: new Date().toISOString(),
+        };
+
+        try {
+          const resolvedId = await resolveWorkflowId(workflowName);
+
+          // Try the executions endpoint first
+          let result;
+          try {
+            result = await n8nRequest("POST", "/api/v1/executions", {
+              workflowId: resolvedId,
+              data: approvalData,
+            });
+          } catch (e1) {
+            // Fallback to /run endpoint
+            try {
+              result = await n8nRequest("POST", "/api/v1/workflows/" + resolvedId + "/run", {
+                data: approvalData,
+              });
+            } catch (e2) {
+              // n8n unreachable -- log and return degraded result
+              console.error(
+                "[n8n-pipeline] n8n_request_approval: both endpoints failed. " +
+                  "Primary: " +
+                  e1.message +
+                  " | Fallback: " +
+                  e2.message,
+              );
+              return {
+                status: "degraded",
+                approval_requested: false,
+                reason: "n8n unreachable: " + e1.message,
+                action_type: params.action_type,
+                risk_tier: params.risk_tier,
+                evidence_hash: params.evidence_hash || "none",
+                fallback: "Action logged locally. Manual approval required.",
+              };
+            }
+          }
+
+          return {
+            status: "pending",
+            approval_requested: true,
+            execution_id: result.id || (result.data && result.data.id),
+            workflow_id: resolvedId,
+            workflow_name: workflowName,
+            action_type: params.action_type,
+            risk_tier: params.risk_tier,
+            evidence_hash: params.evidence_hash || "none",
+          };
+        } catch (e) {
+          // Workflow not found or other resolution error
+          console.error("[n8n-pipeline] n8n_request_approval error: " + e.message);
+          return {
+            status: "degraded",
+            approval_requested: false,
+            reason: e.message,
+            action_type: params.action_type,
+            risk_tier: params.risk_tier,
+            evidence_hash: params.evidence_hash || "none",
+            fallback:
+              "Workflow '" + workflowName + "' not found. Create it in n8n or approve manually.",
+          };
         }
       },
     }),
@@ -904,35 +1207,48 @@ module.exports = function register(api) {
   api.on(
     "before_agent_start",
     async () => {
+      // BUG N5: Dynamically fetch workflow list instead of hardcoded IDs
+      let workflowList = "";
+      try {
+        const cache = await refreshWorkflowCache();
+        const entries = Object.entries(cache);
+        if (entries.length > 0) {
+          workflowList = entries
+            .map(([name, id]) => "  - " + name + " (ID: " + id + ")")
+            .join("\n");
+        } else {
+          workflowList = "  (no workflows found - use n8n_create_workflow to create one)";
+        }
+      } catch (e) {
+        workflowList = "  (could not fetch workflows: " + e.message + ")";
+      }
+
       return {
         prependContext:
           "[N8N] n8n Pipeline Manager active. Architecture: n8n handles 95% deterministic work, you handle 5% edge cases.\n" +
           "\n" +
-          "DEPLOYED PIPELINES (all POST to OpenClaw webhook endpoints, auth=gateway token):\n" +
+          "DEPLOYED WORKFLOWS (live from n8n, use name or ID with any tool):\n" +
+          workflowList +
           "\n" +
-          "P1 - Outreach Pipeline (n8n ID: HsnX6HGIEeraMhYu, schedule: every 6h, currently INACTIVE)\n" +
-          "  Endpoint: /webhook/outreach-pipeline\n" +
+          "\n" +
+          "WEBHOOK ENDPOINTS (all POST, auth=gateway token):\n" +
+          "\n" +
+          "/webhook/outreach-pipeline\n" +
           "  Actions: check_response_signals, check_landing_signups, check_followups_due, draft_followups, send_alert, pipeline_status\n" +
-          "  Flow: Schedule -> 3 parallel checks (signals, signups, followups) -> merge -> Revenue Signals? -> Alert | Follow-ups Due? -> Draft\n" +
-          "  CRM DB: /app/.openclaw/data/outreach.db (359 prospects, 4 lanes: builder/buyer/connector/investor)\n" +
-          "  Landing page signups checked via LANDING_BASE_URL + /api/admin/signups\n" +
+          "  CRM DB: /app/.openclaw/data/outreach.db (4 lanes: builder/buyer/connector/investor)\n" +
           "\n" +
-          "P3 - Narrowcast Pipeline (n8n ID: Zfu2QuhG8zrb0sx5, schedule: every 12h, currently INACTIVE)\n" +
-          "  Endpoint: /webhook/narrowcast-pipeline\n" +
+          "/webhook/narrowcast-pipeline\n" +
           "  Actions: scan_communities, evaluate_and_source\n" +
-          "  Flow: Schedule -> Scan Communities -> Threads Found? -> Evaluate & Source -> New Prospects? -> Alert (via outreach-pipeline)\n" +
           "  Data: narrowcast_scans + narrowcast_threads tables in outreach.db\n" +
           "\n" +
-          "P2 - Pilot Pipeline (n8n ID: 3yB7GreStiD0Tihf, STUBBED - needs GitHub API + codeguard telemetry)\n" +
-          "  Endpoint: /webhook/pilot-pipeline\n" +
+          "/webhook/pilot-pipeline\n" +
           "  Actions: check_pilot_repos, check_evidence_bundles, generate_pilot_report\n" +
           "\n" +
-          "P8 - Morning Brief (n8n ID: Sy2WuqOFGqa4WbWc, STUBBED - needs multi-source aggregation)\n" +
-          "  Endpoint: /webhook/morning-brief\n" +
+          "/webhook/morning-brief\n" +
           "  Actions: gather_data, format_brief, deliver_brief\n" +
           "\n" +
           "STUBS REMAINING (INT-2): draft_followups (AI drafting), evaluate_and_source (AI eval), send_alert (Slack/Discord delivery).\n" +
-          "Use n8n_list_workflows to see all pipelines. Use n8n_activate_workflow to enable cron schedules.",
+          "Tools accept workflow name OR ID. Names are resolved dynamically (cache TTL: 5min).",
       };
     },
     { priority: 10 },

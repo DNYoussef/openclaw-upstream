@@ -44,4 +44,12 @@ COPY guardspine/extensions/n8n-pipeline /app/.openclaw/extensions/n8n-pipeline
 # Schema only -- data lives on Railway volume, never in git or Docker image
 COPY guardspine/data/migration.sql /app/.openclaw/data/migration.sql
 
+# Non-root user for runtime security
+RUN groupadd -r openclaw && useradd -r -g openclaw -d /app -s /bin/bash openclaw && \
+    chown -R openclaw:openclaw /app/.openclaw
+
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["entrypoint.sh"]
 CMD ["node", "dist/index.js", "gateway", "--bind", "lan", "--port", "18789"]

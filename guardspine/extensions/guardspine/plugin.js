@@ -21,6 +21,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const http = require("http");
+const https = require("https");
 
 // ═══════════════════════════════════════════════════════════════
 // RISK CLASSIFICATION
@@ -131,6 +132,9 @@ function resolvePluginConfig(rawConfig = {}, env = process.env) {
     discordApprovalTarget:
       rawConfig.discord_approval_target || env.GUARDSPINE_DISCORD_APPROVAL_TARGET || null,
     discordBotToken: rawConfig.discord_bot_token || env.DISCORD_BOT_TOKEN || null,
+    slackBotToken: env.SLACK_BOT_TOKEN || null,
+    slackWebhookUrl: env.SLACK_WEBHOOK_URL || null,
+    slackApprovalChannel: rawConfig.slack_approval_channel || env.GUARDSPINE_SLACK_CHANNEL || null,
   };
 }
 
@@ -236,6 +240,85 @@ function logDecision(decision) {
   } catch (e) {
     console.error("[guardspine] Log write failed:", e.message);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BEAD EVENT APPEND (agent-to-bead creation loop)
+// ═══════════════════════════════════════════════════════════════
+
+const BEADS_DIR = process.env.BEADS_EVENTS_PATH
+  ? path.dirname(process.env.BEADS_EVENTS_PATH)
+  : path.join(
+      process.env.OPENCLAW_STATE_DIR ||
+        path.join(process.env.USERPROFILE || process.env.HOME || ".", ".openclaw"),
+      ".beads",
+    );
+const BEADS_FILE = process.env.BEADS_EVENTS_PATH || path.join(BEADS_DIR, "beads.jsonl");
+const GUARD_EVENTS_FILE = path.join(BEADS_DIR, "guard_events.jsonl");
+
+function ensureBeadsDir() {
+  try {
+    fs.mkdirSync(BEADS_DIR, { recursive: true });
+  } catch (e) {}
+}
+
+function beadEventId() {
+  return "evt_" + crypto.randomBytes(16).toString("hex");
+}
+
+function beadId() {
+  return "bead_" + crypto.randomBytes(8).toString("hex");
+}
+
+/**
+ * Append a single bead event line. Atomic: open-append-close.
+ * On failure, logs warning and continues (R8: never block governance for tracking).
+ */
+function appendBeadEvent(filePath, event) {
+  ensureBeadsDir();
+  try {
+    const fd = fs.openSync(filePath, "a");
+    try {
+      fs.writeSync(fd, JSON.stringify(event) + "\n", null, "utf-8");
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch (e) {
+    console.warn("[guardspine:beads] Write failed:", e.message);
+  }
+}
+
+/**
+ * Create a BEAD_UPSERTED event for the beads.jsonl log.
+ * Matches the exact schema consumed by beads viewer (bd/bv).
+ */
+function createBeadEvent(title, status, metadata) {
+  return {
+    event_id: beadEventId(),
+    event_type: "BEAD_UPSERTED",
+    bead_id: beadId(),
+    occurred_at: new Date().toISOString(),
+    prev_event_id: null,
+    title: title,
+    status: status || "open",
+    metadata: metadata || {},
+  };
+}
+
+/**
+ * Create a guard_event linking a tool call to its evidence chain hash.
+ */
+function createGuardEvent(toolName, tier, chainHash, success, sessionRef) {
+  return {
+    event_id: beadEventId(),
+    event_type: "GUARD_ACTION",
+    occurred_at: new Date().toISOString(),
+    tool: toolName,
+    tier: tier,
+    chain_hash: chainHash,
+    success: success,
+    session_id: sessionRef,
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -682,7 +765,7 @@ Make the final call. Respond with JSON ONLY:
 // Approval state: pending approvals stored in memory (session-scoped)
 const pendingApprovals = new Map();
 
-function generateApprovalRequest(toolName, params, reason, councilResult) {
+function generateApprovalRequest(toolName, params, reason, councilResult, requesterSessionId) {
   const approvalId = crypto.randomUUID().substring(0, 8);
   const nonce = crypto.randomBytes(16).toString("hex");
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min expiry
@@ -696,6 +779,8 @@ function generateApprovalRequest(toolName, params, reason, councilResult) {
     council_verdict: councilResult ? councilResult.verdict : "N/A",
     expires_at: expiresAt,
     created_at: new Date().toISOString(),
+    // G5: Track requester session to prevent self-approval
+    requester_session_id: requesterSessionId || null,
   };
 
   pendingApprovals.set(approvalId, { ...request, nonce });
@@ -793,6 +878,30 @@ function generateApprovalRequest(toolName, params, reason, councilResult) {
     " allow-once`";
 
   return { approval_id: approvalId, message: discordMessage };
+}
+
+// G5: Self-approval prevention for L4 separation of duties.
+// An agent session that REQUESTED an L4 approval must not be the same session
+// that APPROVES it. This is a hard block (fail-closed): if either session ID
+// is unavailable, the check defaults to deny.
+function checkSelfApproval(approvalId, approverSessionId) {
+  const pending = pendingApprovals.get(approvalId);
+  if (!pending) return { blocked: false }; // No pending request found (handled elsewhere)
+  const requesterSessionId = pending.requester_session_id;
+  // Fail-closed: if we cannot determine either party, deny
+  if (!requesterSessionId || !approverSessionId) {
+    return {
+      blocked: true,
+      reason: "Self-approval not permitted: session identity unavailable (fail-closed)",
+    };
+  }
+  if (approverSessionId === requesterSessionId) {
+    return {
+      blocked: true,
+      reason: "Self-approval not permitted: approver and requester are the same session",
+    };
+  }
+  return { blocked: false };
 }
 
 // Send L4 approval request to Discord via OpenClaw runtime API (injected at register time)
@@ -902,6 +1011,265 @@ function checkDevInboxApproval(approvalId) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// SLACK INTEGRATION (S1: approval channel, S2: evidence emitter)
+// ═══════════════════════════════════════════════════════════════
+
+// Store Slack message timestamps for reaction polling (approvalId -> {ts, channel})
+const slackApprovalMessages = new Map();
+
+/**
+ * POST JSON to the Slack Web API using the built-in https module.
+ * Returns parsed JSON response or {ok:false, error:...} on failure.
+ */
+function slackApiCall(method, token, body) {
+  return new Promise((resolve) => {
+    const payload = JSON.stringify(body);
+    const options = {
+      hostname: "slack.com",
+      path: `/api/${method}`,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Authorization: `Bearer ${token}`,
+        "Content-Length": Buffer.byteLength(payload),
+      },
+      timeout: 10000,
+    };
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+      res.on("end", () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          resolve({ ok: false, error: "json_parse_error", raw: data.substring(0, 200) });
+        }
+      });
+    });
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({ ok: false, error: "timeout" });
+    });
+    req.on("error", (e) => resolve({ ok: false, error: e.message }));
+    req.write(payload);
+    req.end();
+  });
+}
+
+/**
+ * Post a webhook message (simple, no interactivity).
+ * Used as fallback when bot token is unavailable.
+ */
+function slackWebhookPost(webhookUrl, body) {
+  return new Promise((resolve) => {
+    const url = new URL(webhookUrl);
+    const payload = JSON.stringify(body);
+    const options = {
+      hostname: url.hostname,
+      path: url.pathname,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload),
+      },
+      timeout: 10000,
+    };
+    const transport = url.protocol === "https:" ? https : http;
+    const req = transport.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+      res.on("end", () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 300 }));
+    });
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({ ok: false, error: "timeout" });
+    });
+    req.on("error", (e) => resolve({ ok: false, error: e.message }));
+    req.write(payload);
+    req.end();
+  });
+}
+
+/**
+ * Build Block Kit blocks for an L4 approval request.
+ */
+function buildApprovalBlocks(toolName, params, reason, approvalId, expiresAt, councilResult) {
+  const paramsPreview = JSON.stringify(params).substring(0, 200);
+  let councilText = "Council: N/A";
+  if (councilResult && councilResult.votes) {
+    councilText = `Council: ${councilResult.verdict} (${councilResult.pass_count}P / ${councilResult.fail_count}F / ${councilResult.escalate_count}E)`;
+  }
+  return [
+    {
+      type: "header",
+      text: { type: "plain_text", text: "GuardSpine L4 Approval Required", emoji: false },
+    },
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*Tool:*\n\`${toolName}\`` },
+        { type: "mrkdwn", text: `*Risk:*\n${reason}` },
+        { type: "mrkdwn", text: `*ID:*\n\`${approvalId}\`` },
+        { type: "mrkdwn", text: `*Expires:*\n${expiresAt}` },
+      ],
+    },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: `*Params:*\n\`\`\`${paramsPreview}\`\`\`` },
+    },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: councilText },
+    },
+    {
+      type: "actions",
+      block_id: `guardspine_approval_${approvalId}`,
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Approve", emoji: false },
+          style: "primary",
+          action_id: `guardspine_approve_${approvalId}`,
+          value: approvalId,
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Deny", emoji: false },
+          style: "danger",
+          action_id: `guardspine_deny_${approvalId}`,
+          value: approvalId,
+        },
+      ],
+    },
+    {
+      type: "context",
+      elements: [
+        { type: "mrkdwn", text: "Or react with :thumbsup: to approve | :thumbsdown: to deny" },
+      ],
+    },
+  ];
+}
+
+/**
+ * S1: Send an L4 approval request to Slack.
+ * Prefers bot token (supports blocks + reactions). Falls back to webhook (text only).
+ */
+async function sendSlackApproval(
+  slackCfg,
+  toolName,
+  params,
+  reason,
+  approvalId,
+  expiresAt,
+  councilResult,
+) {
+  const { slackBotToken, slackWebhookUrl, slackApprovalChannel } = slackCfg;
+
+  // Prefer bot token + channel (supports Block Kit buttons + reaction polling)
+  if (slackBotToken && slackApprovalChannel) {
+    const blocks = buildApprovalBlocks(
+      toolName,
+      params,
+      reason,
+      approvalId,
+      expiresAt,
+      councilResult,
+    );
+    const fallbackText = `[GuardSpine L4] ${toolName} needs approval (${approvalId}). Reason: ${reason}`;
+    const result = await slackApiCall("chat.postMessage", slackBotToken, {
+      channel: slackApprovalChannel,
+      text: fallbackText,
+      blocks: blocks,
+    });
+    if (result.ok && result.ts) {
+      slackApprovalMessages.set(approvalId, {
+        ts: result.ts,
+        channel: result.channel || slackApprovalChannel,
+      });
+      return { ok: true, method: "bot_api", ts: result.ts };
+    }
+    console.error(`[guardspine] Slack chat.postMessage failed: ${result.error || "unknown"}`);
+    // Fall through to webhook
+  }
+
+  // Fallback: webhook (no buttons, no reaction checking)
+  if (slackWebhookUrl) {
+    const text =
+      `*[GuardSpine L4 Approval Required]*\n` +
+      `Tool: \`${toolName}\` | Reason: ${reason}\n` +
+      `Params: \`${JSON.stringify(params).substring(0, 200)}\`\n` +
+      `ID: \`${approvalId}\` | Expires: ${expiresAt}\n` +
+      (councilResult ? `Council: ${councilResult.verdict}\n` : "") +
+      `_Use dev_inbox or Discord to approve/deny._`;
+    const result = await slackWebhookPost(slackWebhookUrl, { text });
+    return { ok: result.ok, method: "webhook" };
+  }
+
+  return { ok: false, error: "no_slack_credentials" };
+}
+
+/**
+ * S1: Check Slack reactions on the approval message.
+ * Returns {approved: true/false} or null if no reaction yet.
+ */
+async function checkSlackReaction(approvalId, slackBotToken) {
+  const msgInfo = slackApprovalMessages.get(approvalId);
+  if (!msgInfo || !slackBotToken) return null;
+
+  const result = await slackApiCall("reactions.get", slackBotToken, {
+    channel: msgInfo.channel,
+    timestamp: msgInfo.ts,
+    full: true,
+  });
+
+  if (!result.ok) return null;
+
+  const reactions = result.message?.reactions || [];
+  for (const r of reactions) {
+    // thumbsup / +1 = approve (excludes the bot itself)
+    if ((r.name === "+1" || r.name === "thumbsup") && r.count > 0) {
+      slackApprovalMessages.delete(approvalId);
+      return { approved: true, method: "slack_reaction" };
+    }
+    // thumbsdown / -1 = deny
+    if ((r.name === "-1" || r.name === "thumbsdown") && r.count > 0) {
+      slackApprovalMessages.delete(approvalId);
+      return { approved: false, reason: "denied_by_slack_reaction", method: "slack_reaction" };
+    }
+  }
+
+  return null; // No relevant reaction yet
+}
+
+/**
+ * S2: Post evidence summary to Slack for L2+ actions.
+ * Fire-and-forget: errors are logged, never block governance.
+ */
+function emitEvidenceNotification(slackCfg, toolName, tier, chainHash, entryCount, sealed) {
+  const { slackBotToken, slackWebhookUrl, slackApprovalChannel } = slackCfg;
+  const hashPrefix = chainHash.substring(0, 16);
+  const text = `[GuardSpine Evidence] \`${toolName}\` | ${tier} | ${entryCount} items | seal: \`${hashPrefix}...\`${sealed ? " (sealed)" : ""}`;
+
+  if (slackBotToken && slackApprovalChannel) {
+    slackApiCall("chat.postMessage", slackBotToken, {
+      channel: slackApprovalChannel,
+      text: text,
+    }).catch((e) => console.error("[guardspine] Slack evidence notify failed:", e.message));
+    return;
+  }
+
+  if (slackWebhookUrl) {
+    slackWebhookPost(slackWebhookUrl, { text }).catch((e) =>
+      console.error("[guardspine] Slack evidence webhook failed:", e.message),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // PLUGIN ENTRY POINT
 // ═══════════════════════════════════════════════════════════════
 
@@ -940,6 +1308,24 @@ function register(api) {
     console.log("[guardspine] Discord token bound for reaction checking");
   } else {
     console.log("[guardspine] No Discord token - reaction approval disabled");
+  }
+
+  // Slack config for S1 (approval channel) and S2 (evidence emitter)
+  const slackCfg = {
+    slackBotToken: resolvedConfig.slackBotToken,
+    slackWebhookUrl: resolvedConfig.slackWebhookUrl,
+    slackApprovalChannel: resolvedConfig.slackApprovalChannel,
+  };
+  const slackEnabled = !!(slackCfg.slackBotToken || slackCfg.slackWebhookUrl);
+  if (slackEnabled) {
+    console.log(
+      `[guardspine] Slack integration enabled: channel=${slackCfg.slackApprovalChannel || "N/A"}, ` +
+        `bot=${slackCfg.slackBotToken ? "yes" : "no"}, webhook=${slackCfg.slackWebhookUrl ? "yes" : "no"}`,
+    );
+  } else {
+    console.log(
+      "[guardspine] Slack integration disabled (no SLACK_BOT_TOKEN or SLACK_WEBHOOK_URL)",
+    );
   }
 
   // =============================================
@@ -1056,7 +1442,7 @@ function register(api) {
             );
             decision.council = councilResult;
             decision.action =
-              resolvedConfig.discordApprovalTarget || allowDevInbox
+              resolvedConfig.discordApprovalTarget || allowDevInbox || slackEnabled
                 ? "SHADOW_WOULD_REQUIRE_REMOTE_APPROVAL"
                 : "SHADOW_WOULD_BLOCK_NO_APPROVAL_CHANNEL";
             logDecision(decision);
@@ -1272,7 +1658,7 @@ function register(api) {
             }
           }
           const discordTarget = resolvedConfig.discordApprovalTarget;
-          if (!discordTarget && !allowDevInbox) {
+          if (!discordTarget && !allowDevInbox && !slackEnabled) {
             decision.action = "NO_APPROVAL_CHANNEL";
             logDecision(decision);
             evidence.add({
@@ -1284,10 +1670,16 @@ function register(api) {
             return {
               abort: true,
               reason:
-                "[GuardSpine] BLOCKED: no L4 approval channel configured. Configure discord_approval_target or explicitly enable GUARDSPINE_ALLOW_DEV_INBOX=1 for local development.",
+                "[GuardSpine] BLOCKED: no L4 approval channel configured. Set SLACK_BOT_TOKEN + GUARDSPINE_SLACK_CHANNEL, or discord_approval_target, or GUARDSPINE_ALLOW_DEV_INBOX=1.",
             };
           }
-          const approval = generateApprovalRequest(toolName, params, risk.reason, councilResult);
+          const approval = generateApprovalRequest(
+            toolName,
+            params,
+            risk.reason,
+            councilResult,
+            sessionId,
+          );
           decision.action = "PENDING_APPROVAL";
           decision.approval_id = approval.approval_id;
           logDecision(decision);
@@ -1327,6 +1719,89 @@ function register(api) {
               .catch((e) => console.log(`[guardspine] L4 Discord send error: ${e.message}`));
           }
 
+          // S1: Send to Slack approval channel (non-blocking, best-effort)
+          if (slackEnabled) {
+            const pending = pendingApprovals.get(approval.approval_id);
+            const expiresAt = pending ? pending.expires_at : "unknown";
+            sendSlackApproval(
+              slackCfg,
+              toolName,
+              params,
+              risk.reason,
+              approval.approval_id,
+              expiresAt,
+              councilResult,
+            )
+              .then((r) => {
+                if (r.ok) console.log(`[guardspine] L4 approval sent to Slack (${r.method})`);
+                else console.log(`[guardspine] L4 Slack send failed: ${r.error || "unknown"}`);
+              })
+              .catch((e) => console.log(`[guardspine] L4 Slack send error: ${e.message}`));
+          }
+
+          // N2: Send to n8n approval workflow (non-blocking, best-effort)
+          // Uses n8n_request_approval pattern from n8n-pipeline plugin
+          if (process.env.N8N_BASE_URL && process.env.N8N_API_KEY) {
+            const n8nApprovalData = {
+              action_type: "guardspine_l4_escalation",
+              action_description: `L4 approval needed: ${toolName} (${risk.reason})`,
+              risk_tier: risk.tier,
+              requester: sessionId || "unknown",
+              evidence_hash: evidence.prevHash || "none",
+              context: {
+                tool: toolName,
+                params_preview: JSON.stringify(params).substring(0, 300),
+                council_verdict: councilResult ? councilResult.verdict : "N/A",
+                approval_id: approval.approval_id,
+              },
+            };
+            const n8nUrl = (process.env.N8N_BASE_URL || "").replace(/\/+$/, "");
+            const n8nKey = process.env.N8N_API_KEY || "";
+            if (n8nUrl && n8nKey) {
+              const n8nPayload = JSON.stringify({
+                workflowId: "governance-approval-flow",
+                data: n8nApprovalData,
+              });
+              const parsedN8nUrl = new URL(n8nUrl + "/api/v1/executions");
+              const n8nTransport = parsedN8nUrl.protocol === "https:" ? https : http;
+              const n8nReq = n8nTransport.request(
+                parsedN8nUrl,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "X-N8N-API-KEY": n8nKey,
+                  },
+                  timeout: 10000,
+                },
+                (res) => {
+                  let data = "";
+                  res.on("data", (c) => {
+                    data += c;
+                  });
+                  res.on("end", () => {
+                    if (res.statusCode < 400) {
+                      console.log(
+                        `[guardspine] L4 n8n approval triggered (status ${res.statusCode})`,
+                      );
+                    } else {
+                      console.log(
+                        `[guardspine] L4 n8n approval failed: ${res.statusCode} ${data.substring(0, 200)}`,
+                      );
+                    }
+                  });
+                },
+              );
+              n8nReq.on("error", (e) => console.log(`[guardspine] L4 n8n error: ${e.message}`));
+              n8nReq.on("timeout", () => {
+                n8nReq.destroy();
+                console.log("[guardspine] L4 n8n timeout");
+              });
+              n8nReq.write(n8nPayload);
+              n8nReq.end();
+            }
+          }
+
           console.log(
             `[guardspine] L4 approval required for ${toolName}. ID: ${approval.approval_id}`,
           );
@@ -1335,6 +1810,25 @@ function register(api) {
             const fileCheck = checkDevInboxApproval(approval.approval_id);
             if (fileCheck) {
               if (fileCheck.approved) {
+                // G5: Block self-approval -- the requesting session must not approve itself.
+                // This prevents an agent from using bash to write APPROVE to dev_inbox.
+                const selfCheck = checkSelfApproval(approval.approval_id, sessionId);
+                if (selfCheck.blocked) {
+                  decision.action = "SELF_APPROVAL_BLOCKED";
+                  decision.self_approval_reason = selfCheck.reason;
+                  logDecision(decision);
+                  evidence.add({
+                    type: "self_approval_blocked",
+                    tool: toolName,
+                    tier: "L4",
+                    approval_id: approval.approval_id,
+                    reason: selfCheck.reason,
+                  });
+                  return {
+                    abort: true,
+                    reason: `[GuardSpine] BLOCKED: ${selfCheck.reason}`,
+                  };
+                }
                 decision.action = "APPROVED_VIA_FILE";
                 logDecision(decision);
                 evidence.add({
@@ -1363,11 +1857,29 @@ function register(api) {
             }
           }
 
-          // Check Discord reactions (👍 = approve, 👎 = deny)
+          // Check Discord reactions (thumbs-up = approve, thumbs-down = deny)
           if (discordTarget) {
             const reactionCheck = await checkDiscordReaction(approval.approval_id, discordTarget);
             if (reactionCheck) {
               if (reactionCheck.approved) {
+                // G5: Block self-approval -- same session cannot approve its own L4 request
+                const selfCheck = checkSelfApproval(approval.approval_id, sessionId);
+                if (selfCheck.blocked) {
+                  decision.action = "SELF_APPROVAL_BLOCKED";
+                  decision.self_approval_reason = selfCheck.reason;
+                  logDecision(decision);
+                  evidence.add({
+                    type: "self_approval_blocked",
+                    tool: toolName,
+                    tier: "L4",
+                    approval_id: approval.approval_id,
+                    reason: selfCheck.reason,
+                  });
+                  return {
+                    abort: true,
+                    reason: `[GuardSpine] BLOCKED: ${selfCheck.reason}`,
+                  };
+                }
                 decision.action = "APPROVED_VIA_REACTION";
                 logDecision(decision);
                 evidence.add({
@@ -1395,12 +1907,47 @@ function register(api) {
             }
           }
 
+          // S1: Check Slack reactions (thumbsup = approve, thumbsdown = deny)
+          if (slackCfg.slackBotToken && slackApprovalMessages.has(approval.approval_id)) {
+            const slackCheck = await checkSlackReaction(
+              approval.approval_id,
+              slackCfg.slackBotToken,
+            );
+            if (slackCheck) {
+              if (slackCheck.approved) {
+                decision.action = "APPROVED_VIA_SLACK";
+                logDecision(decision);
+                evidence.add({
+                  type: "approval_granted",
+                  tool: toolName,
+                  tier: "L4",
+                  approval_id: approval.approval_id,
+                  method: "slack_reaction",
+                });
+                console.log(`[guardspine] L4 APPROVED via Slack reaction for ${toolName}`);
+                return {};
+              } else {
+                decision.action = "DENIED_VIA_SLACK";
+                logDecision(decision);
+                evidence.add({
+                  type: "approval_denied",
+                  tool: toolName,
+                  tier: "L4",
+                  approval_id: approval.approval_id,
+                  reason: slackCheck.reason,
+                  method: "slack_reaction",
+                });
+                return { abort: true, reason: `[GuardSpine] L4 DENIED via Slack: ${toolName}` };
+              }
+            }
+          }
+
           // Abort immediately with instructions - do NOT poll/block the event loop
           return {
             abort: true,
             reason:
               `[GuardSpine] L4 approval PENDING for ${toolName}. ` +
-              `React with \uD83D\uDC4D on Discord OR use an external approver workflow for ${approval.approval_id}. ` +
+              `React on Discord or Slack, or use an external approver workflow for ${approval.approval_id}. ` +
               `Then retry the action.`,
           };
         }
@@ -1449,6 +1996,24 @@ function register(api) {
       // Evidence Mirror: Log signed action for reflexive truth
       const hashPrefix = chainHash.substring(0, 8);
       console.log(`[EVIDENCE] ${toolName} signed: ${hashPrefix}`);
+
+      // S2: Emit evidence notification to Slack for L2+ actions
+      if (slackEnabled) {
+        emitEvidenceNotification(
+          slackCfg,
+          toolName,
+          risk.tier,
+          chainHash,
+          evidence.entries.length,
+          event.error == null,
+        );
+      }
+
+      // B4: Append guard event to guard_events.jsonl for L2+ tool calls
+      appendBeadEvent(
+        GUARD_EVENTS_FILE,
+        createGuardEvent(toolName, risk.tier, chainHash, event.error == null, sessionId),
+      );
     },
     { priority: 0 },
   );
@@ -1477,6 +2042,26 @@ function register(api) {
         agent_success: event.success !== false,
         timestamp: new Date().toISOString(),
       });
+
+      // B4: Create a bead summarizing this agent session
+      if (summary.total_entries > 0) {
+        const taskDesc = (event.task_description || event.prompt || "").substring(0, 200);
+        appendBeadEvent(
+          BEADS_FILE,
+          createBeadEvent(
+            taskDesc || "Agent session " + sessionId.substring(0, 8),
+            event.success !== false ? "closed" : "open",
+            {
+              lane: "guardspine-agent",
+              session_id: sessionId,
+              tool_count: summary.total_entries,
+              evidence_chain_root: summary.chain_root,
+              risk_tiers: summary.by_tier,
+              agent_success: event.success !== false,
+            },
+          ),
+        );
+      }
     },
     { priority: 100 },
   );
@@ -1669,13 +2254,14 @@ function register(api) {
   );
 
   console.log(
-    `[guardspine] Plugin registered: mode=${mode}, session=${sessionId.substring(0, 8)}..., 4 hooks + 3 tools, council=${COUNCIL_MODELS.map((m) => m.model).join(",")}, dev_inbox=${allowDevInbox ? "enabled" : "disabled"}`,
+    `[guardspine] Plugin registered: mode=${mode}, session=${sessionId.substring(0, 8)}..., 4 hooks + 3 tools, council=${COUNCIL_MODELS.map((m) => m.model).join(",")}, dev_inbox=${allowDevInbox ? "enabled" : "disabled"}, slack=${slackEnabled ? "enabled" : "disabled"}`,
   );
 }
 
 function resetForTests() {
   pendingApprovals.clear();
   approvalMessageIds.clear();
+  slackApprovalMessages.clear();
   _sendDiscord = null;
   _discordToken = null;
   _runCouncilReview = runCouncilReview;
@@ -1688,6 +2274,19 @@ module.exports = {
     isTruthyEnvValue,
     resolvePluginConfig,
     resetForTests,
+    checkSelfApproval,
+    buildApprovalBlocks,
+    slackApiCall,
+    slackWebhookPost,
+    sendSlackApproval,
+    checkSlackReaction,
+    emitEvidenceNotification,
+    get pendingApprovals() {
+      return pendingApprovals;
+    },
+    get slackApprovalMessages() {
+      return slackApprovalMessages;
+    },
     setCouncilReviewRunner(fn) {
       _runCouncilReview = fn;
     },
