@@ -1,0 +1,10 @@
+{
+  "name": "@openclaw/guardspine-governance",
+  "version": "2026.3.2",
+  "description": "Deny-by-default governance layer for OpenClaw with L0-L4 risk tiers, 3-model council, and evidence packs",
+  "openclaw": {
+    "extensions": [
+      "./plugin.js"
+    ]
+  }
+}
