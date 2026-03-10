@@ -26,7 +26,7 @@ jobs:
           post_comment: "true"
           generate_bundle: "true"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: evidence-bundle
