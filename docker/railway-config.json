@@ -2,7 +2,10 @@
   "gateway": {
     "mode": "local",
     "bind": "lan",
-    "port": 18789
+    "port": 18789,
+    "controlUi": {
+      "allowedOrigins": ["https://openclaw-production-4349.up.railway.app"]
+    }
   },
   "channels": {
     "slack": {
