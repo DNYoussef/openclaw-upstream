@@ -3,9 +3,6 @@
     "mode": "local",
     "bind": "lan",
     "port": 18789,
-    "auth": {
-      "token": "${OPENCLAW_GATEWAY_TOKEN}"
-    },
     "controlUi": {
       "allowedOrigins": ["https://openclaw-production-4349.up.railway.app"]
     }
