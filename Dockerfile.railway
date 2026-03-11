@@ -38,6 +38,8 @@ ENV NODE_ENV=production
 # Uses ${VAR} env var substitution (resolved by OpenClaw config loader)
 RUN mkdir -p /app/.openclaw /app/.openclaw/extensions
 COPY docker/railway-config.json /app/.openclaw/openclaw.json
+# Keep a baked copy so entrypoint.sh can restore it after runtime corruption
+COPY docker/railway-config.json /app/.openclaw/openclaw.json.baked
 COPY guardspine/extensions/guardspine /app/.openclaw/extensions/guardspine
 COPY guardspine/extensions/n8n-pipeline /app/.openclaw/extensions/n8n-pipeline
 
