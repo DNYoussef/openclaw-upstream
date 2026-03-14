@@ -5,7 +5,7 @@
     "port": 18789,
     "controlUi": {
       "allowedOrigins": ["https://openclaw-production-4349.up.railway.app"],
-      "dangerouslyDisableDeviceAuth": true
+      "dangerouslyDisableDeviceAuth": false
     }
   },
   "channels": {
