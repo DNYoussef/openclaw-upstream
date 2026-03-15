@@ -1,0 +1,513 @@
+{
+    "updatedAt": "2026-03-14T20:12:33.186Z",
+    "createdAt": "2026-03-14T18:17:32.923Z",
+    "id": "CVFHEFsM81v3XVw0",
+    "name": "GuardSpine Narrowcast Scanner (W1) - RSS",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {},
+            "id": "446bc161-418b-4201-b9b6-15730da1bcda",
+            "name": "Manual Test",
+            "type": "n8n-nodes-base.manualTrigger",
+            "position": [
+                736,
+                1472
+            ],
+            "typeVersion": 1
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 9 * * 1,4"
+                        }
+                    ]
+                }
+            },
+            "id": "35584224-3394-448c-8f54-312e418baca8",
+            "name": "Schedule Mon+Thu 9am",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "position": [
+                736,
+                1664
+            ],
+            "typeVersion": 1.2
+        },
+        {
+            "parameters": {
+                "jsCode": "// GuardSpine narrowcast: build Reddit RSS search URLs\n// No API key needed - uses public RSS feeds\nconst searches = [\n  { subreddit: 'devsecops', keywords: 'AI code review OR AI governance OR code audit' },\n  { subreddit: 'netsec', keywords: 'AI generated code OR code review automation OR audit trail' },\n  { subreddit: 'devops', keywords: 'AI code review OR PR review overload OR code governance' },\n  { subreddit: 'appsec', keywords: 'AI code review OR code governance OR approval workflow' },\n  { subreddit: 'cybersecurity', keywords: 'AI generated code risk OR code change governance' },\n  { subreddit: 'ExperiencedDevs', keywords: 'AI code review OR PR review fatigue OR code review bottleneck' },\n  { subreddit: 'startups', keywords: 'SOC 2 engineering OR enterprise security review' },\n  { subreddit: 'ciso', keywords: 'AI code risk OR developer governance OR code change audit' }\n];\n\nreturn searches.map(s => ({\n  json: {\n    subreddit: s.subreddit,\n    keywords: s.keywords,\n    rss_url: `https://www.reddit.com/r/${s.subreddit}/search.rss?q=${encodeURIComponent(s.keywords)}&sort=new&restrict_sr=on&limit=10`\n  }\n}));\n"
+            },
+            "id": "8625c68c-54ea-445c-8c4f-9bf078747985",
+            "name": "Build RSS Feed URLs",
+            "type": "n8n-nodes-base.code",
+            "position": [
+                1040,
+                1568
+            ],
+            "typeVersion": 2
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "id": "003fd36c-b0d3-474f-ad2f-c363e9af2dbc",
+            "name": "Loop Over Feeds",
+            "type": "n8n-nodes-base.splitInBatches",
+            "position": [
+                1328,
+                1568
+            ],
+            "typeVersion": 3
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.rss_url }}",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "text"
+                        }
+                    }
+                }
+            },
+            "id": "c3626160-5e43-4429-a7c8-553fc833731d",
+            "name": "Fetch Reddit RSS",
+            "type": "n8n-nodes-base.httpRequest",
+            "position": [
+                1536,
+                1712
+            ],
+            "typeVersion": 4.2
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "id": "6da651fb-8f5d-48db-b52e-207b841b443d",
+            "name": "Parse RSS XML",
+            "type": "n8n-nodes-base.xml",
+            "position": [
+                1728,
+                1712
+            ],
+            "typeVersion": 1
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extract posts from parsed RSS XML\nconst subreddit = $('Loop Over Feeds').item.json.subreddit;\nconst feed = $input.first().json;\n\n// Navigate RSS structure: feed > channel > item[]\nlet items = [];\ntry {\n  const channel = feed.feed?.entry || feed.rss?.channel?.item || feed?.channel?.item || [];\n  items = Array.isArray(channel) ? channel : (channel ? [channel] : []);\n} catch(e) {\n  return [{ json: { error: e.message, subreddit } }];\n}\n\nif (items.length === 0) return [];\n\nreturn items.map(item => ({\n  json: {\n    post_id: item.id || item.guid || item.link,\n    post_title: item.title || '',\n    postcontent: item.content || item.description || item['content:encoded'] || item.summary || '',\n    post_url: (typeof item.link === 'object' ? item.link?.['$']?.href : item.link) || '',\n    post_subreddit: subreddit,\n    post_author: item.author?.name || item['dc:creator'] || item.author || 'unknown',\n    post_published: item.published || item.pubDate || item.updated || new Date().toISOString(),\n    duplicate: false\n  }\n})).filter(p => p.json.post_title && p.json.post_title !== '');\n"
+            },
+            "id": "901ed0f2-dadd-430c-ba43-c39a3a5ddf91",
+            "name": "Extract Posts from RSS",
+            "type": "n8n-nodes-base.code",
+            "position": [
+                1936,
+                1712
+            ],
+            "typeVersion": 2,
+            "alwaysOutputData": true
+        },
+        {
+            "parameters": {
+                "jsCode": "// This node collects posts from loop iterations\nreturn $input.all();\n"
+            },
+            "id": "de082366-4733-46cd-b076-0b0ecdf2cbe6",
+            "name": "Collect All Posts",
+            "type": "n8n-nodes-base.code",
+            "position": [
+                1328,
+                1360
+            ],
+            "typeVersion": 2,
+            "alwaysOutputData": true
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "id": "1c55c10a-426c-460c-be32-4334501b53fd",
+            "name": "Loop Over Posts",
+            "type": "n8n-nodes-base.splitInBatches",
+            "position": [
+                2240,
+                1568
+            ],
+            "typeVersion": 3
+        },
+        {
+            "parameters": {
+                "amount": 1
+            },
+            "id": "30247eee-e2e7-4b0b-9733-f80e94007630",
+            "name": "Rate Limit (1s)",
+            "type": "n8n-nodes-base.wait",
+            "position": [
+                2432,
+                1712
+            ],
+            "typeVersion": 1.1,
+            "webhookId": "ff50ebdc-1f18-4a00-8989-fb605c6ee84f"
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "=You are a lead scorer for GuardSpine, a governance control plane for AI-speed code changes.\n\nAnalyze this Reddit post for GuardSpine sales relevance.\n\nSubreddit: r/{{ $('Loop Over Posts').item.json.post_subreddit }}\nTitle: {{ $('Loop Over Posts').item.json.post_title }}\nContent: {{ $('Loop Over Posts').item.json.postcontent.substring(0, 1500) }}\nAuthor: {{ $('Loop Over Posts').item.json.post_author }}\n\nScore 0-100 based on:\n- Does the author describe a PAIN that GuardSpine solves? (review overload, weak approval trail, evidence scramble, AI code governance gap, regulatory pressure)\n- Is this person likely a buyer? (AppSec lead, CTO, CISO, GRC, platform engineer, startup founder)\n- Is there a specific struggling moment? (not just general discussion)\n\nPAIN BUCKETS: review_velocity_gap | evidence_chain_gap | semantic_governance_gap | authorization_provenance_gap | regulatory_readiness_gap | not_relevant\n\nLANES: appsec_champion | cto_economic_buyer | ciso_blocker_or_accelerant | grc_accelerant | platform_technical_win | startup_founder | not_a_buyer\n\nRespond ONLY in this JSON format, nothing else:\n{\"score\": 0, \"pain_bucket\": \"not_relevant\", \"lane\": \"not_a_buyer\", \"confidence\": \"LOW\", \"signal_summary\": \"one sentence\", \"company_hint\": null, \"role_hint\": null}",
+                "options": {}
+            },
+            "id": "16144237-579e-47e1-964b-9107d678fafd",
+            "name": "AI Pain Signal Scorer",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "position": [
+                2688,
+                1712
+            ],
+            "typeVersion": 1.7
+        },
+        {
+            "parameters": {
+                "model": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "anthropic/claude-sonnet-4-5"
+                },
+                "options": {
+                    "maxTokens": 400
+                }
+            },
+            "id": "245e8988-5db4-4050-a923-4549bd293e3e",
+            "name": "OpenRouter (Claude Sonnet)",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "position": [
+                2880,
+                1968
+            ],
+            "typeVersion": 1.2,
+            "credentials": {
+                "openAiApi": {
+                    "id": "rHcW2FeM3AFjq3H3",
+                    "name": "OpenAi account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const original = $('Loop Over Posts').item.json;\nconst aiOutput = $input.first().json.output || '';\nlet parsed;\ntry {\n  const match = aiOutput.match(/\\{[\\s\\S]*?\\}/);\n  parsed = match ? JSON.parse(match[0]) : { score: 0, pain_bucket: 'not_relevant', lane: 'not_a_buyer', confidence: 'LOW', signal_summary: 'Parse error' };\n} catch(e) {\n  parsed = { score: 0, pain_bucket: 'not_relevant', lane: 'not_a_buyer', confidence: 'LOW', signal_summary: 'JSON parse error: ' + e.message };\n}\nreturn [{\n  json: {\n    ...original,\n    ai_score: parsed.score || 0,\n    pain_bucket: parsed.pain_bucket || 'not_relevant',\n    lane: parsed.lane || 'not_a_buyer',\n    research_confidence: parsed.confidence || 'LOW',\n    signal_summary: parsed.signal_summary || '',\n    company_hint: parsed.company_hint || null,\n    role_hint: parsed.role_hint || null\n  }\n}];\n"
+            },
+            "id": "7bb3da50-1271-4be5-84dc-73c141c47d5d",
+            "name": "Parse AI Score",
+            "type": "n8n-nodes-base.code",
+            "position": [
+                2688,
+                1920
+            ],
+            "typeVersion": 2,
+            "alwaysOutputData": true
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "version": 2,
+                        "caseSensitive": true,
+                        "typeValidation": "strict"
+                    },
+                    "combinator": "and",
+                    "conditions": [
+                        {
+                            "id": "score-threshold",
+                            "operator": {
+                                "type": "number",
+                                "operation": "gte"
+                            },
+                            "leftValue": "={{ $json.ai_score }}",
+                            "rightValue": 70
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "5cc33297-8548-4b68-af8a-9cc0eb2e281c",
+            "name": "Score >= 70?",
+            "type": "n8n-nodes-base.if",
+            "position": [
+                2992,
+                1568
+            ],
+            "typeVersion": 2.2
+        },
+        {
+            "parameters": {
+                "jsCode": "const leads = $input.all();\nif (leads.length === 0) {\n  return { json: { email: '<p>No qualified leads found in this scan.</p>', lead_count: 0 } };\n}\n\nlet html = '<h2>GuardSpine Narrowcast Scan Results</h2>';\nhtml += '<p>Scan completed: ' + new Date().toLocaleString('en-US', {timeZone: 'America/New_York'}) + ' ET</p>';\nhtml += '<p><b>' + leads.length + ' qualified leads</b> (score >= 70)</p>';\nhtml += '<table border=\"1\" cellpadding=\"8\" style=\"border-collapse:collapse; font-family:sans-serif;\">';\nhtml += '<tr style=\"background:#f0f0f0;\"><th>Score</th><th>Pain Bucket</th><th>Lane</th><th>Confidence</th><th>Signal</th><th>Subreddit</th><th>Link</th></tr>';\n\nfor (const item of leads) {\n  const d = item.json;\n  const bg = d.ai_score >= 85 ? '#ffe0e0' : (d.ai_score >= 75 ? '#fff3e0' : '#f0f8e0');\n  html += '<tr style=\"background:' + bg + ';\">';\n  html += '<td><b>' + d.ai_score + '</b></td>';\n  html += '<td>' + d.pain_bucket + '</td>';\n  html += '<td>' + d.lane + '</td>';\n  html += '<td>' + d.research_confidence + '</td>';\n  html += '<td>' + (d.signal_summary || '') + '</td>';\n  html += '<td>r/' + d.post_subreddit + '</td>';\n  html += '<td><a href=\"' + d.post_url + '\">View</a></td>';\n  html += '</tr>';\n}\nhtml += '</table>';\nhtml += '<p><i>Review these leads and assign to CMO agent for research note generation.</i></p>';\n\nreturn { json: { email: html, lead_count: leads.length } };\n"
+            },
+            "id": "33c84c99-21d5-4977-8870-1d3e6d3dd91a",
+            "name": "Build Email Digest",
+            "type": "n8n-nodes-base.code",
+            "position": [
+                3328,
+                1424
+            ],
+            "typeVersion": 2
+        },
+        {
+            "parameters": {
+                "sendTo": "dydavidyoussef@gmail.com",
+                "subject": "=Narrowcast Scan: {{ $json.lead_count }} qualified leads found",
+                "message": "={{ $json.email }}",
+                "options": {}
+            },
+            "id": "b702f575-a179-4873-91aa-41f78f668e23",
+            "name": "Email Digest to David",
+            "type": "n8n-nodes-base.gmail",
+            "position": [
+                3584,
+                1424
+            ],
+            "typeVersion": 2.1,
+            "webhookId": "f914ee6c-1373-4708-b560-9aade7afabce",
+            "credentials": {
+                "gmailOAuth2": {
+                    "id": "xNVObNaURY2ZNd34",
+                    "name": "Gmail account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "// Log qualified leads for debugging\nconst leads = $input.all();\nconsole.log('Narrowcast scan complete: ' + leads.length + ' qualified leads');\nfor (const l of leads) {\n  console.log('  [' + l.json.ai_score + '] ' + l.json.pain_bucket + ' | ' + l.json.lane + ' | r/' + l.json.post_subreddit + ' | ' + l.json.signal_summary);\n}\nreturn leads;\n"
+            },
+            "id": "e4542fc2-a8db-4968-b8f8-335ba60ef0c2",
+            "name": "Log Results",
+            "type": "n8n-nodes-base.code",
+            "position": [
+                3328,
+                1664
+            ],
+            "typeVersion": 2
+        }
+    ],
+    "connections": {
+        "Manual Test": {
+            "main": [
+                [
+                    {
+                        "node": "Build RSS Feed URLs",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Schedule Mon+Thu 9am": {
+            "main": [
+                [
+                    {
+                        "node": "Build RSS Feed URLs",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build RSS Feed URLs": {
+            "main": [
+                [
+                    {
+                        "node": "Loop Over Feeds",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Loop Over Feeds": {
+            "main": [
+                [
+                    {
+                        "node": "Collect All Posts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Fetch Reddit RSS",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Reddit RSS": {
+            "main": [
+                [
+                    {
+                        "node": "Parse RSS XML",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse RSS XML": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Posts from RSS",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Posts from RSS": {
+            "main": [
+                [
+                    {
+                        "node": "Loop Over Feeds",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Collect All Posts": {
+            "main": [
+                [
+                    {
+                        "node": "Loop Over Posts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Loop Over Posts": {
+            "main": [
+                [
+                    {
+                        "node": "Score >= 70?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Rate Limit (1s)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Rate Limit (1s)": {
+            "main": [
+                [
+                    {
+                        "node": "AI Pain Signal Scorer",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Pain Signal Scorer": {
+            "main": [
+                [
+                    {
+                        "node": "Parse AI Score",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse AI Score": {
+            "main": [
+                [
+                    {
+                        "node": "Loop Over Posts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Score >= 70?": {
+            "main": [
+                [
+                    {
+                        "node": "Build Email Digest",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Log Results",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Email Digest": {
+            "main": [
+                [
+                    {
+                        "node": "Email Digest to David",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenRouter (Claude Sonnet)": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Pain Signal Scorer",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "binaryMode": "separate",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": {
+        "templateCredsSetupCompleted": true
+    },
+    "pinData": {},
+    "versionId": "711c24e5-4071-4229-a7c9-dc3677be80c1",
+    "activeVersionId": null,
+    "versionCounter": 17,
+    "triggerCount": 0,
+    "shared": [
+        {
+            "updatedAt": "2026-03-14T18:17:32.926Z",
+            "createdAt": "2026-03-14T18:17:32.926Z",
+            "role": "workflow:owner",
+            "workflowId": "CVFHEFsM81v3XVw0",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": null
+}
