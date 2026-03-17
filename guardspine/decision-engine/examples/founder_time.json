@@ -1,0 +1,69 @@
+{
+  "decision_id": "ds_2026_03_17_002",
+  "domain": "founder_time",
+  "decision_type": "optimization_only",
+  "actors": [{ "name": "david", "role": "founder" }],
+  "objectives": [
+    {
+      "name": "pipeline_movement",
+      "direction": "maximize",
+      "weight": 0.3,
+      "counter_metric": "meeting_quality_score",
+      "counter_threshold": 0.5
+    },
+    {
+      "name": "category_creation",
+      "direction": "maximize",
+      "weight": 0.25
+    },
+    {
+      "name": "context_switching",
+      "direction": "minimize",
+      "weight": 0.2
+    },
+    {
+      "name": "founder_burnout",
+      "direction": "minimize",
+      "weight": 0.15,
+      "counter_metric": "deep_work_hours_preserved",
+      "counter_threshold": 15
+    },
+    {
+      "name": "strategic_asset_creation",
+      "direction": "maximize",
+      "weight": 0.1
+    }
+  ],
+  "constraints": [
+    { "name": "total_hours", "operator": "<=", "value": 50, "tier": "constitutional" },
+    { "name": "product_hours_min", "operator": ">=", "value": 10, "tier": "strategic" },
+    { "name": "deep_work_blocks_min", "operator": ">=", "value": 3, "tier": "strategic" }
+  ],
+  "uncertainties": [],
+  "action_space": [
+    "sales_calls",
+    "linkedin_content",
+    "product_development",
+    "partnership_meetings",
+    "case_study_creation",
+    "demo_refinement"
+  ],
+  "state": {
+    "current_meetings_per_week": 4,
+    "content_posts_per_week": 2,
+    "product_hours_last_week": 12,
+    "override_rate": 0.0,
+    "founder_overload_index": 0.4
+  },
+  "guardspine_policy": {
+    "approval_required_above_tier": 3,
+    "reversible_required": false,
+    "evidence_bundle": "optional",
+    "max_risk_tier": 2
+  },
+  "solver_routing": {
+    "strategic_engine": "none",
+    "optimization_engine": "globalmoo",
+    "mode": "balanced"
+  }
+}

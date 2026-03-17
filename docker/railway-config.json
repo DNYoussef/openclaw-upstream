@@ -8,12 +8,6 @@
       "dangerouslyDisableDeviceAuth": false
     }
   },
-  "channels": {
-    "slack": {
-      "botToken": "${SLACK_BOT_TOKEN}",
-      "appToken": "${SLACK_APP_TOKEN}"
-    }
-  },
   "agents": {
     "defaults": {
       "model": {

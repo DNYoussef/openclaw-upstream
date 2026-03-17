@@ -1,0 +1,99 @@
+{
+  "decision_id": "ds_2026_03_17_001",
+  "domain": "sales_prioritization",
+  "decision_type": "strategic_optimization",
+  "actors": [
+    { "name": "david", "role": "founder" },
+    { "name": "enterprise_buyer", "role": "buyer" },
+    { "name": "harness", "role": "competitor" }
+  ],
+  "objectives": [
+    {
+      "name": "qualified_pipeline",
+      "direction": "maximize",
+      "weight": 0.24,
+      "counter_metric": "qualified_meeting_rate",
+      "counter_threshold": 0.3
+    },
+    {
+      "name": "expected_revenue",
+      "direction": "maximize",
+      "weight": 0.24,
+      "counter_metric": "churn_rate",
+      "counter_threshold": 0.1
+    },
+    {
+      "name": "trust_score",
+      "direction": "maximize",
+      "weight": 0.16,
+      "counter_metric": "negative_reply_rate",
+      "counter_threshold": 0.05
+    },
+    {
+      "name": "learning_value",
+      "direction": "maximize",
+      "weight": 0.14
+    },
+    {
+      "name": "policy_risk",
+      "direction": "minimize",
+      "weight": 0.1,
+      "counter_metric": "policy_violation_rate",
+      "counter_threshold": 0.01
+    },
+    {
+      "name": "founder_burn",
+      "direction": "minimize",
+      "weight": 0.07,
+      "counter_metric": "deep_work_hours",
+      "counter_threshold": 15
+    },
+    {
+      "name": "operational_friction",
+      "direction": "minimize",
+      "weight": 0.05,
+      "counter_metric": "manual_override_rate",
+      "counter_threshold": 0.25
+    }
+  ],
+  "constraints": [
+    { "name": "founder_hours_total", "operator": "<=", "value": 50, "tier": "constitutional" },
+    { "name": "weekly_budget_usd", "operator": "<=", "value": 2000, "tier": "constitutional" },
+    { "name": "policy_violations", "operator": "<=", "value": 0, "tier": "constitutional" },
+    { "name": "negative_reply_rate", "operator": "<=", "value": 0.05, "tier": "strategic" },
+    { "name": "outbound_volume", "operator": "<=", "value": 50, "tier": "strategic" },
+    { "name": "generalist_segment_weight", "operator": "<=", "value": 0.15, "tier": "strategic" }
+  ],
+  "uncertainties": [
+    { "name": "buyer_budget_available", "distribution": "unknown", "range": [0, 1] },
+    { "name": "competitor_timing", "distribution": "uniform", "range": [0.3, 0.7] },
+    { "name": "response_rate", "distribution": "beta", "range": [0.03, 0.15] }
+  ],
+  "action_space": [
+    "pursue_fintech_seed",
+    "pursue_regulated_saas",
+    "produce_category_content",
+    "run_partner_outreach",
+    "refine_demo"
+  ],
+  "state": {
+    "current_pipeline": 10,
+    "close_rate": 0.05,
+    "avg_sales_cycle_days": 45,
+    "override_rate": 0.0,
+    "burn_rate_monthly": 3000,
+    "runway_months": 8,
+    "trust_score": 0.6
+  },
+  "guardspine_policy": {
+    "approval_required_above_tier": 2,
+    "reversible_required": true,
+    "evidence_bundle": "mandatory",
+    "max_risk_tier": 3
+  },
+  "solver_routing": {
+    "strategic_engine": "mieza",
+    "optimization_engine": "globalmoo",
+    "mode": "balanced"
+  }
+}

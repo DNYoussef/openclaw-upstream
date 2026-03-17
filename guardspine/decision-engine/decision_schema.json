@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GuardSpine Decision Request",
+  "description": "Interface contract for routing decisions to globalMOO and Mieza solvers",
+  "type": "object",
+  "required": ["decision_id", "domain", "decision_type", "objectives", "constraints"],
+  "properties": {
+    "decision_id": {
+      "type": "string",
+      "pattern": "^ds_[0-9]{4}_[0-9]{2}_[0-9]{2}_[0-9]{3}$",
+      "description": "Unique ID: ds_YYYY_MM_DD_NNN"
+    },
+    "domain": {
+      "type": "string",
+      "enum": [
+        "sales_prioritization",
+        "founder_time",
+        "experiment_portfolio",
+        "content_mix",
+        "automation_tuning",
+        "pricing_packaging"
+      ]
+    },
+    "decision_type": {
+      "type": "string",
+      "enum": ["policy_only", "optimization_only", "strategic_only", "strategic_optimization"],
+      "description": "Determines solver routing"
+    },
+    "actors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "role"],
+        "properties": {
+          "name": { "type": "string" },
+          "role": {
+            "type": "string",
+            "enum": [
+              "founder",
+              "buyer",
+              "competitor",
+              "regulator",
+              "attacker",
+              "partner",
+              "advisor"
+            ]
+          }
+        }
+      }
+    },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "direction"],
+        "properties": {
+          "name": { "type": "string" },
+          "direction": { "type": "string", "enum": ["maximize", "minimize"] },
+          "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+          "counter_metric": {
+            "type": "string",
+            "description": "Paired counter-KPI to prevent Goodhart drift"
+          },
+          "counter_threshold": {
+            "type": "number",
+            "description": "Max acceptable value for counter metric"
+          }
+        }
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "operator", "value"],
+        "properties": {
+          "name": { "type": "string" },
+          "operator": { "type": "string", "enum": ["<=", ">=", "==", "<", ">"] },
+          "value": { "type": "number" },
+          "tier": {
+            "type": "string",
+            "enum": ["constitutional", "strategic", "operational"],
+            "description": "Constitutional constraints are hard stops. Strategic are primary. Operational are secondary."
+          }
+        }
+      }
+    },
+    "uncertainties": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "distribution": { "type": "string", "enum": ["uniform", "normal", "beta", "unknown"] },
+          "range": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      }
+    },
+    "action_space": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Possible actions to choose from"
+    },
+    "state": {
+      "type": "object",
+      "description": "Current telemetry snapshot values",
+      "additionalProperties": { "type": "number" }
+    },
+    "guardspine_policy": {
+      "type": "object",
+      "properties": {
+        "approval_required_above_tier": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "reversible_required": { "type": "boolean" },
+        "evidence_bundle": { "type": "string", "enum": ["mandatory", "optional", "none"] },
+        "max_risk_tier": { "type": "integer", "minimum": 0, "maximum": 4 }
+      }
+    },
+    "solver_routing": {
+      "type": "object",
+      "properties": {
+        "strategic_engine": { "type": "string", "enum": ["mieza", "none"] },
+        "optimization_engine": { "type": "string", "enum": ["globalmoo", "none"] },
+        "mode": { "type": "string", "enum": ["growth", "balanced", "defensive"] }
+      }
+    }
+  }
+}

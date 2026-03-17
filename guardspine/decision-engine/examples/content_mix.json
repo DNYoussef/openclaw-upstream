@@ -1,0 +1,81 @@
+{
+  "decision_id": "ds_2026_03_17_003",
+  "domain": "content_mix",
+  "decision_type": "strategic_optimization",
+  "actors": [
+    { "name": "david", "role": "founder" },
+    { "name": "linkedin_audience", "role": "buyer" },
+    { "name": "harness_content_team", "role": "competitor" }
+  ],
+  "objectives": [
+    {
+      "name": "engagement_reach",
+      "direction": "maximize",
+      "weight": 0.2,
+      "counter_metric": "qualified_lead_rate",
+      "counter_threshold": 0.02
+    },
+    {
+      "name": "lead_generation",
+      "direction": "maximize",
+      "weight": 0.25,
+      "counter_metric": "content_quality_score",
+      "counter_threshold": 0.6
+    },
+    {
+      "name": "brand_coherence",
+      "direction": "maximize",
+      "weight": 0.25,
+      "counter_metric": "narrative_drift_score",
+      "counter_threshold": 0.3
+    },
+    {
+      "name": "production_cost",
+      "direction": "minimize",
+      "weight": 0.15
+    },
+    {
+      "name": "founder_time_consumed",
+      "direction": "minimize",
+      "weight": 0.15,
+      "counter_metric": "content_output_rate",
+      "counter_threshold": 1
+    }
+  ],
+  "constraints": [
+    { "name": "posts_per_week", "operator": "<=", "value": 5, "tier": "operational" },
+    { "name": "lead_magnets_per_month", "operator": ">=", "value": 2, "tier": "strategic" },
+    { "name": "slop_word_count", "operator": "==", "value": 0, "tier": "constitutional" },
+    { "name": "brand_voice_compliance", "operator": ">=", "value": 0.9, "tier": "constitutional" }
+  ],
+  "uncertainties": [
+    { "name": "linkedin_algorithm_reach", "distribution": "unknown", "range": [0.5, 1.5] },
+    { "name": "topic_trending_probability", "distribution": "uniform", "range": [0.1, 0.8] }
+  ],
+  "action_space": [
+    "hot_take_post",
+    "caught_it_case_study",
+    "lead_magnet_gated",
+    "educational_framework_post",
+    "contrarian_thread",
+    "video_scroll_gif"
+  ],
+  "state": {
+    "avg_impressions_per_post": 2000,
+    "avg_comments_per_post": 15,
+    "lead_magnet_conversion_rate": 0.04,
+    "follower_count": 1200,
+    "content_quality_last_week": 0.7
+  },
+  "guardspine_policy": {
+    "approval_required_above_tier": 2,
+    "reversible_required": true,
+    "evidence_bundle": "optional",
+    "max_risk_tier": 2
+  },
+  "solver_routing": {
+    "strategic_engine": "mieza",
+    "optimization_engine": "globalmoo",
+    "mode": "growth"
+  }
+}
