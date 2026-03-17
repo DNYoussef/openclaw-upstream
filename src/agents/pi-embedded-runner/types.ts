@@ -28,6 +28,8 @@ export type EmbeddedPiAgentMeta = {
     cacheWrite?: number;
     total?: number;
   };
+  /** Estimated cost in USD for this run, computed from token usage and model cost config. */
+  costUsd?: number;
 };
 
 export type EmbeddedPiRunMeta = {

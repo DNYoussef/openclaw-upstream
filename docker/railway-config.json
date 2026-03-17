@@ -4,30 +4,24 @@
     "bind": "lan",
     "port": 18789,
     "controlUi": {
-      "allowedOrigins": ["https://openclaw-production-4349.up.railway.app"],
-      "dangerouslyDisableDeviceAuth": true
-    }
-  },
-  "channels": {
-    "slack": {
-      "botToken": "${SLACK_BOT_TOKEN}",
-      "appToken": "${SLACK_APP_TOKEN}"
+      "allowedOrigins": ["https://ops-portal-production-bb8b.up.railway.app"],
+      "dangerouslyDisableDeviceAuth": false
     }
   },
   "agents": {
     "defaults": {
       "model": {
-        "primary": "litellm/openrouter/anthropic/claude-sonnet-4.5",
+        "primary": "litellm/openrouter/deepseek/deepseek-v3.2",
         "fallbacks": [
-          "litellm/openrouter/deepseek/deepseek-v3.2",
-          "litellm/openrouter/google/gemini-2.5-flash"
+          "litellm/openrouter/anthropic/claude-sonnet-4.6",
+          "litellm/openrouter/google/gemini-3-flash-preview"
         ]
       },
       "models": {
-        "litellm/openrouter/anthropic/claude-sonnet-4.5": { "alias": "Claude Sonnet 4.5" },
-        "litellm/openrouter/anthropic/claude-opus-4.6": { "alias": "Claude Opus 4.6" },
+        "litellm/openrouter/google/gemini-3-flash-preview": { "alias": "Gemini 3 Flash" },
         "litellm/openrouter/deepseek/deepseek-v3.2": { "alias": "DeepSeek V3.2" },
-        "litellm/openrouter/google/gemini-2.5-flash": { "alias": "Gemini 2.5 Flash" },
+        "litellm/openrouter/anthropic/claude-sonnet-4.6": { "alias": "Claude Sonnet 4.6" },
+        "litellm/openrouter/anthropic/claude-opus-4.6": { "alias": "Claude Opus 4.6" },
         "litellm/openrouter/qwen/qwen3-coder": { "alias": "Qwen3 Coder" }
       }
     }
@@ -40,8 +34,26 @@
         "api": "openai-completions",
         "models": [
           {
-            "id": "openrouter/anthropic/claude-sonnet-4.5",
-            "name": "Claude Sonnet 4.5",
+            "id": "openrouter/google/gemini-3-flash-preview",
+            "name": "Gemini 3 Flash",
+            "reasoning": true,
+            "input": ["text", "image"],
+            "cost": { "input": 0.5, "output": 3, "cacheRead": 0.13, "cacheWrite": 0.5 },
+            "contextWindow": 1000000,
+            "maxTokens": 65536
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-v3.2",
+            "name": "DeepSeek V3.2",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0.25, "output": 0.4, "cacheRead": 0.07, "cacheWrite": 0.25 },
+            "contextWindow": 164000,
+            "maxTokens": 8192
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-4.6",
+            "name": "Claude Sonnet 4.6",
             "reasoning": false,
             "input": ["text", "image"],
             "cost": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 },
@@ -54,26 +66,8 @@
             "reasoning": true,
             "input": ["text", "image"],
             "cost": { "input": 5, "output": 25, "cacheRead": 0.5, "cacheWrite": 6.25 },
-            "contextWindow": 200000,
-            "maxTokens": 32000
-          },
-          {
-            "id": "openrouter/deepseek/deepseek-v3.2",
-            "name": "DeepSeek V3.2",
-            "reasoning": false,
-            "input": ["text"],
-            "cost": { "input": 0.25, "output": 0.4, "cacheRead": 0.07, "cacheWrite": 0.25 },
-            "contextWindow": 164000,
-            "maxTokens": 8192
-          },
-          {
-            "id": "openrouter/google/gemini-2.5-flash",
-            "name": "Gemini 2.5 Flash",
-            "reasoning": true,
-            "input": ["text", "image"],
-            "cost": { "input": 0.3, "output": 2.5, "cacheRead": 0.08, "cacheWrite": 0.3 },
             "contextWindow": 1000000,
-            "maxTokens": 65536
+            "maxTokens": 32000
           },
           {
             "id": "openrouter/qwen/qwen3-coder",
