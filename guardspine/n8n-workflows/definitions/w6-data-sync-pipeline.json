@@ -1,0 +1,81 @@
+{
+  "name": "W6 - Data Sync Pipeline",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 6 }] } },
+      "id": "sync-trigger",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO telemetry_events (ts, service, event_type, payload) SELECT hr.created_at, 'paperclip', CASE hr.status WHEN 'completed' THEN 'heartbeat_succeeded' WHEN 'failed' THEN 'heartbeat_failed' WHEN 'timed_out' THEN 'heartbeat_timed_out' ELSE 'heartbeat_' || COALESCE(hr.status, 'unknown') END, jsonb_build_object('agent_id', hr.agent_id::text, 'agent_name', a.name, 'run_id', hr.id::text, 'status', hr.status, 'duration_ms', EXTRACT(EPOCH FROM (hr.finished_at - hr.started_at)) * 1000, 'error', hr.error) FROM heartbeat_runs hr LEFT JOIN agents a ON hr.agent_id = a.id WHERE hr.created_at > COALESCE((SELECT MAX(ts) FROM telemetry_events WHERE service = 'paperclip'), '2020-01-01'::timestamptz) ORDER BY hr.created_at"
+      },
+      "id": "sync-heartbeats",
+      "name": "Sync Heartbeats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [420, 250],
+      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO telemetry_events (ts, service, event_type, payload) SELECT al.created_at, 'paperclip', 'activity_' || al.action, jsonb_build_object('actor_type', al.actor_type, 'entity_type', al.entity_type, 'entity_id', al.entity_id, 'agent_id', al.agent_id::text) FROM activity_log al WHERE al.created_at > COALESCE((SELECT MAX(ts) FROM telemetry_events WHERE service = 'paperclip' AND event_type LIKE 'activity_%'), '2020-01-01'::timestamptz) ORDER BY al.created_at"
+      },
+      "id": "sync-activity",
+      "name": "Sync Activity Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [420, 400],
+      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM telemetry_events WHERE ts < NOW() - INTERVAL '90 days'"
+      },
+      "id": "prune-old",
+      "name": "Prune >90 Days",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [640, 300],
+      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "method": "POST",
+        "body": {
+          "json": {
+            "service": "infrastructure",
+            "event_type": "data_sync_completed",
+            "payload": { "sync_type": "paperclip_to_telemetry" }
+          }
+        }
+      },
+      "id": "emit-sync",
+      "name": "Log Sync Complete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          { "node": "Sync Heartbeats", "type": "main", "index": 0 },
+          { "node": "Sync Activity Log", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Sync Heartbeats": { "main": [[{ "node": "Prune >90 Days", "type": "main", "index": 0 }]] },
+    "Sync Activity Log": { "main": [[{ "node": "Prune >90 Days", "type": "main", "index": 0 }]] },
+    "Prune >90 Days": { "main": [[{ "node": "Log Sync Complete", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

@@ -11,10 +11,10 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "litellm/openrouter/deepseek/deepseek-v3.2",
+        "primary": "litellm/openrouter/google/gemini-3-flash-preview",
         "fallbacks": [
-          "litellm/openrouter/anthropic/claude-sonnet-4.6",
-          "litellm/openrouter/google/gemini-3-flash-preview"
+          "litellm/openrouter/deepseek/deepseek-v3.2",
+          "litellm/openrouter/openai/gpt-4o-mini"
         ]
       },
       "models": {

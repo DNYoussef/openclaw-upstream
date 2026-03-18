@@ -1,0 +1,162 @@
+{
+  "name": "W8 - Notification Router",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "notify", "responseMode": "responseNode" },
+      "id": "webhook",
+      "name": "Notification Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "notify-router"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body || $input.item.json;\nconst severity = body.severity || 'low';\nconst source = body.source || 'unknown';\nconst message = body.message || '';\nconst agent = body.agent || '';\nreturn [{json: {severity, source, message, agent, timestamp: new Date().toISOString()}}];"
+      },
+      "id": "classify",
+      "name": "Classify Severity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "outputKey": "critical",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.severity }}",
+                    "rightValue": "critical",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "high",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.severity }}",
+                    "rightValue": "high",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "low",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.severity }}",
+                    "rightValue": "",
+                    "operator": { "type": "string", "operation": "isNotEmpty" }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "route",
+      "name": "Route by Severity",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "method": "POST",
+        "body": {
+          "json": {
+            "service": "notifications",
+            "event_type": "alert_critical",
+            "payload": {
+              "source": "={{ $json.source }}",
+              "message": "={{ $json.message }}",
+              "agent": "={{ $json.agent }}"
+            }
+          }
+        }
+      },
+      "id": "log-critical",
+      "name": "Log Critical Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "method": "POST",
+        "body": {
+          "json": {
+            "service": "notifications",
+            "event_type": "alert_high",
+            "payload": { "source": "={{ $json.source }}", "message": "={{ $json.message }}" }
+          }
+        }
+      },
+      "id": "log-high",
+      "name": "Log High Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "method": "POST",
+        "body": {
+          "json": {
+            "service": "notifications",
+            "event_type": "alert_low",
+            "payload": { "source": "={{ $json.source }}", "message": "={{ $json.message }}" }
+          }
+        }
+      },
+      "id": "log-low",
+      "name": "Log Low Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 450]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"routed\",\"severity\":\"{{ $json.severity }}\"}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Notification Webhook": {
+      "main": [[{ "node": "Classify Severity", "type": "main", "index": 0 }]]
+    },
+    "Classify Severity": {
+      "main": [[{ "node": "Route by Severity", "type": "main", "index": 0 }]]
+    },
+    "Route by Severity": {
+      "main": [
+        [{ "node": "Log Critical Alert", "type": "main", "index": 0 }],
+        [{ "node": "Log High Alert", "type": "main", "index": 0 }],
+        [{ "node": "Log Low Alert", "type": "main", "index": 0 }]
+      ]
+    },
+    "Log Critical Alert": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] },
+    "Log High Alert": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] },
+    "Log Low Alert": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

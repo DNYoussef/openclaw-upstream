@@ -1,0 +1,40 @@
+{
+  "_comment": "Mieza GTO MCP integration for strategic reasoning under competition and uncertainty",
+  "_source": "https://mieza.ai/gto/mcp -- config from their MCP integration page",
+  "_usage": "Add to Claude Code settings.json mcpServers, or to OpenClaw MCP config",
+
+  "mcpServers": {
+    "mieza": {
+      "url": "https://mieza.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer tt_YOUR_TOKEN_HERE"
+      }
+    }
+  },
+
+  "_setup_steps": [
+    "1. Create account at https://mieza.ai",
+    "2. Go to Settings -> API Tokens",
+    "3. Generate a token (tt_ prefix)",
+    "4. Replace tt_YOUR_TOKEN_HERE with your token",
+    "5. Add the mcpServers block to your Claude Code settings or OpenClaw config"
+  ],
+
+  "_capabilities": {
+    "description": "Game-theoretically optimal strategy computation via MCP",
+    "input": "Game matrices, player strategies, payoff structures, uncertainties",
+    "output": "Nash equilibrium strategies, mixed strategy probabilities, expected payoffs",
+    "use_cases": [
+      "Buyer response modeling (how will prospects react to outreach posture?)",
+      "Competitor response (how will Harness react to category claims?)",
+      "Pricing strategy (premium vs wedge positioning under competition)",
+      "Negotiation tactics (enterprise procurement game modeling)",
+      "Market signaling (what does publishing our thesis reveal to competitors?)"
+    ]
+  },
+
+  "_integration_with_globalmoo": {
+    "pattern": "Mieza computes scenario parameters -> globalMOO optimizes within those parameters",
+    "example": "Mieza says 'aggressive outreach raises negative-response probability by 40%' -> globalMOO optimizes outreach mix with that constraint"
+  }
+}
