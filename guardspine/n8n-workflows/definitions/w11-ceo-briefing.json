@@ -3,7 +3,14 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
       },
       "id": "daily-trigger",
       "name": "Daily 8 AM",
@@ -13,39 +20,38 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT * FROM kpi_automation WHERE week >= date_trunc('week', NOW()) ORDER BY week DESC LIMIT 1"
+        "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10"
       },
       "id": "q-automation",
       "name": "Automation KPIs",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [420, 200],
-      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 200]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT * FROM kpi_outreach WHERE week >= date_trunc('week', NOW()) ORDER BY week DESC LIMIT 1"
+        "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_outreach?weeks=4&limit=10"
       },
       "id": "q-outreach",
       "name": "Outreach KPIs",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [420, 350],
-      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 350]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE service = 'guardspine' AND event_type = 'policy_violation') as violations FROM telemetry_events WHERE ts > NOW() - INTERVAL '24 hours'"
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"sql\": \"SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE service = 'guardspine' AND event_type = 'policy_violation') as violations FROM telemetry_events WHERE ts > NOW() - INTERVAL '24 hours'\", \"limit\": 100}"
       },
       "id": "q-24h",
       "name": "Last 24h Events",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [420, 500],
-      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 500]
     },
     {
       "parameters": {
@@ -59,41 +65,122 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
         "method": "POST",
-        "body": {
-          "json": {
-            "service": "ceo",
-            "event_type": "daily_briefing",
-            "payload": {
-              "briefing": "={{ $json.briefing }}",
-              "has_flags": "={{ $json.has_flags }}",
-              "flag_count": "={{ $json.flag_count }}"
-            }
-          }
-        }
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"ceo\", \"event_type\": \"daily_briefing\", \"payload\": {\"briefing\": \"={{ $json.briefing }}\", \"has_flags\": \"={{ $json.has_flags }}\", \"flag_count\": \"={{ $json.flag_count }}\"}}"
       },
       "id": "emit-briefing",
       "name": "Log Briefing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [860, 350]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W11 - Daily CEO Briefing\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
     "Daily 8 AM": {
       "main": [
         [
-          { "node": "Automation KPIs", "type": "main", "index": 0 },
-          { "node": "Outreach KPIs", "type": "main", "index": 0 },
-          { "node": "Last 24h Events", "type": "main", "index": 0 }
+          {
+            "node": "Automation KPIs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Outreach KPIs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Last 24h Events",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "Automation KPIs": { "main": [[{ "node": "Compile Briefing", "type": "main", "index": 0 }]] },
-    "Outreach KPIs": { "main": [[{ "node": "Compile Briefing", "type": "main", "index": 0 }]] },
-    "Last 24h Events": { "main": [[{ "node": "Compile Briefing", "type": "main", "index": 0 }]] },
-    "Compile Briefing": { "main": [[{ "node": "Log Briefing", "type": "main", "index": 0 }]] }
+    "Automation KPIs": {
+      "main": [
+        [
+          {
+            "node": "Compile Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outreach KPIs": {
+      "main": [
+        [
+          {
+            "node": "Compile Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Last 24h Events": {
+      "main": [
+        [
+          {
+            "node": "Compile Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Briefing": {
+      "main": [
+        [
+          {
+            "node": "Log Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

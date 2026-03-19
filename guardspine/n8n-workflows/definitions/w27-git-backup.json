@@ -1,0 +1,139 @@
+{
+  "name": "W27 - Git Backup",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 3 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Daily 3:30 AM UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://n8n-production-7528.up.railway.app/api/v1/workflows",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8N-API-KEY",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4Y2QwM2Q5Mi1hMDA2LTRlZmUtYTNhZC05NTg1ZDk3YmEzZGMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiMzZjZDc1ZTMtNjViOS00NWRjLWFjZjAtOTcxMzg4ZmVkY2I0IiwiaWF0IjoxNzcyNzc2MDMwLCJleHAiOjE3NzUzNjE2MDB9.Ilkuvy0UnHdbCsLZ2tvkxGX3s_-QnZDJVX-OX-e3YxY"
+            }
+          ]
+        }
+      },
+      "id": "export-workflows",
+      "name": "Export All Workflows",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const workflows = $('Export All Workflows').first().json;\nconst data = workflows.data || [];\n\nconst summary = {\n  workflow_count: data.length,\n  active_count: data.filter(w => w.active).length,\n  workflows: data.map(w => ({\n    id: w.id,\n    name: w.name,\n    active: w.active,\n    updatedAt: w.updatedAt\n  })),\n  backup_timestamp: new Date().toISOString()\n};\n\nreturn [{json: summary}];"
+      },
+      "id": "create-summary",
+      "name": "Create Backup Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"backup\", \"event_type\": \"workflow_snapshot\", \"payload\": {\"workflow_count\": {{ $json.workflow_count }}, \"active_count\": {{ $json.active_count }}, \"workflows\": {{ JSON.stringify($json.workflows) }}, \"backup_timestamp\": \"{{ $json.backup_timestamp }}\"}}"
+      },
+      "id": "log-backup",
+      "name": "Log Backup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W27 - Git Backup\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Daily 3:30 AM UTC": {
+      "main": [
+        [
+          {
+            "node": "Export All Workflows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export All Workflows": {
+      "main": [
+        [
+          {
+            "node": "Create Backup Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Backup Summary": {
+      "main": [
+        [
+          {
+            "node": "Log Backup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

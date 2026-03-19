@@ -1,0 +1,211 @@
+{
+  "name": "W21 - Prompt Optimizer",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 6"
+            }
+          ]
+        }
+      },
+      "id": "sat-6am",
+      "name": "Saturday 6 AM UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"168 hours\"}}"
+      },
+      "id": "fetch-heartbeats",
+      "name": "Fetch Agent Heartbeats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"telemetry_by_service\", \"params\": {\"service\": \"n8n\", \"limit\": 50}}"
+      },
+      "id": "fetch-errors",
+      "name": "Fetch Recent Errors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const heartbeats = $('Fetch Agent Heartbeats').first().json;\nconst errors = $('Fetch Recent Errors').first().json;\n\nconst hb_rows = heartbeats.rows || [];\nconst err_rows = errors.rows || [];\n\n// Group heartbeats by agent\nconst agents = {};\nfor (const r of hb_rows) {\n  if (!agents[r.name]) agents[r.name] = {success: 0, fail: 0, total: 0};\n  agents[r.name].total++;\n  if (r.status === 'succeeded') agents[r.name].success++;\n  else agents[r.name].fail++;\n}\n\n// Calculate quality scores\nconst quality_report = [];\nfor (const [name, stats] of Object.entries(agents)) {\n  const rate = stats.total > 0 ? stats.success / stats.total : 0;\n  quality_report.push({\n    agent: name,\n    success_rate: Math.round(rate * 100),\n    total_runs: stats.total,\n    failures: stats.fail,\n    needs_attention: rate < 0.8,\n    prompt_optimization_ready: stats.total >= 20\n  });\n}\n\n// Error analysis\nconst error_count = err_rows.filter(r => r.event_type === 'workflow_error').length;\n\nconst report = {\n  week_ending: new Date().toISOString().split('T')[0],\n  agents_analyzed: quality_report.length,\n  agents_needing_attention: quality_report.filter(a => a.needs_attention).length,\n  agents_ready_for_optimization: quality_report.filter(a => a.prompt_optimization_ready).length,\n  workflow_errors_this_week: error_count,\n  agent_details: quality_report,\n  dspy_recommendation: quality_report.some(a => a.prompt_optimization_ready && a.needs_attention)\n    ? 'Run DSPy SIMBA on degraded agents: python scripts/dspy/optimize_prompts.py'\n    : 'No agents meet optimization threshold (20+ runs + <80% success). Collecting more data.'\n};\n\nreturn [{json: report}];"
+      },
+      "id": "analyze-quality",
+      "name": "Analyze Agent Quality",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.agents_needing_attention }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check-attention",
+      "name": "Attention Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_alert\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"agents_needing_attention\": \"={{ $json.agents_needing_attention }}\", \"agents_ready_for_optimization\": \"={{ $json.agents_ready_for_optimization }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}"
+      },
+      "id": "log-alert",
+      "name": "Log Quality Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_ok\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}"
+      },
+      "id": "log-ok",
+      "name": "Log Quality OK",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W21 - Prompt Optimizer\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Saturday 6 AM UTC": {
+      "main": [
+        [
+          {
+            "node": "Fetch Agent Heartbeats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Agent Heartbeats": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Errors": {
+      "main": [
+        [
+          {
+            "node": "Analyze Agent Quality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Agent Quality": {
+      "main": [
+        [
+          {
+            "node": "Attention Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attention Needed?": {
+      "main": [
+        [
+          {
+            "node": "Log Quality Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Quality OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "name": "W19 - Agent Output Quality",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 4 * * *"
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "Daily 4 AM UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"24 hours\"}}"
+      },
+      "id": "fetch-heartbeats",
+      "name": "Fetch Agent Heartbeats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Fetch Agent Heartbeats').all().map(i => i.json);\n\n// Known agents that should be running\nconst EXPECTED_AGENTS = [\n  'content-scheduler',\n  'outreach-sequencer',\n  'health-monitor',\n  'pipeline-metrics',\n  'partner-scanner',\n  'performance-tracker'\n];\n\n// Aggregate heartbeats by agent\nconst agentStats = {};\nfor (const hb of items) {\n  const name = hb.name || hb.agent_name || 'unknown';\n  if (!agentStats[name]) {\n    agentStats[name] = { succeeded: 0, failed: 0, total: 0 };\n  }\n  const status = (hb.status || '').toLowerCase();\n  const count = parseInt(hb.cnt || hb.count || hb.total || 1);\n  if (status === 'succeeded' || status === 'success' || status === 'ok') {\n    agentStats[name].succeeded += count;\n  } else if (status === 'failed' || status === 'failure' || status === 'error') {\n    agentStats[name].failed += count;\n  }\n  agentStats[name].total += count;\n}\n\nconst agentsDegraded = [];\nconst agentsOffline = [];\nconst agentsChecked = Object.keys(agentStats).length;\n\n// Check success rates\nfor (const [name, stats] of Object.entries(agentStats)) {\n  if (stats.total > 0) {\n    const successRate = stats.succeeded / stats.total;\n    if (successRate < 0.8) {\n      agentsDegraded.push({\n        agent: name,\n        success_rate: Math.round(successRate * 100),\n        succeeded: stats.succeeded,\n        failed: stats.failed,\n        total: stats.total\n      });\n    }\n  }\n}\n\n// Check for offline agents (expected but no heartbeats)\nconst activeAgentNames = Object.keys(agentStats).map(n => n.toLowerCase());\nfor (const expected of EXPECTED_AGENTS) {\n  const found = activeAgentNames.some(a => a.includes(expected.toLowerCase()));\n  if (!found) {\n    agentsOffline.push({\n      agent: expected,\n      reason: 'No heartbeats in last 24 hours'\n    });\n  }\n}\n\nconst hasIssues = agentsDegraded.length > 0 || agentsOffline.length > 0;\n\nreturn [{\n  json: {\n    agents_checked: agentsChecked,\n    agents_degraded: agentsDegraded,\n    agents_offline: agentsOffline,\n    degraded_count: agentsDegraded.length,\n    offline_count: agentsOffline.length,\n    has_issues: hasIssues,\n    checked_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "analyze-quality",
+      "name": "Analyze Agent Quality",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.has_issues }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-issues",
+      "name": "Issues Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"agent-quality\", \"event_type\": \"agent_degraded\", \"payload\": {\"agents_checked\": {{ $json.agents_checked }}, \"agents_degraded\": {{ JSON.stringify($json.agents_degraded) }}, \"agents_offline\": {{ JSON.stringify($json.agents_offline) }}, \"degraded_count\": {{ $json.degraded_count }}, \"offline_count\": {{ $json.offline_count }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+      },
+      "id": "emit-degraded",
+      "name": "Emit Agent Degraded",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"agent-quality\", \"event_type\": \"agents_healthy\", \"payload\": {\"agents_checked\": {{ $json.agents_checked }}, \"degraded_count\": 0, \"offline_count\": 0, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+      },
+      "id": "emit-healthy",
+      "name": "Emit Agents Healthy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W19 - Agent Output Quality\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Daily 4 AM UTC": {
+      "main": [
+        [
+          {
+            "node": "Fetch Agent Heartbeats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Agent Heartbeats": {
+      "main": [
+        [
+          {
+            "node": "Analyze Agent Quality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Agent Quality": {
+      "main": [
+        [
+          {
+            "node": "Issues Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Issues Found?": {
+      "main": [
+        [
+          {
+            "node": "Emit Agent Degraded",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Emit Agents Healthy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

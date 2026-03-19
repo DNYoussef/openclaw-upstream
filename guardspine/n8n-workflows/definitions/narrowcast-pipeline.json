@@ -4,7 +4,12 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "hours", "hoursInterval": 12 }]
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 12
+            }
+          ]
         }
       },
       "name": "Schedule Trigger",
@@ -15,19 +20,32 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/narrowcast-pipeline",
+        "url": "http://openclaw.railway.internal:18789/webhook/narrowcast-pipeline",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "bodyParameters": {
-          "parameters": [{ "name": "action", "value": "scan_communities" }]
+          "parameters": [
+            {
+              "name": "action",
+              "value": "scan_communities"
+            }
+          ]
         },
-        "options": { "timeout": 60000 }
+        "options": {
+          "timeout": 60000
+        }
       },
       "name": "Scan Communities",
       "type": "n8n-nodes-base.httpRequest",
@@ -37,13 +55,19 @@
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
           "conditions": [
             {
               "id": "has-threads",
               "leftValue": "={{ $json.threads_found || 0 }}",
               "rightValue": 0,
-              "operator": { "type": "number", "operation": "gt" }
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
           ]
         }
@@ -56,22 +80,36 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/narrowcast-pipeline",
+        "url": "http://openclaw.railway.internal:18789/webhook/narrowcast-pipeline",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "action", "value": "evaluate_and_source" },
-            { "name": "threads", "value": "={{ JSON.stringify($json.threads || []) }}" }
+            {
+              "name": "action",
+              "value": "evaluate_and_source"
+            },
+            {
+              "name": "threads",
+              "value": "={{ JSON.stringify($json.threads || []) }}"
+            }
           ]
         },
-        "options": { "timeout": 60000 }
+        "options": {
+          "timeout": 60000
+        }
       },
       "name": "Evaluate & Source Prospects",
       "type": "n8n-nodes-base.httpRequest",
@@ -81,13 +119,19 @@
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
           "conditions": [
             {
               "id": "has-prospects",
               "leftValue": "={{ $json.prospects_added || 0 }}",
               "rightValue": 0,
-              "operator": { "type": "number", "operation": "gt" }
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
           ]
         }
@@ -100,25 +144,36 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/outreach-pipeline",
+        "url": "http://openclaw.railway.internal:18789/webhook/outreach-pipeline",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "action", "value": "send_alert" },
+            {
+              "name": "action",
+              "value": "send_alert"
+            },
             {
               "name": "signals",
               "value": "={{ JSON.stringify({ type: 'narrowcast', prospects_added: $json.prospects_added, threads_evaluated: $json.threads_evaluated }) }}"
             }
           ]
         },
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        }
       },
       "name": "Alert: New Prospects",
       "type": "n8n-nodes-base.httpRequest",
@@ -138,30 +193,114 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [910, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"P3 - Narrowcast Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
     "Schedule Trigger": {
-      "main": [[{ "node": "Scan Communities", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Scan Communities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Scan Communities": {
-      "main": [[{ "node": "Threads Found?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Threads Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Threads Found?": {
       "main": [
-        [{ "node": "Evaluate & Source Prospects", "type": "main", "index": 0 }],
-        [{ "node": "No Threads", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Evaluate & Source Prospects",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Threads",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Evaluate & Source Prospects": {
-      "main": [[{ "node": "New Prospects?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "New Prospects?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "New Prospects?": {
       "main": [
-        [{ "node": "Alert: New Prospects", "type": "main", "index": 0 }],
-        [{ "node": "No New Prospects", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Alert: New Prospects",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No New Prospects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

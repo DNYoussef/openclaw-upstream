@@ -4,25 +4,27 @@
     "bind": "lan",
     "port": 18789,
     "controlUi": {
-      "allowedOrigins": ["https://ops-portal-production-bb8b.up.railway.app"],
       "dangerouslyDisableDeviceAuth": false
     }
   },
   "agents": {
     "defaults": {
       "model": {
-        "primary": "litellm/openrouter/google/gemini-3-flash-preview",
+        "primary": "openai-codex/gpt-5.4",
         "fallbacks": [
-          "litellm/openrouter/deepseek/deepseek-v3.2",
-          "litellm/openrouter/openai/gpt-4o-mini"
+          "anthropic/claude-sonnet-4-6",
+          "anthropic/claude-haiku-4-5",
+          "litellm/gemini-flash"
         ]
       },
       "models": {
-        "litellm/openrouter/google/gemini-3-flash-preview": { "alias": "Gemini 3 Flash" },
-        "litellm/openrouter/deepseek/deepseek-v3.2": { "alias": "DeepSeek V3.2" },
-        "litellm/openrouter/anthropic/claude-sonnet-4.6": { "alias": "Claude Sonnet 4.6" },
-        "litellm/openrouter/anthropic/claude-opus-4.6": { "alias": "Claude Opus 4.6" },
-        "litellm/openrouter/qwen/qwen3-coder": { "alias": "Qwen3 Coder" }
+        "openai-codex/gpt-5.4": { "alias": "GPT-5.4 (Codex Sub)" },
+        "openai-codex/gpt-5.4-mini": { "alias": "GPT-5.4 Mini (Codex Sub)" },
+        "anthropic/claude-opus-4-6": { "alias": "Claude Opus (Sub)" },
+        "anthropic/claude-sonnet-4-6": { "alias": "Claude Sonnet (Sub)" },
+        "anthropic/claude-haiku-4-5": { "alias": "Claude Haiku (Sub)" },
+        "litellm/gemini-flash": { "alias": "Gemini 2.5 Flash" },
+        "litellm/gemini-pro": { "alias": "Gemini 2.5 Pro" }
       }
     }
   },
@@ -34,49 +36,22 @@
         "api": "openai-completions",
         "models": [
           {
-            "id": "openrouter/google/gemini-3-flash-preview",
-            "name": "Gemini 3 Flash",
-            "reasoning": true,
+            "id": "gemini-flash",
+            "name": "Gemini 2.5 Flash",
+            "reasoning": false,
             "input": ["text", "image"],
-            "cost": { "input": 0.5, "output": 3, "cacheRead": 0.13, "cacheWrite": 0.5 },
+            "cost": { "input": 0.15, "output": 0.6, "cacheRead": 0.04, "cacheWrite": 0.15 },
             "contextWindow": 1000000,
             "maxTokens": 65536
           },
           {
-            "id": "openrouter/deepseek/deepseek-v3.2",
-            "name": "DeepSeek V3.2",
-            "reasoning": false,
-            "input": ["text"],
-            "cost": { "input": 0.25, "output": 0.4, "cacheRead": 0.07, "cacheWrite": 0.25 },
-            "contextWindow": 164000,
-            "maxTokens": 8192
-          },
-          {
-            "id": "openrouter/anthropic/claude-sonnet-4.6",
-            "name": "Claude Sonnet 4.6",
-            "reasoning": false,
-            "input": ["text", "image"],
-            "cost": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 },
-            "contextWindow": 200000,
-            "maxTokens": 8192
-          },
-          {
-            "id": "openrouter/anthropic/claude-opus-4.6",
-            "name": "Claude Opus 4.6",
+            "id": "gemini-pro",
+            "name": "Gemini 2.5 Pro",
             "reasoning": true,
             "input": ["text", "image"],
-            "cost": { "input": 5, "output": 25, "cacheRead": 0.5, "cacheWrite": 6.25 },
+            "cost": { "input": 1.25, "output": 10, "cacheRead": 0.31, "cacheWrite": 1.25 },
             "contextWindow": 1000000,
-            "maxTokens": 32000
-          },
-          {
-            "id": "openrouter/qwen/qwen3-coder",
-            "name": "Qwen3 Coder",
-            "reasoning": false,
-            "input": ["text"],
-            "cost": { "input": 0.22, "output": 1.0, "cacheRead": 0.05, "cacheWrite": 0.22 },
-            "contextWindow": 262000,
-            "maxTokens": 8192
+            "maxTokens": 65536
           }
         ]
       }

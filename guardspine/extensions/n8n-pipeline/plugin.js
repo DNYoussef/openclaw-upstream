@@ -26,7 +26,7 @@ module.exports = function register(api) {
   const baseUrl =
     pluginCfg.n8n_base_url ||
     process.env.N8N_BASE_URL ||
-    "https://n8n-production-32ffd.up.railway.app";
+    "https://n8n-production-7528.up.railway.app";
   const apiKey = pluginCfg.n8n_api_key || process.env.N8N_API_KEY || "";
 
   if (!apiKey) {
@@ -97,7 +97,17 @@ module.exports = function register(api) {
             // BUG N3: Truncate oversized responses before JSON.parse
             let truncated = false;
             if (data.length > maxResponseBytes) {
-              data = data.substring(0, maxResponseBytes);
+              // Find the last complete JSON object/array boundary before the limit
+              let cutoff = maxResponseBytes;
+              const slice = data.substring(0, cutoff);
+              // Walk backward to find last '}' or ']' that could close a JSON structure
+              for (let i = slice.length - 1; i >= 0; i--) {
+                if (slice[i] === "}" || slice[i] === "]") {
+                  cutoff = i + 1;
+                  break;
+                }
+              }
+              data = data.substring(0, cutoff);
               truncated = true;
             }
             try {
@@ -660,10 +670,18 @@ module.exports = function register(api) {
                   const json = item.json || {};
                   const str = JSON.stringify(json);
                   if (str.length > 2000) {
+                    // Find last complete JSON boundary before the 2000-char limit
+                    let cutoff = 2000;
+                    for (let i = cutoff - 1; i >= 0; i--) {
+                      if (str[i] === "}" || str[i] === "]" || str[i] === "," || str[i] === '"') {
+                        cutoff = i + 1;
+                        break;
+                      }
+                    }
                     return {
                       _truncated: true,
                       _original_bytes: str.length,
-                      preview: str.substring(0, 2000),
+                      preview: str.substring(0, cutoff),
                     };
                   }
                   return json;
@@ -877,11 +895,12 @@ module.exports = function register(api) {
   const url = require("url");
 
   // HTTP GET helper (returns parsed JSON)
-  function httpGet(targetUrl, timeoutMs) {
+  function httpGet(targetUrl, timeoutMs, extraHeaders) {
     return new Promise((resolve, reject) => {
       const parsed = new URL(targetUrl);
       const mod = parsed.protocol === "https:" ? https : http;
-      const req = mod.get(targetUrl, { timeout: timeoutMs || 10000 }, (res) => {
+      const options = { timeout: timeoutMs || 10000, headers: extraHeaders || {} };
+      const req = mod.get(targetUrl, options, (res) => {
         let data = "";
         res.on("data", (chunk) => {
           data += chunk;
@@ -937,28 +956,35 @@ module.exports = function register(api) {
   ensureDb(outreachDbPath);
 
   // SQLite query helper (shells out to sqlite3 CLI)
-  // Logs errors instead of swallowing them.
+  // Returns rows array on success, or {error, rows: []} on failure.
   function sqliteQuery(dbPath, query) {
     return new Promise((resolve, reject) => {
       if (!fs.existsSync(dbPath)) {
         console.error("[n8n-pipeline] DB not found: " + dbPath);
-        resolve([]);
+        resolve({ error: "DB not found: " + dbPath, rows: [] });
         return;
       }
       execFile("sqlite3", ["-json", dbPath, query], { timeout: 10000 }, (err, stdout, stderr) => {
         if (err) {
           console.error("[n8n-pipeline] sqlite3 error:", err.message, stderr || "");
-          resolve([]);
+          resolve({ error: err.message, rows: [] });
           return;
         }
         try {
           resolve(JSON.parse(stdout || "[]"));
         } catch (e) {
           console.error("[n8n-pipeline] sqlite3 JSON parse error:", e.message);
-          resolve([]);
+          resolve({ error: e.message, rows: [] });
         }
       });
     });
+  }
+
+  // Extract rows from sqliteQuery result (handles both old array and new {error, rows} format)
+  function dbRows(result) {
+    if (Array.isArray(result)) return result;
+    if (result && result.error) return result.rows || [];
+    return [];
   }
 
   function stub(data) {
@@ -968,12 +994,14 @@ module.exports = function register(api) {
   // --- Outreach Pipeline handlers (P1) ---
 
   async function checkResponseSignals() {
-    const rows = await sqliteQuery(
-      outreachDbPath,
-      "SELECT id, name, company, signal_type, lane, investor_tier, message_sent_at, signal_notes " +
-        "FROM prospects " +
-        "WHERE signal_type IN ('green','yellow') " +
-        "ORDER BY message_sent_at DESC",
+    const rows = dbRows(
+      await sqliteQuery(
+        outreachDbPath,
+        "SELECT id, name, company, signal_type, lane, investor_tier, message_sent_at, signal_notes " +
+          "FROM prospects " +
+          "WHERE signal_type IN ('green','yellow') " +
+          "ORDER BY message_sent_at DESC",
+      ),
     );
     const green = rows.filter((r) => r.signal_type === "green");
     const yellow = rows.filter((r) => r.signal_type === "yellow");
@@ -996,10 +1024,9 @@ module.exports = function register(api) {
       };
     }
     try {
-      const data = await httpGet(
-        landingBaseUrl + "/api/admin/signups?key=" + encodeURIComponent(landingAdminKey),
-        10000,
-      );
+      const data = await httpGet(landingBaseUrl + "/api/admin/signups", 10000, {
+        Authorization: "Bearer " + landingAdminKey,
+      });
       const signups = data.signups || [];
       const demos = data.demoRequests || [];
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -1019,17 +1046,59 @@ module.exports = function register(api) {
   }
 
   async function checkFollowupsDue() {
-    const rows = await sqliteQuery(
-      outreachDbPath,
-      "SELECT id, name, company, lane, investor_tier, message_sent_at, channel " +
-        "FROM prospects " +
-        "WHERE message_sent_at IS NOT NULL " +
-        "AND (signal_type IS NULL OR signal_type = 'none') " +
-        "AND message_sent_at <= datetime('now', '-7 days') " +
-        "ORDER BY message_sent_at ASC " +
-        "LIMIT 20",
+    const rows = dbRows(
+      await sqliteQuery(
+        outreachDbPath,
+        "SELECT id, name, company, lane, investor_tier, message_sent_at, channel " +
+          "FROM prospects " +
+          "WHERE message_sent_at IS NOT NULL " +
+          "AND (signal_type IS NULL OR signal_type = 'none') " +
+          "AND message_sent_at <= datetime('now', '-7 days') " +
+          "ORDER BY message_sent_at ASC " +
+          "LIMIT 20",
+      ),
     );
     return { followups_due_count: rows.length, followups_due: rows };
+  }
+
+  // HTTP POST helper (returns parsed JSON)
+  function httpPost(targetUrl, payload, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const parsed = new URL(targetUrl);
+      const mod = parsed.protocol === "https:" ? https : http;
+      const data = JSON.stringify(payload);
+      const opts = {
+        method: "POST",
+        hostname: parsed.hostname,
+        port: parsed.port,
+        path: parsed.pathname + parsed.search,
+        timeout: timeoutMs || 15000,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(data),
+        },
+      };
+      const req = mod.request(opts, (res) => {
+        let body = "";
+        res.on("data", (chunk) => {
+          body += chunk;
+        });
+        res.on("end", () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            resolve({ raw: body, statusCode: res.statusCode });
+          }
+        });
+      });
+      req.on("error", reject);
+      req.on("timeout", () => {
+        req.destroy();
+        reject(new Error("Timeout: " + targetUrl));
+      });
+      req.write(data);
+      req.end();
+    });
   }
 
   async function draftFollowups(body) {
@@ -1040,7 +1109,69 @@ module.exports = function register(api) {
     } catch (e) {
       /* skip */
     }
-    return stub({ drafted: 0, prospects: parsed, note: "AI drafting not yet wired (INT-2)" });
+
+    const litellmUrl = process.env.LITELLM_URL || "http://litellm.railway.internal:4000";
+    const drafted = [];
+    let errors = 0;
+
+    for (const prospect of parsed) {
+      // Skip prospects with no signal or already followed up twice
+      if (prospect.signal_type === "none" || !prospect.signal_type) continue;
+      if ((prospect.followup_count || 0) >= 2) continue;
+
+      const prompt =
+        "Draft a 2-sentence follow-up for " +
+        (prospect.name || "this person") +
+        " at " +
+        (prospect.company || "their company") +
+        ". Their pain bucket is " +
+        (prospect.pain_bucket || "unknown") +
+        ". Previous message was about " +
+        (prospect.hook_angle || "code governance") +
+        ". Keep it under 50 words. No slop words.";
+
+      try {
+        const result = await httpPost(
+          litellmUrl + "/v1/chat/completions",
+          {
+            model: "gemini-2.0-flash",
+            messages: [
+              {
+                role: "system",
+                content: "You draft brief, direct follow-up messages for B2B outreach. No fluff.",
+              },
+              { role: "user", content: prompt },
+            ],
+            max_tokens: 120,
+            temperature: 0.7,
+          },
+          15000,
+        );
+
+        const message =
+          result.choices && result.choices[0] && result.choices[0].message
+            ? result.choices[0].message.content
+            : null;
+
+        drafted.push({
+          prospect_id: prospect.id,
+          name: prospect.name,
+          company: prospect.company,
+          draft: message || "(LLM returned empty response)",
+        });
+      } catch (e) {
+        errors++;
+        drafted.push({
+          prospect_id: prospect.id,
+          name: prospect.name,
+          company: prospect.company,
+          draft: null,
+          error: "LLM call failed: " + e.message,
+        });
+      }
+    }
+
+    return { drafted: drafted.filter((d) => d.draft && !d.error).length, errors, drafts: drafted };
   }
 
   async function sendAlert(body) {
@@ -1051,27 +1182,97 @@ module.exports = function register(api) {
     } catch (e) {
       /* skip */
     }
-    // Log the alert. Slack/Discord delivery wired in INT-2.
-    console.log("[outreach-alert]", JSON.stringify(parsed));
-    return stub({ alerted: true, channel: "log", data: parsed });
+
+    const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
+    const telemetryUrl =
+      process.env.TELEMETRY_URL || "http://telemetry-api.railway.internal:8090/telemetry";
+
+    // Build a readable summary from the signals
+    const items = Array.isArray(parsed)
+      ? parsed
+      : parsed.green_signals || parsed.yellow_signals || [parsed];
+    const summary =
+      items
+        .filter((s) => s && s.name)
+        .map(
+          (s) =>
+            "- " +
+            s.name +
+            " (" +
+            (s.company || "?") +
+            "): " +
+            (s.signal_type || "signal") +
+            " -- action needed",
+        )
+        .join("\n") || "Alert triggered (no structured signal data)";
+
+    if (slackWebhookUrl) {
+      try {
+        await httpPost(
+          slackWebhookUrl,
+          {
+            text: "*Outreach Alert*\n" + summary,
+          },
+          10000,
+        );
+        console.log("[outreach-alert] Sent to Slack");
+        return { alerted: true, channel: "slack", data: parsed };
+      } catch (e) {
+        console.error(
+          "[outreach-alert] Slack delivery failed: " + e.message + ". Falling back to telemetry.",
+        );
+        // Fall through to telemetry
+      }
+    }
+
+    // No Slack or Slack failed: record in telemetry
+    try {
+      await httpPost(
+        telemetryUrl,
+        {
+          event_type: "alert",
+          source: "outreach-pipeline",
+          data: parsed,
+          summary: summary,
+          timestamp: new Date().toISOString(),
+        },
+        10000,
+      );
+      console.log("[outreach-alert] Recorded in telemetry");
+      return { alerted: true, channel: "telemetry", data: parsed };
+    } catch (e) {
+      console.error("[outreach-alert] Telemetry delivery failed: " + e.message);
+      // Last resort: at least log it
+      console.log("[outreach-alert]", JSON.stringify(parsed));
+      return {
+        alerted: true,
+        channel: "log",
+        data: parsed,
+        warning: "Both Slack and telemetry failed",
+      };
+    }
   }
 
   async function getPipelineStatus() {
-    const totals = await sqliteQuery(
-      outreachDbPath,
-      "SELECT COUNT(*) as total, " +
-        "SUM(CASE WHEN message_sent_at IS NOT NULL THEN 1 ELSE 0 END) as sent, " +
-        "SUM(CASE WHEN signal_type='green' THEN 1 ELSE 0 END) as green, " +
-        "SUM(CASE WHEN signal_type='yellow' THEN 1 ELSE 0 END) as yellow, " +
-        "SUM(CASE WHEN signal_type='red' THEN 1 ELSE 0 END) as red " +
-        "FROM prospects",
+    const totals = dbRows(
+      await sqliteQuery(
+        outreachDbPath,
+        "SELECT COUNT(*) as total, " +
+          "SUM(CASE WHEN message_sent_at IS NOT NULL THEN 1 ELSE 0 END) as sent, " +
+          "SUM(CASE WHEN signal_type='green' THEN 1 ELSE 0 END) as green, " +
+          "SUM(CASE WHEN signal_type='yellow' THEN 1 ELSE 0 END) as yellow, " +
+          "SUM(CASE WHEN signal_type='red' THEN 1 ELSE 0 END) as red " +
+          "FROM prospects",
+      ),
     );
-    const byLane = await sqliteQuery(
-      outreachDbPath,
-      "SELECT lane, COUNT(*) as total, " +
-        "SUM(CASE WHEN message_sent_at IS NOT NULL THEN 1 ELSE 0 END) as sent, " +
-        "SUM(CASE WHEN signal_type='green' THEN 1 ELSE 0 END) as green " +
-        "FROM prospects GROUP BY lane",
+    const byLane = dbRows(
+      await sqliteQuery(
+        outreachDbPath,
+        "SELECT lane, COUNT(*) as total, " +
+          "SUM(CASE WHEN message_sent_at IS NOT NULL THEN 1 ELSE 0 END) as sent, " +
+          "SUM(CASE WHEN signal_type='green' THEN 1 ELSE 0 END) as green " +
+          "FROM prospects GROUP BY lane",
+      ),
     );
     return {
       totals: totals[0] || {},
@@ -1086,19 +1287,53 @@ module.exports = function register(api) {
 
   async function scanCommunities() {
     // Query existing narrowcast_scans and threads from last 24h
-    const recentScans = await sqliteQuery(
-      outreachDbPath,
-      "SELECT * FROM narrowcast_scans ORDER BY scan_date DESC LIMIT 5",
+    const recentScans = dbRows(
+      await sqliteQuery(
+        outreachDbPath,
+        "SELECT * FROM narrowcast_scans ORDER BY scan_date DESC LIMIT 5",
+      ),
     );
-    const recentThreads = await sqliteQuery(
-      outreachDbPath,
-      "SELECT * FROM narrowcast_threads WHERE engaged_at IS NULL ORDER BY discovered_at DESC LIMIT 10",
+    const recentThreads = dbRows(
+      await sqliteQuery(
+        outreachDbPath,
+        "SELECT * FROM narrowcast_threads WHERE engaged_at IS NULL ORDER BY discovered_at DESC LIMIT 10",
+      ),
     );
     return {
       threads_found: recentThreads.length,
       threads: recentThreads,
       recent_scans: recentScans,
     };
+  }
+
+  // Relevance keywords for thread scoring (no LLM needed)
+  const RELEVANCE_KEYWORDS = [
+    { pattern: /code\s*review/i, weight: 15 },
+    { pattern: /governance/i, weight: 15 },
+    { pattern: /audit/i, weight: 12 },
+    { pattern: /compliance/i, weight: 12 },
+    { pattern: /ai\s*code/i, weight: 10 },
+    { pattern: /pr\s*review/i, weight: 10 },
+    { pattern: /evidence/i, weight: 8 },
+    { pattern: /dora\b/i, weight: 10 },
+    { pattern: /soc\s*2/i, weight: 12 },
+    { pattern: /security\s*review/i, weight: 8 },
+    { pattern: /code\s*quality/i, weight: 6 },
+    { pattern: /pull\s*request/i, weight: 5 },
+  ];
+
+  function scoreThreadRelevance(thread) {
+    const text = [
+      thread.title || "",
+      thread.body || "",
+      thread.content || "",
+      thread.url || "",
+    ].join(" ");
+    let score = 0;
+    for (const kw of RELEVANCE_KEYWORDS) {
+      if (kw.pattern.test(text)) score += kw.weight;
+    }
+    return Math.min(score, 100);
   }
 
   async function evaluateAndSource(body) {
@@ -1109,13 +1344,55 @@ module.exports = function register(api) {
     } catch (e) {
       /* skip */
     }
-    // Evaluate threads for prospect sourcing potential
-    // Real AI evaluation wired in INT-2
-    return stub({
+
+    const telemetryUrl =
+      process.env.TELEMETRY_URL || "http://telemetry-api.railway.internal:8090/telemetry";
+    const evaluated = [];
+    let prospectsAdded = 0;
+
+    for (const thread of parsed) {
+      const score = scoreThreadRelevance(thread);
+      const entry = {
+        url: thread.url || null,
+        title: thread.title || null,
+        score: score,
+        qualified: score >= 60,
+      };
+
+      if (score >= 60) {
+        try {
+          await httpPost(
+            telemetryUrl,
+            {
+              event_type: "prospect_sourced",
+              source: "narrowcast",
+              data: {
+                url: thread.url,
+                title: thread.title,
+                author: thread.author || null,
+                platform: thread.platform || null,
+                relevance_score: score,
+              },
+              timestamp: new Date().toISOString(),
+            },
+            10000,
+          );
+          prospectsAdded++;
+          entry.added = true;
+        } catch (e) {
+          entry.added = false;
+          entry.error = e.message;
+        }
+      }
+
+      evaluated.push(entry);
+    }
+
+    return {
       threads_evaluated: parsed.length,
-      prospects_added: 0,
-      note: "AI evaluation not yet wired (INT-2)",
-    });
+      prospects_added: prospectsAdded,
+      evaluated: evaluated,
+    };
   }
 
   // --- Pilot Pipeline handlers (still stubbed -- needs GitHub API + codeguard telemetry) ---

@@ -3,7 +3,14 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 9 * * 1" }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
       },
       "id": "weekly-trigger",
       "name": "Monday 9 AM ET",
@@ -13,27 +20,23 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT * FROM kpi_outreach WHERE week >= NOW() - INTERVAL '4 weeks' ORDER BY week DESC"
+        "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_outreach?weeks=4&limit=10"
       },
       "id": "query-outreach",
       "name": "Query Outreach KPIs",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [420, 250],
-      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 250]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT * FROM kpi_automation WHERE week >= NOW() - INTERVAL '4 weeks' ORDER BY week DESC"
+        "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10"
       },
       "id": "query-automation",
       "name": "Query Automation KPIs",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [420, 400],
-      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 400]
     },
     {
       "parameters": {
@@ -47,37 +50,106 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
         "method": "POST",
-        "body": {
-          "json": {
-            "service": "pipeline",
-            "event_type": "weekly_report",
-            "payload": { "report": "={{ $json.report }}", "week": "={{ $json.week }}" }
-          }
-        }
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"pipeline\", \"event_type\": \"weekly_report\", \"payload\": {\"report\": \"={{ $json.report }}\", \"week\": \"={{ $json.week }}\"}}"
       },
       "id": "emit-telemetry",
       "name": "Emit Telemetry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [860, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W4 - Pipeline Metrics Reporter\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
     "Monday 9 AM ET": {
       "main": [
         [
-          { "node": "Query Outreach KPIs", "type": "main", "index": 0 },
-          { "node": "Query Automation KPIs", "type": "main", "index": 0 }
+          {
+            "node": "Query Outreach KPIs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Automation KPIs",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "Query Outreach KPIs": { "main": [[{ "node": "Format Report", "type": "main", "index": 0 }]] },
-    "Query Automation KPIs": {
-      "main": [[{ "node": "Format Report", "type": "main", "index": 0 }]]
+    "Query Outreach KPIs": {
+      "main": [
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Format Report": { "main": [[{ "node": "Emit Telemetry", "type": "main", "index": 0 }]] }
+    "Query Automation KPIs": {
+      "main": [
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Report": {
+      "main": [
+        [
+          {
+            "node": "Emit Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

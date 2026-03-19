@@ -1,0 +1,221 @@
+{
+  "name": "W28 - Loop Detector",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 200}}"
+      },
+      "id": "fetch-telemetry",
+      "name": "Fetch Recent Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"1 hour\"}}"
+      },
+      "id": "fetch-heartbeats",
+      "name": "Fetch Agent Heartbeats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const telemetry = $('Fetch Recent Telemetry').first().json;\nconst heartbeats = $('Fetch Agent Heartbeats').first().json;\n\nconst events = telemetry.rows || [];\nconst hb = heartbeats.rows || [];\n\nconst alerts = [];\n\n// Check 1: Error event spike (>15 errors in last 200 events = likely loop)\nconst errors = events.filter(e => e.event_type === 'workflow_error' || (e.event_type || '').includes('error'));\nif (errors.length > 15) {\n  alerts.push({type: 'error_spike', count: errors.length, threshold: 15});\n}\n\n// Check 2: Agent failure spike (>5 failures in 1 hour for any agent)\nconst agentFailures = {};\nfor (const h of hb) {\n  if (h.status !== 'succeeded') {\n    agentFailures[h.name] = (agentFailures[h.name] || 0) + 1;\n  }\n}\nfor (const [agent, fails] of Object.entries(agentFailures)) {\n  if (fails > 5) {\n    alerts.push({type: 'agent_loop', agent, failures: fails, threshold: 5});\n  }\n}\n\n// Check 3: Billing errors (any 402 in recent events)\nconst billing = events.filter(e => {\n  const p = typeof e.payload === 'string' ? e.payload : JSON.stringify(e.payload || {});\n  return p.includes('402') || p.includes('billing') || p.includes('credits');\n});\nif (billing.length > 0) {\n  alerts.push({type: 'billing_alert', count: billing.length});\n}\n\n// Check 4: Telemetry flood (>100 events from same service in 200 events = runaway)\nconst serviceCounts = {};\nfor (const e of events) {\n  serviceCounts[e.service] = (serviceCounts[e.service] || 0) + 1;\n}\nfor (const [svc, count] of Object.entries(serviceCounts)) {\n  if (count > 100) {\n    alerts.push({type: 'telemetry_flood', service: svc, count, threshold: 100});\n  }\n}\n\nreturn [{json: {\n  alert_count: alerts.length,\n  alerts: alerts,\n  checked_events: events.length,\n  checked_heartbeats: hb.length,\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "detect-loops",
+      "name": "Detect Loops",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-alerts",
+              "leftValue": "={{ $json.alert_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "has-alerts",
+      "name": "Alerts Detected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"loop-detector\", \"event_type\": \"runaway_detected\", \"payload\": {\"alert_count\": {{ $json.alert_count }}, \"alerts\": {{ JSON.stringify($json.alerts) }}, \"checked_events\": {{ $json.checked_events }}, \"checked_heartbeats\": {{ $json.checked_heartbeats }}, \"timestamp\": \"{{ $json.timestamp }}\"}}"
+      },
+      "id": "emit-runaway",
+      "name": "Log Runaway Detected",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"loop-detector\", \"event_type\": \"system_stable\", \"payload\": {\"checked_events\": {{ $json.checked_events }}, \"checked_heartbeats\": {{ $json.checked_heartbeats }}, \"timestamp\": \"{{ $json.timestamp }}\"}}"
+      },
+      "id": "emit-stable",
+      "name": "Log System Stable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W28 - Loop Detector\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Telemetry": {
+      "main": [
+        [
+          {
+            "node": "Fetch Agent Heartbeats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Agent Heartbeats": {
+      "main": [
+        [
+          {
+            "node": "Detect Loops",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Loops": {
+      "main": [
+        [
+          {
+            "node": "Alerts Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerts Detected?": {
+      "main": [
+        [
+          {
+            "node": "Log Runaway Detected",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log System Stable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

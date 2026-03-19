@@ -55,23 +55,18 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO telemetry_events (service, event_type, payload) VALUES ($1, $2, $3::jsonb) RETURNING id, ts",
-        "options": {
-          "queryReplacement": "={{ $json.body.service }},={{ $json.body.event_type }},={{ JSON.stringify($json.body.payload || {}) }}"
-        }
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"sql\": \"INSERT INTO telemetry_events (service, event_type, payload) VALUES ($1, $2, $3::jsonb) RETURNING id, ts\", \"limit\": 1000}"
       },
       "id": "insert-event",
       "name": "Insert Telemetry Event",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [700, 250],
-      "credentials": {
-        "postgres": {
-          "id": "guardspine-postgres",
-          "name": "GuardSpine Postgres"
-        }
-      }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 250]
     },
     {
       "parameters": {
@@ -100,6 +95,29 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [700, 450]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"Telemetry Event Collector\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
@@ -137,6 +155,17 @@
         [
           {
             "node": "Respond 201 Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
             "type": "main",
             "index": 0
           }

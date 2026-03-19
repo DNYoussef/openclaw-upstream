@@ -1,0 +1,160 @@
+{
+  "name": "W20 - Template Distiller",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 5 * * 6"
+            }
+          ]
+        }
+      },
+      "id": "sat-5am",
+      "name": "Saturday 5 AM UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 200}}"
+      },
+      "id": "fetch-outreach",
+      "name": "Fetch Outreach Signals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"168 hours\"}}"
+      },
+      "id": "fetch-agent-perf",
+      "name": "Fetch Agent Performance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get outreach events from this week\nconst telemetry = $('Fetch Outreach Signals').first().json;\nconst heartbeats = $('Fetch Agent Performance').first().json;\n\n// Count signals by template/pain_bucket if available in telemetry\nconst rows = telemetry.rows || [];\nconst outreach_events = rows.filter(r => \n  r.service === 'n8n' && r.event_type === 'outreach_draft' ||\n  r.service === 'cmo' || \n  r.event_type === 'signal_check'\n);\n\n// Heartbeat analysis\nconst hb_rows = heartbeats.rows || [];\nconst cmo_stats = hb_rows.filter(r => r.name === 'CMO');\n\n// Build weekly report\nconst report = {\n  week_ending: new Date().toISOString().split('T')[0],\n  outreach_events: outreach_events.length,\n  cmo_heartbeats: cmo_stats.length,\n  cmo_success_rate: cmo_stats.length > 0 \n    ? cmo_stats.filter(r => r.status === 'succeeded').length / cmo_stats.length \n    : 0,\n  // Template performance requires outreach.db data which we can't query from n8n\n  // This node prepares the report; actual DSPy optimization runs as a separate Python script\n  dspy_ready: outreach_events.length >= 20,\n  recommendation: outreach_events.length >= 20 \n    ? 'Sufficient data for DSPy MIPROv2 template optimization. Run: python scripts/dspy/optimize_templates.py'\n    : 'Insufficient data. Need ' + (20 - outreach_events.length) + ' more outreach events before optimization.'\n};\n\nreturn [{json: report}];"
+      },
+      "id": "analyze-templates",
+      "name": "Analyze Template Performance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"distillation\", \"event_type\": \"template_analysis\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"outreach_events\": \"={{ $json.outreach_events }}\", \"cmo_heartbeats\": \"={{ $json.cmo_heartbeats }}\", \"cmo_success_rate\": \"={{ $json.cmo_success_rate }}\", \"dspy_ready\": \"={{ $json.dspy_ready }}\", \"recommendation\": \"={{ $json.recommendation }}\"}}"
+      },
+      "id": "log-distillation",
+      "name": "Log Distillation Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W20 - Template Distiller\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Saturday 5 AM UTC": {
+      "main": [
+        [
+          {
+            "node": "Fetch Outreach Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Outreach Signals": {
+      "main": [
+        [
+          {
+            "node": "Fetch Agent Performance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Agent Performance": {
+      "main": [
+        [
+          {
+            "node": "Analyze Template Performance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Template Performance": {
+      "main": [
+        [
+          {
+            "node": "Log Distillation Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

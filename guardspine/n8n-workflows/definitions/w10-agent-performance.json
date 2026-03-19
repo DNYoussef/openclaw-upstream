@@ -3,7 +3,14 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 8 * * 1" }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1"
+            }
+          ]
+        }
       },
       "id": "weekly-perf",
       "name": "Monday 8 AM",
@@ -13,27 +20,33 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT a.name, hr.status, COUNT(*) as cnt FROM heartbeat_runs hr JOIN agents a ON hr.agent_id = a.id WHERE hr.started_at > NOW() - INTERVAL '7 days' GROUP BY a.name, hr.status ORDER BY a.name, hr.status"
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"sql\": \"SELECT a.name, hr.status, COUNT(*) as cnt FROM heartbeat_runs hr JOIN agents a ON hr.agent_id = a.id WHERE hr.started_at > NOW() - INTERVAL '7 days' GROUP BY a.name, hr.status ORDER BY a.name, hr.status\", \"limit\": 100}"
       },
       "id": "query-heartbeats",
       "name": "Query Heartbeat Stats",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [420, 250],
-      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 250]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT solver_used, COUNT(*) as decisions, SUM(CASE WHEN human_override THEN 1 ELSE 0 END) as overrides, ROUND(SUM(CASE WHEN human_override THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0), 3) as override_rate FROM decision_journal WHERE ts > NOW() - INTERVAL '7 days' GROUP BY solver_used"
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"sql\": \"SELECT solver_used, COUNT(*) as decisions, SUM(CASE WHEN human_override THEN 1 ELSE 0 END) as overrides, ROUND(SUM(CASE WHEN human_override THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0), 3) as override_rate FROM decision_journal WHERE ts > NOW() - INTERVAL '7 days' GROUP BY solver_used\", \"limit\": 100}"
       },
       "id": "query-decisions",
       "name": "Query Decision Overrides",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [420, 400],
-      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 400]
     },
     {
       "parameters": {
@@ -47,41 +60,106 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
         "method": "POST",
-        "body": {
-          "json": {
-            "service": "model_lab",
-            "event_type": "performance_report",
-            "payload": { "report": "={{ $json.report }}" }
-          }
-        }
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"model_lab\", \"event_type\": \"performance_report\", \"payload\": {\"report\": \"={{ $json.report }}\"}}"
       },
       "id": "emit-perf",
       "name": "Log Performance Report",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [860, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W10 - Agent Performance Tracker\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
     "Monday 8 AM": {
       "main": [
         [
-          { "node": "Query Heartbeat Stats", "type": "main", "index": 0 },
-          { "node": "Query Decision Overrides", "type": "main", "index": 0 }
+          {
+            "node": "Query Heartbeat Stats",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Decision Overrides",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Query Heartbeat Stats": {
-      "main": [[{ "node": "Format Performance Report", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Format Performance Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Query Decision Overrides": {
-      "main": [[{ "node": "Format Performance Report", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Format Performance Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Format Performance Report": {
-      "main": [[{ "node": "Log Performance Report", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Log Performance Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

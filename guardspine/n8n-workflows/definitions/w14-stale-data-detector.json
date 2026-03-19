@@ -1,0 +1,211 @@
+{
+  "name": "W14 - Stale Data Detector",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 1 * * *"
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "Daily 1:15 AM UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 1}}"
+      },
+      "id": "fetch-latest-telemetry",
+      "name": "Fetch Latest Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"2 hours\"}}"
+      },
+      "id": "fetch-heartbeats",
+      "name": "Fetch Recent Heartbeats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const telemetryItems = $('Fetch Latest Telemetry').all().map(i => i.json);\nconst heartbeatItems = $('Fetch Recent Heartbeats').all().map(i => i.json);\n\nconst staleItems = [];\nconst now = new Date();\nconst sixHoursMs = 6 * 60 * 60 * 1000;\nconst twoHoursMs = 2 * 60 * 60 * 1000;\n\n// Check 1: Is the latest telemetry event older than 6 hours?\nif (telemetryItems.length > 0) {\n  const latest = telemetryItems[0];\n  const ts = new Date(latest.created_at || latest.timestamp || latest.ts || 0);\n  const ageMs = now.getTime() - ts.getTime();\n  if (ageMs > sixHoursMs) {\n    staleItems.push({\n      source: 'telemetry_events',\n      reason: 'Latest telemetry event is ' + Math.round(ageMs / 3600000) + ' hours old',\n      last_seen: ts.toISOString()\n    });\n  }\n} else {\n  staleItems.push({\n    source: 'telemetry_events',\n    reason: 'No telemetry events found at all',\n    last_seen: 'never'\n  });\n}\n\n// Check 2: Any successful heartbeats in last 2 hours?\nconst successfulHeartbeats = heartbeatItems.filter(h => {\n  const status = (h.status || '').toLowerCase();\n  return status === 'succeeded' || status === 'success' || status === 'ok';\n});\n\nif (successfulHeartbeats.length === 0) {\n  staleItems.push({\n    source: 'agent_heartbeats',\n    reason: 'No successful heartbeats in last 2 hours',\n    last_seen: heartbeatItems.length > 0 ? 'only failures' : 'no records'\n  });\n}\n\nreturn [{\n  json: {\n    stale_items: staleItems,\n    stale_count: staleItems.length,\n    checked_at: now.toISOString()\n  }\n}];"
+      },
+      "id": "check-staleness",
+      "name": "Check Staleness",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.stale_count }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check-stale",
+      "name": "Stale Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"freshness-monitor\", \"event_type\": \"stale_data_alert\", \"payload\": {\"stale_items\": {{ JSON.stringify($json.stale_items) }}, \"stale_count\": {{ $json.stale_count }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+      },
+      "id": "emit-stale-alert",
+      "name": "Emit Stale Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"freshness-monitor\", \"event_type\": \"data_fresh\", \"payload\": {\"checked_at\": \"{{ $json.checked_at }}\", \"stale_count\": 0}}"
+      },
+      "id": "emit-fresh",
+      "name": "Emit Data Fresh",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W14 - Stale Data Detector\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Daily 1:15 AM UTC": {
+      "main": [
+        [
+          {
+            "node": "Fetch Latest Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Latest Telemetry": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Heartbeats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Heartbeats": {
+      "main": [
+        [
+          {
+            "node": "Check Staleness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Staleness": {
+      "main": [
+        [
+          {
+            "node": "Stale Data?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stale Data?": {
+      "main": [
+        [
+          {
+            "node": "Emit Stale Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Emit Data Fresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

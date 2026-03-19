@@ -3,7 +3,14 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 10 * * 1,4" }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * 1,4"
+            }
+          ]
+        }
       },
       "id": "scan-trigger",
       "name": "Mon+Thu 10 AM",
@@ -43,41 +50,106 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
         "method": "POST",
-        "body": {
-          "json": {
-            "service": "bizdev",
-            "event_type": "partner_scan",
-            "payload": {
-              "source": "={{ $json.source }}",
-              "title": "={{ $json.title }}",
-              "url": "={{ $json.url }}",
-              "relevance": "={{ $json.relevance }}",
-              "points": "={{ $json.points }}"
-            }
-          }
-        }
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"bizdev\", \"event_type\": \"partner_scan\", \"payload\": {\"source\": \"={{ $json.source }}\", \"title\": \"={{ $json.title }}\", \"url\": \"={{ $json.url }}\", \"relevance\": \"={{ $json.relevance }}\", \"points\": \"={{ $json.points }}\"}}"
       },
       "id": "log-scan",
       "name": "Log Scan Results",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [860, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W9 - Partner Ecosystem Scanner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
     "Mon+Thu 10 AM": {
       "main": [
         [
-          { "node": "Scan HackerNews", "type": "main", "index": 0 },
-          { "node": "Scan Reddit", "type": "main", "index": 0 }
+          {
+            "node": "Scan HackerNews",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scan Reddit",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "Scan HackerNews": { "main": [[{ "node": "Score & Rank", "type": "main", "index": 0 }]] },
-    "Scan Reddit": { "main": [[{ "node": "Score & Rank", "type": "main", "index": 0 }]] },
-    "Score & Rank": { "main": [[{ "node": "Log Scan Results", "type": "main", "index": 0 }]] }
+    "Scan HackerNews": {
+      "main": [
+        [
+          {
+            "node": "Score & Rank",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan Reddit": {
+      "main": [
+        [
+          {
+            "node": "Score & Rank",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score & Rank": {
+      "main": [
+        [
+          {
+            "node": "Log Scan Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

@@ -2,7 +2,16 @@
   "name": "W6 - Data Sync Pipeline",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 6 }] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
       "id": "sync-trigger",
       "name": "Every 6 Hours",
       "type": "n8n-nodes-base.scheduleTrigger",
@@ -11,71 +20,193 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO telemetry_events (ts, service, event_type, payload) SELECT hr.created_at, 'paperclip', CASE hr.status WHEN 'completed' THEN 'heartbeat_succeeded' WHEN 'failed' THEN 'heartbeat_failed' WHEN 'timed_out' THEN 'heartbeat_timed_out' ELSE 'heartbeat_' || COALESCE(hr.status, 'unknown') END, jsonb_build_object('agent_id', hr.agent_id::text, 'agent_name', a.name, 'run_id', hr.id::text, 'status', hr.status, 'duration_ms', EXTRACT(EPOCH FROM (hr.finished_at - hr.started_at)) * 1000, 'error', hr.error) FROM heartbeat_runs hr LEFT JOIN agents a ON hr.agent_id = a.id WHERE hr.created_at > COALESCE((SELECT MAX(ts) FROM telemetry_events WHERE service = 'paperclip'), '2020-01-01'::timestamptz) ORDER BY hr.created_at"
-      },
-      "id": "sync-heartbeats",
-      "name": "Sync Heartbeats",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [420, 250],
-      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO telemetry_events (ts, service, event_type, payload) SELECT al.created_at, 'paperclip', 'activity_' || al.action, jsonb_build_object('actor_type', al.actor_type, 'entity_type', al.entity_type, 'entity_id', al.entity_id, 'agent_id', al.agent_id::text) FROM activity_log al WHERE al.created_at > COALESCE((SELECT MAX(ts) FROM telemetry_events WHERE service = 'paperclip' AND event_type LIKE 'activity_%'), '2020-01-01'::timestamptz) ORDER BY al.created_at"
-      },
-      "id": "sync-activity",
-      "name": "Sync Activity Log",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [420, 400],
-      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "DELETE FROM telemetry_events WHERE ts < NOW() - INTERVAL '90 days'"
-      },
-      "id": "prune-old",
-      "name": "Prune >90 Days",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [640, 300],
-      "credentials": { "postgres": { "id": "gs-postgres", "name": "GuardSpine Postgres" } }
-    },
-    {
-      "parameters": {
-        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
-        "method": "POST",
-        "body": {
-          "json": {
-            "service": "infrastructure",
-            "event_type": "data_sync_completed",
-            "payload": { "sync_type": "paperclip_to_telemetry" }
-          }
+        "url": "http://paperclip.railway.internal:3100/api/companies/guardspine/issues",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "in_progress,done"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            }
+          ]
         }
       },
-      "id": "emit-sync",
-      "name": "Log Sync Complete",
+      "id": "fetch-paperclip-issues",
+      "name": "Fetch Paperclip Issues",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
+      "position": [420, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "paperclip-auth",
+          "name": "Paperclip API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "GET",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "service",
+              "value": "paperclip"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            }
+          ]
+        }
+      },
+      "id": "fetch-telemetry-events",
+      "name": "Fetch Telemetry Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 420]
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex",
+        "options": {}
+      },
+      "id": "merge-data",
+      "name": "Merge Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst paperclipItem = items[0] ? items[0].json : null;\nconst telemetryItem = items[1] ? items[1].json : null;\n\nconst paperclipIssues = Array.isArray(paperclipItem) ? paperclipItem : (paperclipItem && paperclipItem.issues ? paperclipItem.issues : []);\nconst telemetryEvents = Array.isArray(telemetryItem) ? telemetryItem : (telemetryItem && telemetryItem.events ? telemetryItem.events : []);\n\nconst paperclipIds = new Set(paperclipIssues.map(i => String(i.id || '')));\nconst telemetryIssueIds = new Set(telemetryEvents.filter(e => e.payload && e.payload.issue_id).map(e => String(e.payload.issue_id)));\n\nconst missingFromTelemetry = [...paperclipIds].filter(id => id && !telemetryIssueIds.has(id));\nconst orphanedInTelemetry = [...telemetryIssueIds].filter(id => id && !paperclipIds.has(id));\n\nreturn [{json: {\n  paperclip_count: paperclipIds.size,\n  telemetry_count: telemetryIssueIds.size,\n  missing_from_telemetry: missingFromTelemetry.length,\n  orphaned_in_telemetry: orphanedInTelemetry.length,\n  missing_ids: missingFromTelemetry.slice(0, 20),\n  orphaned_ids: orphanedInTelemetry.slice(0, 20),\n  in_sync: missingFromTelemetry.length === 0 && orphanedInTelemetry.length === 0\n}}];"
+      },
+      "id": "compare-data",
+      "name": "Compare and Find Discrepancies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"data_sync_result\", \"payload\": {\"paperclip_count\": \"={{ $json.paperclip_count }}\", \"telemetry_count\": \"={{ $json.telemetry_count }}\", \"missing_from_telemetry\": \"={{ $json.missing_from_telemetry }}\", \"orphaned_in_telemetry\": \"={{ $json.orphaned_in_telemetry }}\", \"in_sync\": \"={{ $json.in_sync }}\", \"missing_ids\": \"={{ JSON.stringify($json.missing_ids) }}\", \"orphaned_ids\": \"={{ JSON.stringify($json.orphaned_ids) }}\"}}"
+      },
+      "id": "log-sync-result",
+      "name": "Log Sync Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W6 - Data Sync Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
     "Every 6 Hours": {
       "main": [
         [
-          { "node": "Sync Heartbeats", "type": "main", "index": 0 },
-          { "node": "Sync Activity Log", "type": "main", "index": 0 }
+          {
+            "node": "Fetch Paperclip Issues",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Telemetry Events",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "Sync Heartbeats": { "main": [[{ "node": "Prune >90 Days", "type": "main", "index": 0 }]] },
-    "Sync Activity Log": { "main": [[{ "node": "Prune >90 Days", "type": "main", "index": 0 }]] },
-    "Prune >90 Days": { "main": [[{ "node": "Log Sync Complete", "type": "main", "index": 0 }]] }
+    "Fetch Paperclip Issues": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Telemetry Events": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Sources": {
+      "main": [
+        [
+          {
+            "node": "Compare and Find Discrepancies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare and Find Discrepancies": {
+      "main": [
+        [
+          {
+            "node": "Log Sync Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

@@ -4,8 +4,8 @@
     {
       "parameters": {
         "events": ["pull_request"],
-        "owner": "={{ $env.GITHUB_OWNER }}",
-        "repository": "={{ $env.GITHUB_REPO }}"
+        "owner": "DNYoussef",
+        "repository": "codeguard-action"
       },
       "id": "gh-webhook",
       "name": "GitHub PR Webhook",
@@ -25,33 +25,79 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
         "method": "POST",
-        "body": {
-          "json": {
-            "service": "github",
-            "event_type": "pr_opened",
-            "payload": {
-              "pr_number": "={{ $json.pr_number }}",
-              "title": "={{ $json.title }}",
-              "user": "={{ $json.user }}",
-              "changed_files": "={{ $json.changed_files }}",
-              "additions": "={{ $json.additions }}",
-              "repo": "={{ $json.repo }}"
-            }
-          }
-        }
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"github\", \"event_type\": \"pr_opened\", \"payload\": {\"pr_number\": \"={{ $json.pr_number }}\", \"title\": \"={{ $json.title }}\", \"user\": \"={{ $json.user }}\", \"changed_files\": \"={{ $json.changed_files }}\", \"additions\": \"={{ $json.additions }}\", \"repo\": \"={{ $json.repo }}\"}}"
       },
       "id": "emit-pr-event",
       "name": "Log PR Event",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [640, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W7 - GitHub PR Monitor\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
-    "GitHub PR Webhook": { "main": [[{ "node": "Parse PR Event", "type": "main", "index": 0 }]] },
-    "Parse PR Event": { "main": [[{ "node": "Log PR Event", "type": "main", "index": 0 }]] }
+    "GitHub PR Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse PR Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse PR Event": {
+      "main": [
+        [
+          {
+            "node": "Log PR Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

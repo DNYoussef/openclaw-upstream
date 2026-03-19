@@ -4,7 +4,12 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "hours", "hoursInterval": 2 }]
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
         }
       },
       "id": "cron-trigger",
@@ -15,14 +20,20 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.PAPERCLIP_API_URL }}/api/companies/{{ $env.PAPERCLIP_COMPANY_ID }}/issues",
+        "url": "http://paperclip.railway.internal:3100/api/companies/guardspine/issues",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "assigneeAgentId", "value": "={{ $env.CMO_AGENT_ID }}" },
-            { "name": "status", "value": "backlog" }
+            {
+              "name": "assigneeAgentId",
+              "value": "cmo-outreach-agent"
+            },
+            {
+              "name": "status",
+              "value": "backlog"
+            }
           ]
         },
         "options": {}
@@ -61,7 +72,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Load templates and fill with prospect data\nconst fs = require('fs');\nconst prospect = $input.item.json;\n\n// Templates are baked into the workflow as a static object\n// (In production, load from a shared volume or HTTP endpoint)\nconst templates = $env.OUTREACH_TEMPLATES ? JSON.parse($env.OUTREACH_TEMPLATES) : null;\n\nlet template;\nif (templates && templates.templates) {\n  const bucket = templates.templates[prospect.pain_bucket];\n  if (bucket) {\n    template = bucket[prospect.angle];\n  }\n}\n\nif (!template) {\n  // No template match -- flag for LLM fallback\n  return [{json: {...prospect, template_match: false, needs_llm: true}}];\n}\n\n// Fill template variables\nconst fill = (text) => text\n  .replace(/{name}/g, prospect.name)\n  .replace(/{company}/g, prospect.company)\n  .replace(/{title}/g, prospect.title)\n  .replace(/{signal}/g, prospect.signal_notes)\n  .replace(/{metric}/g, prospect.metric);\n\nconst draft = [\n  fill(template.hook),\n  '',\n  fill(template.pain),\n  '',\n  fill(template.value),\n  '',\n  fill(template.cta),\n  '',\n  template.signoff\n].join('\\n');\n\n// Slop check (banned words)\nconst slopWords = ['delve', 'leverage', 'paradigm', 'synergy', 'revolutionize', 'transform', 'unlock', 'supercharge', 'empower', 'game-changing', 'cutting-edge', 'holistic', 'robust', 'seamless', 'innovative'];\nconst draftLower = draft.toLowerCase();\nconst slopHits = slopWords.filter(w => draftLower.includes(w));\nconst slop_pass = slopHits.length === 0;\n\n// Word count\nconst word_count = draft.split(/\\s+/).length;\n\nreturn [{json: {\n  ...prospect,\n  template_match: true,\n  needs_llm: false,\n  draft,\n  pain_bucket: prospect.pain_bucket,\n  angle: prospect.angle,\n  slop_pass,\n  slop_hits: slopHits,\n  word_count,\n  channel: prospect.channel,\n}}];"
+        "jsCode": "// Load templates and fill with prospect data\nconst prospect = $input.item.json;\n\n// Templates placeholder -- set to a JSON object to enable template matching\nconst templates = null;\n\nlet template;\nif (templates && templates.templates) {\n  const bucket = templates.templates[prospect.pain_bucket];\n  if (bucket) {\n    template = bucket[prospect.angle];\n  }\n}\n\nif (!template) {\n  // No template match -- flag for LLM fallback\n  return [{json: {...prospect, template_match: false, needs_llm: true}}];\n}\n\n// Fill template variables\nconst fill = (text) => text\n  .replace(/{name}/g, prospect.name)\n  .replace(/{company}/g, prospect.company)\n  .replace(/{title}/g, prospect.title)\n  .replace(/{signal}/g, prospect.signal_notes)\n  .replace(/{metric}/g, prospect.metric);\n\nconst draft = [\n  fill(template.hook),\n  '',\n  fill(template.pain),\n  '',\n  fill(template.value),\n  '',\n  fill(template.cta),\n  '',\n  template.signoff\n].join('\\n');\n\n// Slop check (banned words)\nconst slopWords = ['delve', 'leverage', 'paradigm', 'synergy', 'revolutionize', 'transform', 'unlock', 'supercharge', 'empower', 'game-changing', 'cutting-edge', 'holistic', 'robust', 'seamless', 'innovative'];\nconst draftLower = draft.toLowerCase();\nconst slopHits = slopWords.filter(w => draftLower.includes(w));\nconst slop_pass = slopHits.length === 0;\n\n// Word count\nconst word_count = draft.split(/\\s+/).length;\n\nreturn [{json: {\n  ...prospect,\n  template_match: true,\n  needs_llm: false,\n  draft,\n  pain_bucket: prospect.pain_bucket,\n  angle: prospect.angle,\n  slop_pass,\n  slop_hits: slopHits,\n  word_count,\n  channel: prospect.channel,\n}}];"
       },
       "id": "fill-template",
       "name": "Fill Message Template",
@@ -88,7 +99,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.PAPERCLIP_API_URL }}/api/issues/{{ $json.issue_id }}/comments",
+        "url": "=http://paperclip.railway.internal:3100/api/issues/{{ $json.issue_id }}/comments",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "method": "POST",
@@ -113,7 +124,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.PAPERCLIP_API_URL }}/api/issues/{{ $json.issue_id }}",
+        "url": "=http://paperclip.railway.internal:3100/api/issues/{{ $json.issue_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "method": "PATCH",
@@ -139,26 +150,13 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
         "method": "POST",
-        "body": {
-          "json": {
-            "service": "outreach",
-            "event_type": "outreach_draft",
-            "payload": {
-              "prospect_name": "={{ $json.name }}",
-              "company": "={{ $json.company }}",
-              "pain_bucket": "={{ $json.pain_bucket }}",
-              "angle": "={{ $json.angle }}",
-              "channel": "={{ $json.channel }}",
-              "word_count": "={{ $json.word_count }}",
-              "slop_pass": "={{ $json.slop_pass }}",
-              "source": "n8n_template",
-              "llm_cost": 0
-            }
-          }
-        },
-        "options": {}
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"outreach\", \"event_type\": \"outreach_draft\", \"payload\": {\"prospect_name\": \"={{ $json.name }}\", \"company\": \"={{ $json.company }}\", \"pain_bucket\": \"={{ $json.pain_bucket }}\", \"angle\": \"={{ $json.angle }}\", \"channel\": \"={{ $json.channel }}\", \"word_count\": \"={{ $json.word_count }}\", \"slop_pass\": \"={{ $json.slop_pass }}\", \"source\": \"n8n_template\", \"llm_cost\": 0}}"
       },
       "id": "emit-telemetry",
       "name": "Emit Telemetry Event",
@@ -168,62 +166,164 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
         "method": "POST",
-        "body": {
-          "json": {
-            "service": "outreach",
-            "event_type": "outreach_draft",
-            "payload": {
-              "prospect_name": "={{ $json.name }}",
-              "company": "={{ $json.company }}",
-              "pain_bucket": "={{ $json.pain_bucket }}",
-              "source": "llm_fallback",
-              "needs_llm": true,
-              "reason": "No template match for pain_bucket/angle combination"
-            }
-          }
-        },
-        "options": {}
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"outreach\", \"event_type\": \"outreach_draft\", \"payload\": {\"prospect_name\": \"={{ $json.name }}\", \"company\": \"={{ $json.company }}\", \"pain_bucket\": \"={{ $json.pain_bucket }}\", \"source\": \"llm_fallback\", \"needs_llm\": true, \"reason\": \"No template match for pain_bucket/angle combination\"}}"
       },
       "id": "emit-llm-fallback-telemetry",
       "name": "Log LLM Fallback Needed",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1520, 450]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"CMO Outreach Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
     "Every 2 Hours": {
-      "main": [[{ "node": "Fetch CMO Backlog Issues", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch CMO Backlog Issues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch CMO Backlog Issues": {
-      "main": [[{ "node": "Parse & Filter Prospects", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse & Filter Prospects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse & Filter Prospects": {
-      "main": [[{ "node": "Classify Pain Bucket (Rule-Based)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Classify Pain Bucket (Rule-Based)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Classify Pain Bucket (Rule-Based)": {
-      "main": [[{ "node": "Fill Message Template", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fill Message Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fill Message Template": {
-      "main": [[{ "node": "Template Match?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Template Match?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Template Match?": {
       "main": [
-        [{ "node": "Post Draft as Comment", "type": "main", "index": 0 }],
-        [{ "node": "Log LLM Fallback Needed", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Post Draft as Comment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log LLM Fallback Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Post Draft as Comment": {
-      "main": [[{ "node": "Set Status: in_progress", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Set Status: in_progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Set Status: in_progress": {
-      "main": [[{ "node": "Emit Telemetry Event", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Emit Telemetry Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1"
   },
-  "tags": [{ "name": "outreach" }, { "name": "cmo" }, { "name": "production" }]
+  "tags": [
+    {
+      "name": "outreach"
+    },
+    {
+      "name": "cmo"
+    },
+    {
+      "name": "production"
+    }
+  ]
 }
