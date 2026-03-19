@@ -112,6 +112,6 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:18789/health || exit 1
 
-# Entrypoint runs as root to fix volume permissions, then drops to openclaw via gosu
+# Cache bust: 2026-03-19T23 -- force CMD layer rebuild
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["node", "--require", "/app/seed-auth.cjs", "dist/index.js", "gateway", "--allow-unconfigured", "--bind", "lan", "--port", "18789"]
