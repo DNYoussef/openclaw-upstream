@@ -1,5 +1,5 @@
-// Preload script: write auth-profiles.json from OPENCLAW_AUTH_PROFILES_B64 env var
-// This runs inside the Node.js process, bypassing any entrypoint/volume issues
+// Preload script: write auth-profiles.json from baked file or env var
+// Runs inside Node.js process via --require, before gateway code loads
 const fs = require("fs");
 const path = require("path");
 
@@ -14,6 +14,20 @@ const data = b64
     : null;
 
 if (data) {
+  // Validate JSON before writing
+  let parsed;
+  try {
+    parsed = JSON.parse(data);
+  } catch (e) {
+    process.stdout.write(`[seed-auth] ERROR: invalid JSON: ${e.message}\n`);
+    process.exit(0); // don't crash gateway
+  }
+
+  const profileCount = Object.keys(parsed.profiles || {}).length;
+  process.stdout.write(
+    `[seed-auth] source=${source} profiles=${profileCount} bytes=${data.length}\n`,
+  );
+
   const dirs = [
     path.join(process.env.OPENCLAW_STATE_DIR || "/app/.openclaw", "agents", "main", "agent"),
     path.join(process.env.HOME || "/root", ".openclaw", "agents", "main", "agent"),
@@ -23,16 +37,29 @@ if (data) {
   for (const dir of new Set(dirs)) {
     try {
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, "auth-profiles.json"), data, "utf8");
-      console.error(
-        `[seed-auth] wrote auth-profiles.json to ${dir} (source: ${source}, ${data.length} bytes)`,
+      const filePath = path.join(dir, "auth-profiles.json");
+      fs.writeFileSync(filePath, data, "utf8");
+      // Verify write
+      const verify = fs.readFileSync(filePath, "utf8");
+      const verifyParsed = JSON.parse(verify);
+      const verifyProfiles = Object.keys(verifyParsed.profiles || {}).length;
+      process.stdout.write(
+        `[seed-auth] OK ${dir} (${verifyProfiles} profiles, ${verify.length} bytes)\n`,
       );
     } catch (e) {
-      console.error(`[seed-auth] failed to write to ${dir}: ${e.message}`);
+      process.stdout.write(`[seed-auth] FAIL ${dir}: ${e.message}\n`);
     }
   }
 } else {
-  console.error(
-    "[seed-auth] no auth data found (OPENCLAW_AUTH_PROFILES_B64 not set, /app/auth-profiles.json.baked not found)",
+  process.stdout.write(
+    "[seed-auth] NO DATA (OPENCLAW_AUTH_PROFILES_B64 not set, /app/auth-profiles.json.baked not found)\n",
+  );
+  process.stdout.write(
+    `[seed-auth] env keys: ${Object.keys(process.env)
+      .filter((k) => k.includes("OPENCLAW") || k.includes("AUTH"))
+      .join(", ")}\n`,
+  );
+  process.stdout.write(
+    `[seed-auth] HOME=${process.env.HOME} STATE_DIR=${process.env.OPENCLAW_STATE_DIR} AGENT_DIR=${process.env.OPENCLAW_AGENT_DIR}\n`,
   );
 }
