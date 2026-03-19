@@ -105,7 +105,7 @@ RUN groupadd -r openclaw && useradd -r -g openclaw -d /app -s /bin/bash openclaw
 # Bake auth-profiles outside volume mount so entrypoint can restore it
 COPY guardspine/auth/auth-profiles.json /app/auth-profiles.json.baked
 
-COPY guardspine/seed-auth.js /app/seed-auth.js
+COPY guardspine/seed-auth.cjs /app/seed-auth.cjs
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
@@ -114,4 +114,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # Entrypoint runs as root to fix volume permissions, then drops to openclaw via gosu
 ENTRYPOINT ["entrypoint.sh"]
-CMD ["node", "--require", "/app/seed-auth.js", "dist/index.js", "gateway", "--allow-unconfigured", "--bind", "lan", "--port", "18789"]
+CMD ["node", "--require", "/app/seed-auth.cjs", "dist/index.js", "gateway", "--allow-unconfigured", "--bind", "lan", "--port", "18789"]
