@@ -22,7 +22,10 @@ if [ -n "$OPENCLAW_AUTH_PROFILES_B64" ]; then
   mkdir -p "$AGENT_DIR"
   echo "$OPENCLAW_AUTH_PROFILES_B64" | base64 -d > "$AGENT_DIR/auth-profiles.json"
   chown -R openclaw:openclaw /app/.openclaw/agents 2>/dev/null || true
-  echo "[entrypoint] auth-profiles.json seeded from env"
+  echo "[entrypoint] auth-profiles.json seeded from env" >&2
+  echo "[entrypoint] auth file size: $(wc -c < "$AGENT_DIR/auth-profiles.json") bytes" >&2
+else
+  echo "[entrypoint] OPENCLAW_AUTH_PROFILES_B64 not set, skipping auth seed" >&2
 fi
 
 # Drop to non-root and exec CMD
