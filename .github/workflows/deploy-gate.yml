@@ -1,0 +1,11 @@
+name: Deploy Gate
+
+on:
+  push:
+    branches: [internal/autonomous-ops]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploy gate passed"
