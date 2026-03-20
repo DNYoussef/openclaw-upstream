@@ -78,9 +78,19 @@ model_list:
       api_key: os.environ/ANTHROPIC_API_KEY
 
   # --- Free OpenRouter models (for MiroFish simulations, $0 cost) ---
+  # Multiple models with same name = LiteLLM load-balances across them,
+  # multiplying effective rate limit (each free model has independent limits)
   - model_name: free-sim
     litellm_params:
       model: openrouter/meta-llama/llama-3.2-3b-instruct:free
+      api_key: os.environ/OPENROUTER_API_KEY
+  - model_name: free-sim
+    litellm_params:
+      model: openrouter/google/gemma-2-9b-it:free
+      api_key: os.environ/OPENROUTER_API_KEY
+  - model_name: free-sim
+    litellm_params:
+      model: openrouter/qwen/qwen3-0.6b:free
       api_key: os.environ/OPENROUTER_API_KEY
 
   - model_name: free-sim-large
@@ -88,20 +98,29 @@ model_list:
       model: openrouter/google/gemma-2-9b-it:free
       api_key: os.environ/OPENROUTER_API_KEY
 
+  # MiroFish default model -- load-balanced across 3 free models
   - model_name: deepseek-chat
     litellm_params:
       model: openrouter/meta-llama/llama-3.2-3b-instruct:free
+      api_key: os.environ/OPENROUTER_API_KEY
+  - model_name: deepseek-chat
+    litellm_params:
+      model: openrouter/google/gemma-2-9b-it:free
+      api_key: os.environ/OPENROUTER_API_KEY
+  - model_name: deepseek-chat
+    litellm_params:
+      model: openrouter/qwen/qwen3-0.6b:free
       api_key: os.environ/OPENROUTER_API_KEY
 
   # --- Embedding models (for Memory MCP) ---
   - model_name: text-embedding-3-small
     litellm_params:
-      model: gemini/text-embedding-004
+      model: gemini/gemini-embedding-001
       api_key: os.environ/GOOGLE_API_KEY
 
   - model_name: text-embedding-004
     litellm_params:
-      model: gemini/text-embedding-004
+      model: gemini/gemini-embedding-001
       api_key: os.environ/GOOGLE_API_KEY
 
   # Backwards compat aliases (old names -> current models)
