@@ -48,6 +48,14 @@ guardspine/ops/
 outreach.db
 guardspine-logs/
 
+# Secrets / environment files
+.env
+.env.*
+**/.env
+**/.env.*
+__pycache__
+**/__pycache__
+
 # large app trees not needed for CLI build
 apps/
 assets/

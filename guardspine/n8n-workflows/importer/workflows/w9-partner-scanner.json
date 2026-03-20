@@ -1,0 +1,83 @@
+{
+  "name": "W9 - Partner Ecosystem Scanner",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 10 * * 1,4" }] }
+      },
+      "id": "scan-trigger",
+      "name": "Mon+Thu 10 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://hn.algolia.com/api/v1/search_by_date?query=SBOM+OR+%22code+governance%22+OR+%22code+review+automation%22+OR+AppSec&tags=story&numericFilters=created_at_i>={{ Math.floor(Date.now()/1000) - 604800 }}"
+      },
+      "id": "scan-hn",
+      "name": "Scan HackerNews",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 250]
+    },
+    {
+      "parameters": {
+        "url": "https://www.reddit.com/r/devops+netsec+devsecops/search.json?q=code+governance+OR+SBOM+OR+evidence+bundle&sort=new&t=week&limit=20"
+      },
+      "id": "scan-reddit",
+      "name": "Scan Reddit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const hn = $('Scan HackerNews').first().json.hits || [];\nconst reddit = ($('Scan Reddit').first().json?.data?.children || []).map(c => c.data);\n\nconst items = [];\nfor (const h of hn.slice(0, 10)) {\n  items.push({source: 'hackernews', title: h.title || '', url: h.url || `https://news.ycombinator.com/item?id=${h.objectID}`, points: h.points || 0, comments: h.num_comments || 0});\n}\nfor (const r of reddit.slice(0, 10)) {\n  items.push({source: 'reddit', title: r.title || '', url: `https://reddit.com${r.permalink}`, points: r.score || 0, comments: r.num_comments || 0, subreddit: r.subreddit || ''});\n}\n\n// Score by relevance\nconst keywords = ['sbom', 'governance', 'evidence', 'audit', 'compliance', 'appsec', 'ci/cd', 'github action'];\nfor (const item of items) {\n  const titleLow = item.title.toLowerCase();\n  item.relevance = keywords.filter(k => titleLow.includes(k)).length;\n}\n\nitems.sort((a, b) => b.relevance - a.relevance || b.points - a.points);\nreturn items.slice(0, 5).map(i => ({json: i}));"
+      },
+      "id": "score-rank",
+      "name": "Score & Rank",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "method": "POST",
+        "body": {
+          "json": {
+            "service": "bizdev",
+            "event_type": "partner_scan",
+            "payload": {
+              "source": "={{ $json.source }}",
+              "title": "={{ $json.title }}",
+              "url": "={{ $json.url }}",
+              "relevance": "={{ $json.relevance }}",
+              "points": "={{ $json.points }}"
+            }
+          }
+        }
+      },
+      "id": "log-scan",
+      "name": "Log Scan Results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    }
+  ],
+  "connections": {
+    "Mon+Thu 10 AM": {
+      "main": [
+        [
+          { "node": "Scan HackerNews", "type": "main", "index": 0 },
+          { "node": "Scan Reddit", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Scan HackerNews": { "main": [[{ "node": "Score & Rank", "type": "main", "index": 0 }]] },
+    "Scan Reddit": { "main": [[{ "node": "Score & Rank", "type": "main", "index": 0 }]] },
+    "Score & Rank": { "main": [[{ "node": "Log Scan Results", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
