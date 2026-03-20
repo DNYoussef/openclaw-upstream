@@ -1,4 +1,9 @@
-"""Update all 12 Paperclip agent prompts with ecosystem context + role-specific instructions."""
+"""Update all Paperclip agent prompts with model routing + ecosystem context.
+
+Model routing strategy (all flat-rate subscriptions, $0 marginal cost):
+  CREATIVE agents (originality, writing, strategy) -> Anthropic Claude (subscription)
+  CRITIC agents (rigor, rules, analysis)            -> OpenAI Codex GPT-5.4 (subscription)
+"""
 import psycopg2
 import json
 import os
@@ -8,6 +13,20 @@ DB_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:xvbPziICZaZqxHmtA
 # Read shared context
 with open(os.path.join(os.path.dirname(__file__), "SHARED-CONTEXT.md")) as f:
     SHARED = f.read()
+
+# Model routing: creative vs critic
+# Creative = needs originality, human-like output, strategic synthesis
+# Critic = needs rigor, rules enforcement, systematic analysis
+MODELS = {
+    # CREATIVE tier (Anthropic subscription)
+    "CEO":              "anthropic/claude-sonnet-4-6",     # Strategic synthesis, daily briefing
+    "CMO":              "anthropic/claude-sonnet-4-6",     # Outreach drafting, messaging hooks
+    "Content Director": "anthropic/claude-sonnet-4-6",     # Blog posts, LinkedIn content
+    # CRITIC tier (OpenAI Codex subscription)
+    "CTO":              "openai-codex/gpt-5.4",            # Code review, engineering standards
+    "Chief of Staff":   "openai-codex/gpt-5.4",            # Task routing, coordination, ops
+    "Narrowcast Scout": "openai-codex/gpt-5.4-mini",       # Thread scoring, keyword analysis
+}
 
 PROMPTS = {
     "CEO": {
@@ -31,7 +50,7 @@ PROMPTS = {
         "kpis": {"posts_drafted_per_week": {"target": 5, "dir": "max"}, "posts_rejected": {"target": 0, "dir": "min"}},
     },
     "CRO": {
-        "prompt": None,  # Deactivated 2026-03-18: 1 run, zero work
+        "prompt": None,
         "heartbeat_sec": 0,
         "deactivate": True,
     },
@@ -41,22 +60,22 @@ PROMPTS = {
         "kpis": {"prs_governed_per_day": {"target": 10, "dir": "max"}, "false_positive_rate": {"target": 10, "dir": "min"}},
     },
     "BizDev Scout": {
-        "prompt": None,  # Deactivated 2026-03-18: 1 run, zero work
+        "prompt": None,
         "heartbeat_sec": 0,
         "deactivate": True,
     },
     "COO Workflow": {
-        "prompt": None,  # Deactivated 2026-03-18: 17 runs, zero output (redundant with n8n health checks)
+        "prompt": None,
         "heartbeat_sec": 0,
         "deactivate": True,
     },
     "Memory Curator": {
-        "prompt": None,  # Deactivated 2026-03-18: 1 run, no output
+        "prompt": None,
         "heartbeat_sec": 0,
         "deactivate": True,
     },
     "Model Lab": {
-        "prompt": None,  # Deactivated 2026-03-18: 1 run, no output
+        "prompt": None,
         "heartbeat_sec": 0,
         "deactivate": True,
     },
@@ -66,7 +85,7 @@ PROMPTS = {
         "kpis": {"qualified_signals_per_week": {"target": 10, "dir": "max"}, "false_positive_rate": {"target": 30, "dir": "min"}},
     },
     "OpenClaw": {
-        "prompt": None,  # Deactivate
+        "prompt": None,
         "heartbeat_sec": 0,
         "deactivate": True,
     },
@@ -95,10 +114,23 @@ for name, spec in PROMPTS.items():
 
     config = json.loads(row[0])
 
-    # Update prompt (keep existing if None)
+    # Set model routing via /model command prefix in prompt
+    model = MODELS.get(name)
+    model_prefix = f"/model {model}\n\n" if model else ""
+    tier = "CREATIVE (Claude)" if model and "anthropic" in model else "CRITIC (GPT)" if model else "DEFAULT"
+
+    # Update prompt (keep existing if None, but still prepend /model)
     if spec["prompt"] is not None:
-        full_prompt = SHARED + "\n\n---\n\n" + spec["prompt"]
+        full_prompt = model_prefix + SHARED + "\n\n---\n\n" + spec["prompt"]
         config["payloadTemplate"] = {"text": full_prompt}
+    elif model:
+        # For agents with existing prompts (CMO, Content Director),
+        # prepend /model to existing prompt
+        existing = config.get("payloadTemplate", {}).get("text", "")
+        # Remove any existing /model prefix
+        if existing.startswith("/model "):
+            existing = existing.split("\n", 1)[1] if "\n" in existing else existing
+        config["payloadTemplate"] = {"text": model_prefix + existing}
 
     # Update heartbeat
     runtime = json.dumps({
@@ -111,15 +143,16 @@ for name, spec in PROMPTS.items():
         }
     })
 
-    # Update metadata with KPIs
-    metadata = json.dumps({"kpis": spec.get("kpis", {})})
+    # Update metadata with KPIs and model routing info
+    meta = spec.get("kpis", {})
+    metadata = json.dumps({"kpis": meta, "model": model, "tier": tier})
 
     cur.execute(
         """UPDATE agents SET
             adapter_config = %s::jsonb,
             runtime_config = %s::jsonb,
             metadata = %s::jsonb,
-            status = 'active',
+            status = 'idle',
             updated_at = NOW()
         WHERE name = %s
         RETURNING name, LENGTH(adapter_config->'payloadTemplate'->>'text')""",
@@ -130,7 +163,7 @@ for name, spec in PROMPTS.items():
         updated += 1
         interval = spec["heartbeat_sec"]
         il = f"{interval}s" if interval < 3600 else f"{interval//3600}h" if interval < 86400 else f"{interval//86400}d" if interval < 604800 else f"{interval//604800}w"
-        print(f"UPDATED: {row[0]:20s} | prompt={row[1] or 0:5d} chars | hb={il}")
+        print(f"UPDATED: {row[0]:20s} | {tier:18s} | model={model or 'default':35s} | prompt={row[1] or 0:5d} chars | hb={il}")
 
 print(f"\nTotal updated: {updated}")
 
@@ -138,14 +171,18 @@ print(f"\nTotal updated: {updated}")
 cur.execute(
     """SELECT name, status, budget_monthly_cents,
        runtime_config->'heartbeat'->>'intervalSec',
-       LENGTH(adapter_config->'payloadTemplate'->>'text')
+       LENGTH(adapter_config->'payloadTemplate'->>'text'),
+       metadata->>'model',
+       metadata->>'tier'
     FROM agents ORDER BY name"""
 )
 print("\nFinal roster:")
+print(f"  {'Name':20s} | {'Status':8s} | {'Model':35s} | {'Tier':18s} | HB   | Prompt")
+print(f"  {'-'*20} | {'-'*8} | {'-'*35} | {'-'*18} | ---- | ------")
 for r in cur.fetchall():
     interval = int(r[3]) if r[3] else 0
     il = f"{interval}s" if interval < 3600 else f"{interval//3600}h" if interval < 86400 else f"{interval//86400}d" if interval < 604800 else f"{interval//604800}w"
-    print(f"  {r[0]:20s} | {r[1]:8s} | ${r[2]/100:5.0f}/mo | hb={il:4s} | prompt={r[4] or 0:5d} chars")
+    print(f"  {r[0]:20s} | {r[1]:8s} | {(r[5] or 'default'):35s} | {(r[6] or '-'):18s} | {il:4s} | {r[4] or 0:5d} chars")
 
 cur.close()
 conn.close()
