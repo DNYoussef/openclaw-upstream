@@ -7,7 +7,7 @@
     "mieza": {
       "url": "https://mieza.ai/mcp",
       "headers": {
-        "Authorization": "Bearer tt_YOUR_TOKEN_HERE"
+        "Authorization": "Bearer ${MIEZA_API_TOKEN}"
       }
     }
   },
