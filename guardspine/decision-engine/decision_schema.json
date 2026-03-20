@@ -23,8 +23,18 @@
     },
     "decision_type": {
       "type": "string",
-      "enum": ["policy_only", "optimization_only", "strategic_only", "strategic_optimization"],
-      "description": "Determines solver routing"
+      "enum": [
+        "policy_only",
+        "optimization_only",
+        "strategic_only",
+        "simulation_only",
+        "strategic_optimization",
+        "simulation_optimization",
+        "simulation_strategic",
+        "full_stack",
+        "verify_stack"
+      ],
+      "description": "Determines solver routing. See INTERACTION-ATLAS.md for composition semantics."
     },
     "actors": {
       "type": "array",
@@ -126,7 +136,8 @@
       "type": "object",
       "properties": {
         "strategic_engine": { "type": "string", "enum": ["mieza", "none"] },
-        "optimization_engine": { "type": "string", "enum": ["globalmoo", "none"] },
+        "simulation_engine": { "type": "string", "enum": ["mirofish", "none"] },
+        "optimization_engine": { "type": "string", "enum": ["globalmoo", "pymoo", "none"] },
         "mode": { "type": "string", "enum": ["growth", "balanced", "defensive"] }
       }
     }

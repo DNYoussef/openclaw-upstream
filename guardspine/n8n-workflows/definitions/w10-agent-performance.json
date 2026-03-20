@@ -1,0 +1,165 @@
+{
+  "name": "W10 - Agent Performance Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "weekly-perf",
+      "name": "Monday 8 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"sql\": \"SELECT a.name, hr.status, COUNT(*) as cnt FROM heartbeat_runs hr JOIN agents a ON hr.agent_id = a.id WHERE hr.started_at > NOW() - INTERVAL '7 days' GROUP BY a.name, hr.status ORDER BY a.name, hr.status\", \"limit\": 100}"
+      },
+      "id": "query-heartbeats",
+      "name": "Query Heartbeat Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"sql\": \"SELECT solver_used, COUNT(*) as decisions, SUM(CASE WHEN human_override THEN 1 ELSE 0 END) as overrides, ROUND(SUM(CASE WHEN human_override THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0), 3) as override_rate FROM decision_journal WHERE ts > NOW() - INTERVAL '7 days' GROUP BY solver_used\", \"limit\": 100}"
+      },
+      "id": "query-decisions",
+      "name": "Query Decision Overrides",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const heartbeats = $('Query Heartbeat Stats').all().map(i => i.json);\nconst decisions = $('Query Decision Overrides').all().map(i => i.json);\n\nconst report = ['# Weekly Agent Performance', ''];\n\n// Heartbeat summary per agent\nconst agentStats = {};\nfor (const hb of heartbeats) {\n  if (!agentStats[hb.name]) agentStats[hb.name] = {succeeded: 0, failed: 0, total: 0};\n  agentStats[hb.name][hb.status] = (agentStats[hb.name][hb.status] || 0) + parseInt(hb.cnt);\n  agentStats[hb.name].total += parseInt(hb.cnt);\n}\n\nreport.push('## Heartbeat Success Rates');\nfor (const [name, stats] of Object.entries(agentStats)) {\n  const rate = stats.total > 0 ? ((stats.succeeded || 0) / stats.total * 100).toFixed(0) : 'N/A';\n  report.push(`- ${name}: ${rate}% (${stats.succeeded || 0}/${stats.total})`);\n}\n\nreport.push('', '## Override Rates');\nfor (const d of decisions) {\n  report.push(`- ${d.solver_used}: ${(d.override_rate * 100).toFixed(1)}% (${d.overrides}/${d.decisions})`);\n}\n\nreturn [{json: {report: report.join('\\n')}}];"
+      },
+      "id": "format-perf",
+      "name": "Format Performance Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"model_lab\", \"event_type\": \"performance_report\", \"payload\": {\"report\": \"={{ $json.report }}\"}}"
+      },
+      "id": "emit-perf",
+      "name": "Log Performance Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W10 - Agent Performance Tracker\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Monday 8 AM": {
+      "main": [
+        [
+          {
+            "node": "Query Heartbeat Stats",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Decision Overrides",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Heartbeat Stats": {
+      "main": [
+        [
+          {
+            "node": "Format Performance Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Decision Overrides": {
+      "main": [
+        [
+          {
+            "node": "Format Performance Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Performance Report": {
+      "main": [
+        [
+          {
+            "node": "Log Performance Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

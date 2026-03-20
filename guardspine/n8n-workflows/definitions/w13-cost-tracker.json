@@ -1,0 +1,184 @@
+{
+  "name": "W13 - Cost Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 1 * * *"
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "Daily 1 AM UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 100}}"
+      },
+      "id": "fetch-telemetry",
+      "name": "Fetch Recent Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Fetch Recent Telemetry').all().map(i => i.json);\n\nconst serviceCounts = {};\nlet billingErrors = 0;\nlet llmEvents = 0;\n\nfor (const evt of items) {\n  const svc = evt.service || 'unknown';\n  serviceCounts[svc] = (serviceCounts[svc] || 0) + 1;\n\n  const payload = typeof evt.payload === 'string' ? evt.payload : JSON.stringify(evt.payload || {});\n  const evtType = (evt.event_type || '').toLowerCase();\n\n  if (payload.includes('billing_error') || payload.includes('402') || evtType.includes('billing_error')) {\n    billingErrors++;\n  }\n\n  if (svc.includes('litellm') || svc.includes('llm') || svc.includes('openai') || svc.includes('anthropic') || svc.includes('openrouter') || evtType.includes('llm') || evtType.includes('model_')) {\n    llmEvents++;\n  }\n}\n\nconst alertNeeded = billingErrors > 0;\n\nreturn [{\n  json: {\n    total_events: items.length,\n    billing_errors: billingErrors,\n    llm_events: llmEvents,\n    service_counts: serviceCounts,\n    cost_estimate: 'see billing dashboard',\n    alert_needed: alertNeeded\n  }\n}];"
+      },
+      "id": "analyze-costs",
+      "name": "Analyze Costs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.alert_needed }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-alert",
+      "name": "Alert Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"cost-monitor\", \"event_type\": \"budget_alert\", \"payload\": {\"total_events\": {{ $json.total_events }}, \"billing_errors\": {{ $json.billing_errors }}, \"llm_events\": {{ $json.llm_events }}, \"service_counts\": {{ JSON.stringify($json.service_counts) }}}}"
+      },
+      "id": "emit-alert",
+      "name": "Emit Budget Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"cost-monitor\", \"event_type\": \"budget_ok\", \"payload\": {\"total_events\": {{ $json.total_events }}, \"billing_errors\": 0, \"llm_events\": {{ $json.llm_events }}}}"
+      },
+      "id": "emit-ok",
+      "name": "Emit Budget OK",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W13 - Cost Tracker\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Daily 1 AM UTC": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Telemetry": {
+      "main": [
+        [
+          {
+            "node": "Analyze Costs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Costs": {
+      "main": [
+        [
+          {
+            "node": "Alert Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Needed?": {
+      "main": [
+        [
+          {
+            "node": "Emit Budget Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Emit Budget OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -766,7 +766,7 @@ Make the final call. Respond with JSON ONLY:
 const pendingApprovals = new Map();
 
 function generateApprovalRequest(toolName, params, reason, councilResult, requesterSessionId) {
-  const approvalId = crypto.randomUUID().substring(0, 8);
+  const approvalId = crypto.randomUUID();
   const nonce = crypto.randomBytes(16).toString("hex");
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min expiry
 

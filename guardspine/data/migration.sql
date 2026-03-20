@@ -37,7 +37,22 @@ CREATE TABLE IF NOT EXISTS prospects (
     utm_content TEXT,
     page_visited_at TEXT,
     signup_completed INTEGER DEFAULT 0,
-    research_notes TEXT
+    research_notes TEXT,
+    consent_basis TEXT DEFAULT 'legitimate_interest',
+    consent_recorded_at TEXT,
+    suppressed INTEGER DEFAULT 0,
+    suppression_reason TEXT,
+    do_not_contact INTEGER DEFAULT 0,
+    followup_count INTEGER DEFAULT 0,
+    last_followup_at TEXT
+);
+
+-- Suppression list: prospects who opted out or said no
+CREATE TABLE IF NOT EXISTS suppression_list (
+    email TEXT PRIMARY KEY,
+    reason TEXT NOT NULL,
+    added_at TEXT DEFAULT (datetime('now')),
+    source TEXT
 );
 
 CREATE TABLE IF NOT EXISTS activity_log (

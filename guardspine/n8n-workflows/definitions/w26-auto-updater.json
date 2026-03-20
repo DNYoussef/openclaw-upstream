@@ -1,0 +1,235 @@
+{
+  "name": "W26 - Auto Updater",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Daily 2 AM UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/openclaw/openclaw/releases/latest",
+        "method": "GET"
+      },
+      "id": "check-openclaw",
+      "name": "Check OpenClaw Version",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/paperclipai/paperclip/releases/latest",
+        "method": "GET"
+      },
+      "id": "check-paperclip",
+      "name": "Check Paperclip Version",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/BerriAI/litellm/releases/latest",
+        "method": "GET"
+      },
+      "id": "check-litellm",
+      "name": "Check LiteLLM Version",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const openclaw = $('Check OpenClaw Version').first().json;\nconst paperclip = $('Check Paperclip Version').first().json;\nconst litellm = $('Check LiteLLM Version').first().json;\n\nconst CURRENT = {\n  openclaw: '2026.3.8',\n  paperclip: '0.3.0',\n  litellm: 'unknown'\n};\n\nconst updates = [];\n\nfor (const [name, data] of [['openclaw', openclaw], ['paperclip', paperclip], ['litellm', litellm]]) {\n  const latest = data.tag_name || data.name || 'unknown';\n  const current = CURRENT[name];\n  const body = (data.body || '').substring(0, 1000);\n\n  const breaking = body.toLowerCase().includes('breaking') ||\n                   body.toLowerCase().includes('migration') ||\n                   body.toLowerCase().includes('deprecated');\n\n  if (latest !== current) {\n    updates.push({\n      component: name,\n      current: current,\n      latest: latest,\n      has_breaking_changes: breaking,\n      release_notes_snippet: body.substring(0, 500),\n      url: data.html_url || ''\n    });\n  }\n}\n\nreturn [{json: {\n  updates_available: updates.length,\n  has_breaking: updates.some(u => u.has_breaking_changes),\n  updates: updates,\n  checked_at: new Date().toISOString()\n}}];"
+      },
+      "id": "analyze-updates",
+      "name": "Analyze Updates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-updates",
+              "leftValue": "={{ $json.updates_available }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "has-updates",
+      "name": "Updates Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"updater\", \"event_type\": \"updates_available\", \"payload\": {\"updates_available\": {{ $json.updates_available }}, \"has_breaking\": {{ $json.has_breaking }}, \"updates\": {{ JSON.stringify($json.updates) }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+      },
+      "id": "emit-updates",
+      "name": "Log Updates Available",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1520, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"updater\", \"event_type\": \"system_current\", \"payload\": {\"updates_available\": 0, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+      },
+      "id": "emit-current",
+      "name": "Log System Current",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1520, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W26 - Auto Updater\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Daily 2 AM UTC": {
+      "main": [
+        [
+          {
+            "node": "Check OpenClaw Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check OpenClaw Version": {
+      "main": [
+        [
+          {
+            "node": "Check Paperclip Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Paperclip Version": {
+      "main": [
+        [
+          {
+            "node": "Check LiteLLM Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check LiteLLM Version": {
+      "main": [
+        [
+          {
+            "node": "Analyze Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Updates": {
+      "main": [
+        [
+          {
+            "node": "Updates Available?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Updates Available?": {
+      "main": [
+        [
+          {
+            "node": "Log Updates Available",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log System Current",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

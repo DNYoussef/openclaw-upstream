@@ -1,0 +1,179 @@
+{
+  "name": "W3 - Service Health Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "health-trigger",
+      "name": "Every 30 Min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_health?weeks=4&limit=10"
+      },
+      "id": "q-health",
+      "name": "Query Health KPIs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10"
+      },
+      "id": "q-auto",
+      "name": "Query Automation KPIs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const healthItems = $('Query Health KPIs').all();\nconst autoItems = $('Query Automation KPIs').all();\n\nconst health = (healthItems.length > 0) ? healthItems[0].json : {};\nconst auto = (autoItems.length > 0) ? autoItems[0].json : {};\n\nconst alerts = [];\nif ((health.checks_failed || 0) > 0) alerts.push({severity: 'high', msg: health.checks_failed + ' health checks failed'});\nif ((health.crashes || 0) > 0) alerts.push({severity: 'critical', msg: health.crashes + ' service crashes detected'});\nif ((auto.failed_heartbeats || 0) > 3) alerts.push({severity: 'medium', msg: auto.failed_heartbeats + ' agent heartbeat failures'});\n\nreturn [{json: {alerts, alert_count: alerts.length, health_summary: health, automation_summary: auto}}];"
+      },
+      "id": "check-thresholds",
+      "name": "Check Thresholds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.all_green }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "has-alerts",
+      "name": "Any Alerts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": \"={{ JSON.stringify($json.alerts) }}\", \"alert_count\": \"={{ $json.alert_count }}\"}}"
+      },
+      "id": "emit-alert",
+      "name": "Emit Health Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 200]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W3 - Service Health Dashboard\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Every 30 Min": {
+      "main": [
+        [
+          {
+            "node": "Query Health KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Health KPIs": {
+      "main": [
+        [
+          {
+            "node": "Query Automation KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Automation KPIs": {
+      "main": [
+        [
+          {
+            "node": "Check Thresholds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Thresholds": {
+      "main": [
+        [
+          {
+            "node": "Any Alerts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Alerts?": {
+      "main": [
+        [
+          {
+            "node": "Emit Health Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

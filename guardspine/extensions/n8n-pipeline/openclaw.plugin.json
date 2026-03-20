@@ -9,7 +9,7 @@
       "enabled": { "type": "boolean", "default": true },
       "n8n_base_url": {
         "type": "string",
-        "default": "https://n8n-production-32ffd.up.railway.app",
+        "default": "https://n8n-production-7528.up.railway.app",
         "description": "Base URL for n8n REST API"
       },
       "n8n_api_key": {

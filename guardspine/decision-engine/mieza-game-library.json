@@ -1,0 +1,86 @@
+{
+  "_description": "Pre-built game templates for Mieza MCP. Each can be submitted via create_game.",
+
+  "mieza_mcp_tools": {
+    "open": {
+      "solve_game": "Compute Nash equilibrium. Params: players, strategies, payoffs",
+      "policy_catalog": "List pre-computed strategy policies. Params: game_type, limit, offset"
+    },
+    "authenticated": {
+      "create_game": "Create game definition. Params: name, players, strategies, payoffs",
+      "get_game": "Retrieve game by ID. Params: game_id",
+      "record_play": "Record observed action. Params: game_id, player, action, context",
+      "assign_policy": "Assign policy to game. Params: game_id, policy_id",
+      "policy_next_action": "Query for recommended action. Params: game_id, player, state"
+    }
+  },
+
+  "game_templates": {
+    "procurement_negotiation": {
+      "players": ["seller", "buyer"],
+      "seller_strategies": [
+        "hold_price",
+        "limited_discount",
+        "deep_discount",
+        "value_add_bundle",
+        "defer_to_next_quarter"
+      ],
+      "buyer_strategies": [
+        "accept",
+        "counter",
+        "delay_for_review",
+        "escalate_to_procurement",
+        "competitor_leverage"
+      ],
+      "payoff_dimensions": [
+        "deal_revenue",
+        "precedent_penalty",
+        "implementation_burden",
+        "relationship_trust"
+      ],
+      "use_when": "enterprise deal negotiation"
+    },
+    "design_partner_cooperation": {
+      "players": ["startup", "partner_org"],
+      "startup_strategies": ["free_pilot", "discounted_pilot", "co_develop", "advisory_only"],
+      "partner_strategies": ["full_commit", "limited_trial", "case_study_rights", "internal_only"],
+      "payoff_dimensions": ["learning_value", "trust_value", "support_load", "reference_value"],
+      "use_when": "structuring design partner agreements"
+    },
+    "vendor_renewal_repeated": {
+      "players": ["vendor", "customer"],
+      "strategies": ["cooperate", "defect", "probe", "retaliate", "forgive"],
+      "payoff_dimensions": ["revenue", "switching_cost", "trust_erosion", "competitive_exposure"],
+      "use_when": "renewal negotiations, ongoing vendor relationships"
+    },
+    "partner_channel": {
+      "players": ["guardspine", "channel_partner"],
+      "strategies": [
+        "share_leads",
+        "exclusive_territory",
+        "co_sell",
+        "withhold_info",
+        "independent_sell"
+      ],
+      "payoff_dimensions": ["lead_volume", "revenue_share", "dependence_cost", "market_coverage"],
+      "use_when": "structuring distribution partnerships"
+    },
+    "messaging_category": {
+      "players": ["guardspine", "incumbent", "market"],
+      "strategies": [
+        "aggressive_category_claim",
+        "narrow_product_framing",
+        "aggressive_comparison",
+        "soft_comparison",
+        "silence"
+      ],
+      "payoff_dimensions": [
+        "category_ownership",
+        "credibility",
+        "competitive_retaliation_risk",
+        "buyer_confusion"
+      ],
+      "use_when": "category creation and positioning decisions"
+    }
+  }
+}

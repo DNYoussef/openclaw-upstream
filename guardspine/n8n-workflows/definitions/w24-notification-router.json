@@ -1,0 +1,204 @@
+{
+  "name": "W24 - Notification Router",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 30 Min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}"
+      },
+      "id": "fetch-events",
+      "name": "Fetch Recent Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const events = $('Fetch Recent Events').first().json.rows || [];\n\nconst immediate = [];\nconst high = [];\nconst medium = [];\nconst low = [];\n\nfor (const evt of events) {\n  const type = evt.event_type || '';\n  const service = evt.service || '';\n  const payload = typeof evt.payload === 'string' ? JSON.parse(evt.payload || '{}') : (evt.payload || {});\n\n  if (type === 'signal_green' || type === 'prospect_responded') {\n    immediate.push({priority: 'immediate', event: type, service, detail: payload});\n  } else if (type === 'secret_leak_detected') {\n    immediate.push({priority: 'immediate', event: type, service, detail: payload});\n  } else if (type === 'service_crash') {\n    immediate.push({priority: 'immediate', event: type, service, detail: payload});\n  }\n  else if (type === 'agent_degraded' || type === 'budget_alert') {\n    high.push({priority: 'high', event: type, service, detail: payload});\n  } else if (type === 'drift_detected') {\n    high.push({priority: 'high', event: type, service, detail: payload});\n  }\n  else if (type === 'signals_found' || type === 'followup_needed') {\n    medium.push({priority: 'medium', event: type, service, detail: payload});\n  } else if (type === 'workflow_error') {\n    medium.push({priority: 'medium', event: type, service, detail: payload});\n  }\n  else if (type.includes('clean') || type.includes('ok')) {\n    low.push({priority: 'low', event: type, service, detail: payload});\n  }\n}\n\nreturn [{json: {\n  immediate_count: immediate.length,\n  high_count: high.length,\n  medium_count: medium.length,\n  low_count: low.length,\n  immediate_events: immediate,\n  high_events: high,\n  medium_events: medium,\n  summary: {\n    total_events: events.length,\n    actionable: immediate.length + high.length + medium.length,\n    routine: low.length\n  }\n}}];"
+      },
+      "id": "classify-events",
+      "name": "Classify Events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-immediate",
+              "leftValue": "={{ $json.immediate_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "cond-high",
+              "leftValue": "={{ $json.high_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "id": "has-actionable",
+      "name": "Has Alerts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"notifications\", \"event_type\": \"alert_batch\", \"payload\": {\"immediate_events\": {{ JSON.stringify($json.immediate_events) }}, \"high_events\": {{ JSON.stringify($json.high_events) }}, \"alert_count\": {{ $json.immediate_count + $json.high_count }}, \"immediate_count\": {{ $json.immediate_count }}, \"high_count\": {{ $json.high_count }}, \"medium_count\": {{ $json.medium_count }}, \"timestamp\": \"{{ new Date().toISOString() }}\"}}"
+      },
+      "id": "emit-alert-batch",
+      "name": "Log Alert Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"notifications\", \"event_type\": \"no_alerts\", \"payload\": {\"total_events\": {{ $json.summary.total_events }}, \"routine_count\": {{ $json.summary.routine }}, \"timestamp\": \"{{ new Date().toISOString() }}\"}}"
+      },
+      "id": "emit-clean-log",
+      "name": "Log Clean Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W24 - Notification Router\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Every 30 Min": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Events": {
+      "main": [
+        [
+          {
+            "node": "Classify Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Events": {
+      "main": [
+        [
+          {
+            "node": "Has Alerts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Alerts?": {
+      "main": [
+        [
+          {
+            "node": "Log Alert Batch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Clean Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

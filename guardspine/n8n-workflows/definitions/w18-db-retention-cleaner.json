@@ -1,0 +1,134 @@
+{
+  "name": "W18 - DB Retention Cleaner",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 1 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "weekly-trigger",
+      "name": "Sunday 1:30 AM UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 1}}"
+      },
+      "id": "verify-db",
+      "name": "Verify DB Connectivity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dbCheck = $('Verify DB Connectivity').all();\n\nif (dbCheck.length === 0) {\n  return [{\n    json: {\n      status: 'error',\n      message: 'DB connectivity check returned no results',\n      would_purge_telemetry: 0,\n      would_purge_heartbeats: 0\n    }\n  }];\n}\n\n// NOTE: Actual row counts for old data require a dedicated telemetry-api\n// endpoint (POST /maintenance/purge). For now we log the intent and\n// recommend manual review.\n//\n// Retention policy:\n//   telemetry_events: keep 90 days\n//   heartbeat_run_events: keep 30 days\n\nconst now = new Date();\nconst retentionPolicy = {\n  telemetry_events: { retention_days: 90, cutoff: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString() },\n  heartbeat_runs: { retention_days: 30, cutoff: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() }\n};\n\nreturn [{\n  json: {\n    status: 'audit_only',\n    message: 'Retention audit logged. Actual deletion requires POST /maintenance/purge endpoint.',\n    retention_policy: retentionPolicy,\n    would_purge_telemetry: 'unknown - requires purge endpoint',\n    would_purge_heartbeats: 'unknown - requires purge endpoint',\n    db_connected: true,\n    checked_at: now.toISOString()\n  }\n}];"
+      },
+      "id": "build-cleanup-summary",
+      "name": "Build Cleanup Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"maintenance\", \"event_type\": \"retention_audit\", \"payload\": {\"status\": \"{{ $json.status }}\", \"message\": \"{{ $json.message }}\", \"retention_policy\": {{ JSON.stringify($json.retention_policy) }}, \"db_connected\": {{ $json.db_connected }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+      },
+      "id": "emit-audit",
+      "name": "Log Retention Audit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W18 - DB Retention Cleaner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Sunday 1:30 AM UTC": {
+      "main": [
+        [
+          {
+            "node": "Verify DB Connectivity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify DB Connectivity": {
+      "main": [
+        [
+          {
+            "node": "Build Cleanup Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Cleanup Summary": {
+      "main": [
+        [
+          {
+            "node": "Log Retention Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

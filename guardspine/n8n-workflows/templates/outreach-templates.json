@@ -1,0 +1,168 @@
+{
+  "_description": "Outreach message templates. 4 pain buckets x 4 framing angles = 16 templates. Variables: {name}, {company}, {title}, {signal}, {metric}.",
+
+  "templates": {
+    "review_velocity_gap": {
+      "direct": {
+        "hook": "{name}, {company} ships {metric} PRs a week. How many get real scrutiny?",
+        "pain": "When PR volume outpaces review capacity, the review that happens becomes a rubber stamp. The checkbox exists. The evidence doesn't.",
+        "value": "We built a free GitHub Action that risk-classifies every PR proportionally. Typo fix gets waved through. Auth change gets a 3-model council review. Evidence bundle on every merge.",
+        "cta": "Want me to run it on one of your repos? Takes 2 minutes to install.",
+        "signoff": "David"
+      },
+      "compliance": {
+        "hook": "{name}, when your auditor asks how {company} governed {metric} PRs last quarter, what do you show them?",
+        "pain": "SOC 2 asks for evidence of review. Not that review happened -- that it was proportional to risk. Most teams can't reconstruct that story.",
+        "value": "codeguard-action produces a signed evidence bundle on every PR. Risk tier, reviewer consensus, hash-chained audit trail. Free, open source.",
+        "cta": "I can show you what a governed PR trail looks like in 10 minutes.",
+        "signoff": "David"
+      },
+      "platform": {
+        "hook": "{name}, a free GitHub Action that risk-classifies every PR and produces evidence bundles.",
+        "pain": "Most governance tools treat every change the same. That's why developers hate them. Proportional review means typo fixes flow and auth changes get scrutiny.",
+        "value": "codeguard-action: risk tiers L0-L4, AI review council, evidence bundles. Install in your CI pipeline in 2 minutes.",
+        "cta": "Install link: github.com/DNYoussef/codeguard-action",
+        "signoff": "David"
+      },
+      "consultant": {
+        "hook": "{name}, a free PR governance action you can install on client repos.",
+        "pain": "When you tell a client their code review process has gaps, you need evidence. Not opinions -- evidence.",
+        "value": "codeguard-action produces signed evidence bundles on every PR. Install on a client repo, show them the governance gap report. Makes your compliance work defensible.",
+        "cta": "Want me to walk you through a client deployment?",
+        "signoff": "David"
+      }
+    },
+
+    "evidence_chain_gap": {
+      "direct": {
+        "hook": "{name}, your team approved {metric} PRs last month. Can you prove any of them were actually reviewed?",
+        "pain": "Approval happened. Evidence didn't. That's the gap between code review and code governance.",
+        "value": "codeguard-action generates a cryptographic evidence bundle on every PR. Who reviewed, what they found, what the risk tier was, and whether consensus was reached.",
+        "cta": "Can I run our action on one of your public repos and show you what it finds?",
+        "signoff": "David"
+      },
+      "compliance": {
+        "hook": "{name}, approved is not governed. Your auditor knows the difference.",
+        "pain": "SOC 2 evidence requests don't ask 'did someone click approve.' They ask 'can you prove the review was adequate for the risk level of the change.'",
+        "value": "codeguard-action classifies risk, runs proportional AI review, and produces hash-chained evidence bundles. Audit-ready, free, open source.",
+        "cta": "I can show you what audit-ready evidence looks like for {company}'s workflow.",
+        "signoff": "David"
+      },
+      "platform": {
+        "hook": "GitHub tells you what changed. GuardSpine tells you what it means that it changed.",
+        "pain": "Your CI pipeline catches build failures. It doesn't catch governance failures. A PR that passes tests but modifies auth logic without evidence of review is a governance gap.",
+        "value": "codeguard-action: adds governance evidence to your existing CI pipeline. Risk classification, AI review, signed bundles. 2-minute install.",
+        "cta": "github.com/DNYoussef/codeguard-action -- try it on one repo.",
+        "signoff": "David"
+      },
+      "consultant": {
+        "hook": "{name}, evidence bundles make your compliance deliverables concrete instead of opinion-based.",
+        "pain": "When a client asks 'how do we know our code review process is adequate,' you need something better than 'we checked the PR approvals.'",
+        "value": "codeguard-action gives you per-PR evidence: risk tier, review depth, consensus score, hash chain. Install on client repos, export the bundles, attach to your assessment.",
+        "cta": "Want to see what a client evidence report looks like?",
+        "signoff": "David"
+      }
+    },
+
+    "semantic_governance_gap": {
+      "direct": {
+        "hook": "{name}, does {company} treat a typo fix the same as an auth change? Most teams do.",
+        "pain": "That's not governance. That's a checkbox. Governance means the risky changes get more scrutiny than the routine ones.",
+        "value": "codeguard-action classifies every PR into risk tiers. L0 trivial changes auto-pass. L3 security changes get a 3-model AI council. Proportional, not uniform.",
+        "cta": "Want to walk through one repo together?",
+        "signoff": "David"
+      },
+      "compliance": {
+        "hook": "{name}, proportional review isn't optional anymore. Auditors are starting to ask for it.",
+        "pain": "Treating every PR the same is actually a compliance risk. It means your high-risk changes got the same 30-second glance as a README update.",
+        "value": "codeguard-action classifies risk and reviews proportionally. The evidence bundle proves the review depth matched the risk level.",
+        "cta": "I can map where your current review process has evidence gaps.",
+        "signoff": "David"
+      },
+      "platform": {
+        "hook": "Risk-tiered PR governance as a GitHub Action. L0 auto-pass to L4 human approval.",
+        "pain": "Most security tools have one mode: block or allow. Real governance is proportional. Different risk levels need different review depths.",
+        "value": "codeguard-action: 5 risk tiers, pattern-based + AI classification, multi-model review council, evidence bundles. Free.",
+        "cta": "github.com/DNYoussef/codeguard-action",
+        "signoff": "David"
+      },
+      "consultant": {
+        "hook": "{name}, help your clients implement proportional code governance without slowing their teams.",
+        "pain": "Clients push back on governance tools because they slow everything down equally. Proportional review fixes that -- routine changes flow, risky changes get depth.",
+        "value": "Free GitHub Action. Install on client repos. Show them the risk distribution. Then have the conversation about what proportional governance looks like for them.",
+        "cta": "Want me to walk you through a client setup?",
+        "signoff": "David"
+      }
+    },
+
+    "regulatory_readiness_gap": {
+      "direct": {
+        "hook": "{name}, if an auditor asked {company} to reconstruct the review trail for last Tuesday's deploy, how long would it take?",
+        "pain": "If the answer is 'more than 5 minutes,' you have a regulatory readiness gap. The evidence exists somewhere -- but can you find it, correlate it, and present it under pressure?",
+        "value": "codeguard-action produces structured evidence bundles on every PR. Risk tier, reviewer consensus, findings, hash chain. Searchable. Exportable. Audit-ready.",
+        "cta": "Can I show you what an evidence walkthrough looks like?",
+        "signoff": "David"
+      },
+      "compliance": {
+        "hook": "{name}, SOC 2 Type II wants continuous evidence, not point-in-time. How does {company} generate that for code changes?",
+        "pain": "Point-in-time audits are becoming continuous monitoring requirements. If your evidence is manual screenshots of PR approvals, you're building on sand.",
+        "value": "codeguard-action generates structured, hash-chained evidence bundles on every PR automatically. Continuous. Machine-readable. Audit-ready.",
+        "cta": "I can show you what continuous code governance evidence looks like in 10 minutes.",
+        "signoff": "David"
+      },
+      "platform": {
+        "hook": "Continuous code governance evidence as a GitHub Action.",
+        "pain": "Compliance teams want evidence. Engineering teams want velocity. The answer isn't choosing one -- it's proportional governance that gives both.",
+        "value": "codeguard-action: automatic risk classification + proportional review + evidence bundles on every merge. Free, open source, 2-minute install.",
+        "cta": "github.com/DNYoussef/codeguard-action",
+        "signoff": "David"
+      },
+      "consultant": {
+        "hook": "{name}, continuous governance evidence for your regulated clients. Free tool, zero vendor lock-in.",
+        "pain": "Your regulated clients need evidence of code governance between audits, not just at audit time. Manual processes don't scale.",
+        "value": "codeguard-action generates evidence bundles on every PR automatically. Install on client repos, export bundles into your compliance reports. Makes your deliverables concrete.",
+        "cta": "Want to see a client evidence report?",
+        "signoff": "David"
+      }
+    }
+  },
+
+  "classification_rules": {
+    "_description": "Rule-based pain bucket classification. No LLM needed.",
+    "review_velocity_gap": {
+      "signals": ["high PR volume", "small team", "review bottleneck", "slow merges", "PR backlog"],
+      "titles": ["VP Engineering", "Engineering Manager", "Tech Lead", "Head of Engineering"],
+      "industries": ["*"]
+    },
+    "evidence_chain_gap": {
+      "signals": ["SOC 2", "audit", "compliance", "evidence", "proof", "regulated"],
+      "titles": ["CISO", "VP Security", "Head of Compliance", "GRC", "Audit"],
+      "industries": ["fintech", "healthcare", "government", "banking"]
+    },
+    "semantic_governance_gap": {
+      "signals": ["AI code", "Copilot", "code generation", "proportional", "risk-based"],
+      "titles": ["DevSecOps", "Platform Engineering", "Security Engineering", "AppSec"],
+      "industries": ["*"]
+    },
+    "regulatory_readiness_gap": {
+      "signals": [
+        "audit prep",
+        "SOC 2 Type II",
+        "ISO 27001",
+        "HIPAA",
+        "FedRAMP",
+        "continuous monitoring"
+      ],
+      "titles": ["CISO", "Compliance", "GRC", "Security Director", "VP Security"],
+      "industries": ["fintech", "healthcare", "government", "insurance", "banking"]
+    }
+  },
+
+  "angle_selection_rules": {
+    "_description": "Select framing angle by prospect lane/persona.",
+    "direct": { "lanes": ["buyer"], "personas": ["engineering_leader", "ciso"] },
+    "compliance": { "lanes": ["buyer"], "personas": ["compliance", "grc", "ciso"] },
+    "platform": { "lanes": ["builder"], "personas": ["devsecops", "platform_eng", "developer"] },
+    "consultant": { "lanes": ["connector"], "personas": ["consultant", "vciso", "advisor"] }
+  }
+}

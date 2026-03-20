@@ -16,5 +16,14 @@ if [ -f /app/.openclaw/openclaw.json.baked ]; then
 fi
 chown openclaw:openclaw /app/.openclaw/openclaw.json 2>/dev/null || true
 
+# Seed auth-profiles.json from env var if present (subscription OAuth tokens)
+if [ -n "$OPENCLAW_AUTH_PROFILES_B64" ]; then
+  AGENT_DIR="/app/.openclaw/agents/main/agent"
+  mkdir -p "$AGENT_DIR"
+  echo "$OPENCLAW_AUTH_PROFILES_B64" | base64 -d > "$AGENT_DIR/auth-profiles.json"
+  chown -R openclaw:openclaw /app/.openclaw/agents 2>/dev/null || true
+  echo "[entrypoint] auth-profiles.json seeded from env"
+fi
+
 # Drop to non-root and exec CMD
 exec gosu openclaw "$@"

@@ -46,6 +46,58 @@ COPY guardspine/extensions/n8n-pipeline /app/.openclaw/extensions/n8n-pipeline
 # Schema only -- data lives on Railway volume, never in git or Docker image
 COPY guardspine/data/migration.sql /app/.openclaw/data/migration.sql
 
+# Workspace templates -- .railwayignore excludes docs/ so we bake them inline.
+# OpenClaw requires these at /app/docs/reference/templates/ for agent sessions.
+RUN mkdir -p /app/docs/reference/templates && \
+    printf '%s\n' \
+      '# Agent Workspace' \
+      '' \
+      'You are a Paperclip-managed agent. Execute tasks from your assigned issues.' \
+      '' \
+      '## Rules' \
+      '- Follow your system prompt exactly' \
+      '- Post results as issue comments' \
+      '- Update issue status when done' \
+      '- All tool calls governed by GuardSpine (L0-L4)' \
+      > /app/docs/reference/templates/AGENTS.md && \
+    printf '%s\n' \
+      '# Soul' \
+      '' \
+      'You are an AI agent in the GuardSpine autonomous business system.' \
+      'You operate under governance. Evidence over opinions. Every time.' \
+      > /app/docs/reference/templates/SOUL.md && \
+    printf '%s\n' \
+      '# Tools' \
+      '' \
+      'Use only the tools provided by the gateway.' \
+      'Do not guess endpoints. Follow the wake text procedure.' \
+      > /app/docs/reference/templates/TOOLS.md && \
+    printf '%s\n' \
+      '# Identity' \
+      '' \
+      'You are managed by Paperclip and governed by GuardSpine.' \
+      > /app/docs/reference/templates/IDENTITY.md && \
+    printf '%s\n' \
+      '# User' \
+      '' \
+      'The human operator is David Youssef, founder of GuardSpine.' \
+      > /app/docs/reference/templates/USER.md && \
+    printf '%s\n' \
+      '# Heartbeat' \
+      '' \
+      'On heartbeat: check assigned issues, execute pending work, report status.' \
+      > /app/docs/reference/templates/HEARTBEAT.md && \
+    printf '%s\n' \
+      '# Bootstrap' \
+      '' \
+      'Initialize workspace. Load context. Begin task execution.' \
+      > /app/docs/reference/templates/BOOTSTRAP.md && \
+    printf '%s\n' \
+      '# Boot' \
+      '' \
+      'Agent session starting. Load workspace files and begin.' \
+      > /app/docs/reference/templates/BOOT.md
+
 # Non-root user for runtime security
 RUN groupadd -r openclaw && useradd -r -g openclaw -d /app -s /bin/bash openclaw && \
     chown -R openclaw:openclaw /app/.openclaw/data

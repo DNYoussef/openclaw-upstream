@@ -1,0 +1,212 @@
+{
+  "name": "W6 - Data Sync Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "sync-trigger",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://paperclip.railway.internal:3100/api/companies/guardspine/issues",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "in_progress,done"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            }
+          ]
+        }
+      },
+      "id": "fetch-paperclip-issues",
+      "name": "Fetch Paperclip Issues",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "paperclip-auth",
+          "name": "Paperclip API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "GET",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "service",
+              "value": "paperclip"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            }
+          ]
+        }
+      },
+      "id": "fetch-telemetry-events",
+      "name": "Fetch Telemetry Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 420]
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex",
+        "options": {}
+      },
+      "id": "merge-data",
+      "name": "Merge Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst paperclipItem = items[0] ? items[0].json : null;\nconst telemetryItem = items[1] ? items[1].json : null;\n\nconst paperclipIssues = Array.isArray(paperclipItem) ? paperclipItem : (paperclipItem && paperclipItem.issues ? paperclipItem.issues : []);\nconst telemetryEvents = Array.isArray(telemetryItem) ? telemetryItem : (telemetryItem && telemetryItem.events ? telemetryItem.events : []);\n\nconst paperclipIds = new Set(paperclipIssues.map(i => String(i.id || '')));\nconst telemetryIssueIds = new Set(telemetryEvents.filter(e => e.payload && e.payload.issue_id).map(e => String(e.payload.issue_id)));\n\nconst missingFromTelemetry = [...paperclipIds].filter(id => id && !telemetryIssueIds.has(id));\nconst orphanedInTelemetry = [...telemetryIssueIds].filter(id => id && !paperclipIds.has(id));\n\nreturn [{json: {\n  paperclip_count: paperclipIds.size,\n  telemetry_count: telemetryIssueIds.size,\n  missing_from_telemetry: missingFromTelemetry.length,\n  orphaned_in_telemetry: orphanedInTelemetry.length,\n  missing_ids: missingFromTelemetry.slice(0, 20),\n  orphaned_ids: orphanedInTelemetry.slice(0, 20),\n  in_sync: missingFromTelemetry.length === 0 && orphanedInTelemetry.length === 0\n}}];"
+      },
+      "id": "compare-data",
+      "name": "Compare and Find Discrepancies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"data_sync_result\", \"payload\": {\"paperclip_count\": \"={{ $json.paperclip_count }}\", \"telemetry_count\": \"={{ $json.telemetry_count }}\", \"missing_from_telemetry\": \"={{ $json.missing_from_telemetry }}\", \"orphaned_in_telemetry\": \"={{ $json.orphaned_in_telemetry }}\", \"in_sync\": \"={{ $json.in_sync }}\", \"missing_ids\": \"={{ JSON.stringify($json.missing_ids) }}\", \"orphaned_ids\": \"={{ JSON.stringify($json.orphaned_ids) }}\"}}"
+      },
+      "id": "log-sync-result",
+      "name": "Log Sync Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W6 - Data Sync Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Fetch Paperclip Issues",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Telemetry Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Paperclip Issues": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Telemetry Events": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Sources": {
+      "main": [
+        [
+          {
+            "node": "Compare and Find Discrepancies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare and Find Discrepancies": {
+      "main": [
+        [
+          {
+            "node": "Log Sync Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

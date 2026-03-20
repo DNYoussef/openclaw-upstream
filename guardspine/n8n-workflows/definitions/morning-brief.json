@@ -20,19 +20,32 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/morning-brief",
+        "url": "http://openclaw.railway.internal:18789/webhook/morning-brief",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "bodyParameters": {
-          "parameters": [{ "name": "action", "value": "gather_data" }]
+          "parameters": [
+            {
+              "name": "action",
+              "value": "gather_data"
+            }
+          ]
         },
-        "options": { "timeout": 120000 }
+        "options": {
+          "timeout": 120000
+        }
       },
       "name": "Gather Brief Data",
       "type": "n8n-nodes-base.httpRequest",
@@ -42,22 +55,36 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/morning-brief",
+        "url": "http://openclaw.railway.internal:18789/webhook/morning-brief",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "action", "value": "format_brief" },
-            { "name": "data", "value": "={{ JSON.stringify($json) }}" }
+            {
+              "name": "action",
+              "value": "format_brief"
+            },
+            {
+              "name": "data",
+              "value": "={{ JSON.stringify($json) }}"
+            }
           ]
         },
-        "options": { "timeout": 60000 }
+        "options": {
+          "timeout": 60000
+        }
       },
       "name": "Format Brief",
       "type": "n8n-nodes-base.httpRequest",
@@ -67,40 +94,117 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/morning-brief",
+        "url": "http://openclaw.railway.internal:18789/webhook/morning-brief",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "action", "value": "deliver_brief" },
-            { "name": "brief", "value": "={{ $json.formatted_brief }}" },
-            { "name": "channel", "value": "discord" }
+            {
+              "name": "action",
+              "value": "deliver_brief"
+            },
+            {
+              "name": "brief",
+              "value": "={{ $json.formatted_brief }}"
+            },
+            {
+              "name": "channel",
+              "value": "discord"
+            }
           ]
         },
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        }
       },
       "name": "Deliver Brief",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [910, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"P8 - Morning Brief\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
     "7am EST Weekdays": {
-      "main": [[{ "node": "Gather Brief Data", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gather Brief Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gather Brief Data": {
-      "main": [[{ "node": "Format Brief", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Format Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Format Brief": {
-      "main": [[{ "node": "Deliver Brief", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Deliver Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

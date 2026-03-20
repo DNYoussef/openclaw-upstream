@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Decision Engine Case Trace",
+  "description": "Write-back contract for every decision pass. The substrate for compounding learning.",
+  "type": "object",
+  "required": ["case_id", "timestamp", "route_taken", "tool_passes"],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "pattern": "^ct_[0-9]{4}_[0-9]{2}_[0-9]{2}_[0-9]{3}$"
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "route_taken": {
+      "type": "string",
+      "enum": [
+        "S",
+        "G",
+        "O",
+        "S_G",
+        "G_S",
+        "S_O",
+        "O_S",
+        "G_O",
+        "O_G",
+        "S_G_O",
+        "S_O_G",
+        "G_S_O",
+        "G_O_S",
+        "O_S_G",
+        "O_G_S",
+        "S_G_loop",
+        "S_O_loop",
+        "G_O_loop",
+        "S_G_O_reality_loop"
+      ]
+    },
+    "inputs_snapshot": {
+      "type": "object",
+      "properties": {
+        "substrate_refs": { "type": "array", "items": { "type": "string" } },
+        "human_request": { "type": "string" },
+        "relevant_history": { "type": "array", "items": { "type": "string" } },
+        "decision_schema_ref": { "type": "string" }
+      }
+    },
+    "tool_passes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["tool", "input_object", "output_object"],
+        "properties": {
+          "tool": {
+            "type": "string",
+            "enum": ["mirofish", "mieza", "globalmoo", "pymoo", "guardspine_policy"]
+          },
+          "input_object": { "type": "object" },
+          "output_object": { "type": "object" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "config": { "type": "object" },
+          "duration_ms": { "type": "number" },
+          "cost_usd": { "type": "number" }
+        }
+      }
+    },
+    "decision_artifacts": {
+      "type": "object",
+      "properties": {
+        "candidate_actions": { "type": "array", "items": { "type": "string" } },
+        "chosen_action": { "type": "string" },
+        "governance_status": {
+          "type": "string",
+          "enum": ["approved", "blocked", "conditions", "pending"]
+        },
+        "guardspine_risk_tier": { "type": "string", "enum": ["L0", "L1", "L2", "L3", "L4"] },
+        "evidence_bundle_hash": { "type": "string" }
+      }
+    },
+    "execution_artifacts": {
+      "type": "object",
+      "properties": {
+        "workflow_id": { "type": "string" },
+        "owner_role": { "type": "string" },
+        "action_status": {
+          "type": "string",
+          "enum": ["pending", "executed", "rolled_back", "cancelled"]
+        }
+      }
+    },
+    "outcomes": {
+      "type": "object",
+      "properties": {
+        "projected_metrics": { "type": "object", "additionalProperties": { "type": "number" } },
+        "actual_metrics": { "type": "object", "additionalProperties": { "type": "number" } },
+        "variance": { "type": "object", "additionalProperties": { "type": "number" } },
+        "measured_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "disagreement_analysis": {
+      "type": "object",
+      "properties": {
+        "mirofish_vs_mieza": { "type": "string" },
+        "mirofish_vs_reality": { "type": "string" },
+        "mieza_vs_reality": { "type": "string" },
+        "globalmoo_vs_reality": { "type": "string" },
+        "root_cause_tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "missing_player",
+              "missing_strategy",
+              "bad_payoff_estimate",
+              "simulation_instability",
+              "archetype_homogenization",
+              "objective_misspecification",
+              "missing_constraint",
+              "overfit_to_recent_data",
+              "execution_noise",
+              "governance_intervention_changed_outcome"
+            ]
+          }
+        }
+      }
+    },
+    "learning_updates": {
+      "type": "object",
+      "properties": {
+        "archetype_updates": { "type": "array", "items": { "type": "string" } },
+        "payoff_updates": { "type": "array", "items": { "type": "string" } },
+        "objective_updates": { "type": "array", "items": { "type": "string" } },
+        "routing_updates": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

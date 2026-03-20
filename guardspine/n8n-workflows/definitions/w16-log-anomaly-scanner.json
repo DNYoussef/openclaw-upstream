@@ -1,0 +1,185 @@
+{
+  "name": "W16 - Log Anomaly Scanner",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "Daily 2:30 AM UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 200}}"
+      },
+      "id": "fetch-telemetry",
+      "name": "Fetch Recent Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Fetch Recent Telemetry').all().map(i => i.json);\n\nconst KNOWN_EVENT_TYPES = [\n  'health_check', 'health_alert',\n  'workflow_error',\n  'drift_detected', 'drift_clean',\n  'budget_ok', 'budget_alert',\n  'stale_data_alert', 'data_fresh',\n  'secret_leak_detected', 'secrets_clean',\n  'anomaly_detected', 'logs_clean',\n  'signal_check',\n  'retention_audit',\n  'agent_degraded', 'agents_healthy',\n  'performance_report',\n  'heartbeat', 'agent_heartbeat',\n  'ceo_briefing',\n  'content_scheduled', 'content_published',\n  'partner_scan', 'partner_found',\n  'pipeline_metrics', 'pipeline_report',\n  'notification_sent', 'notification_routed',\n  'pr_monitor', 'pr_alert',\n  'data_sync', 'sync_complete',\n  'outreach_signal', 'outreach_sent',\n  'cmo_report', 'lead_scored'\n];\n\nconst anomalies = [];\nconst eventTypeCounts = {};\nconst now = new Date();\nconst twentyFourHoursMs = 24 * 60 * 60 * 1000;\nlet errorCount24h = 0;\n\nfor (const evt of items) {\n  const evtType = evt.event_type || 'unknown';\n  eventTypeCounts[evtType] = (eventTypeCounts[evtType] || 0) + 1;\n\n  // Count errors in last 24h\n  const ts = new Date(evt.created_at || evt.timestamp || evt.ts || 0);\n  const ageMs = now.getTime() - ts.getTime();\n  if (ageMs <= twentyFourHoursMs && (evtType.includes('error') || evtType.includes('alert') || evtType.includes('failed'))) {\n    errorCount24h++;\n  }\n}\n\n// Check for unknown event types\nfor (const [evtType, count] of Object.entries(eventTypeCounts)) {\n  if (!KNOWN_EVENT_TYPES.includes(evtType)) {\n    anomalies.push({\n      type: 'unknown_event_type',\n      event_type: evtType,\n      count: count,\n      detail: 'Event type not in known list'\n    });\n  }\n}\n\n// Check for error spike\nif (errorCount24h > 10) {\n  anomalies.push({\n    type: 'error_spike',\n    error_count: errorCount24h,\n    threshold: 10,\n    detail: 'More than 10 error/alert events in last 24 hours'\n  });\n}\n\nreturn [{\n  json: {\n    anomalies: anomalies,\n    anomaly_count: anomalies.length,\n    event_type_counts: eventTypeCounts,\n    error_count_24h: errorCount24h,\n    events_scanned: items.length,\n    checked_at: now.toISOString()\n  }\n}];"
+      },
+      "id": "analyze-logs",
+      "name": "Analyze Log Anomalies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.anomaly_count }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check-anomalies",
+      "name": "Anomalies Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"log-scanner\", \"event_type\": \"anomaly_detected\", \"payload\": {\"anomalies\": {{ JSON.stringify($json.anomalies) }}, \"anomaly_count\": {{ $json.anomaly_count }}, \"error_count_24h\": {{ $json.error_count_24h }}, \"events_scanned\": {{ $json.events_scanned }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+      },
+      "id": "emit-anomaly",
+      "name": "Emit Anomaly Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"log-scanner\", \"event_type\": \"logs_clean\", \"payload\": {\"events_scanned\": {{ $json.events_scanned }}, \"error_count_24h\": {{ $json.error_count_24h }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+      },
+      "id": "emit-clean",
+      "name": "Emit Logs Clean",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W16 - Log Anomaly Scanner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Daily 2:30 AM UTC": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Telemetry": {
+      "main": [
+        [
+          {
+            "node": "Analyze Log Anomalies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Log Anomalies": {
+      "main": [
+        [
+          {
+            "node": "Anomalies Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anomalies Found?": {
+      "main": [
+        [
+          {
+            "node": "Emit Anomaly Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Emit Logs Clean",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

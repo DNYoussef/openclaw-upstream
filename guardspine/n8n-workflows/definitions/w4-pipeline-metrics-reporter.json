@@ -1,0 +1,155 @@
+{
+  "name": "W4 - Pipeline Metrics Reporter",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "weekly-trigger",
+      "name": "Monday 9 AM ET",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_outreach?weeks=4&limit=10"
+      },
+      "id": "query-outreach",
+      "name": "Query Outreach KPIs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10"
+      },
+      "id": "query-automation",
+      "name": "Query Automation KPIs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const outreach = $('Query Outreach KPIs').all().map(i => i.json);\nconst automation = $('Query Automation KPIs').all().map(i => i.json);\n\nconst latest = outreach[0] || {};\nconst prev = outreach[1] || {};\n\nconst report = [\n  '# Weekly Pipeline Report',\n  `Week of ${latest.week || 'N/A'}`,\n  '',\n  '## Outreach',\n  `- Drafts: ${latest.drafts || 0} (prev: ${prev.drafts || 0})`,\n  `- Sent: ${latest.sent || 0} (prev: ${prev.sent || 0})`,\n  `- Responses: ${latest.responses || 0} (prev: ${prev.responses || 0})`,\n  `- Response rate: ${(latest.response_rate * 100).toFixed(1)}%`,\n  `- Negative rate: ${(latest.negative_rate * 100).toFixed(1)}%`,\n  '',\n  '## Automation',\n].join('\\n');\n\nconst autoLatest = automation[0] || {};\nconst reportFull = report + [\n  `- Heartbeats: ${autoLatest.heartbeats || 0} (ok: ${autoLatest.heartbeats_ok || 0})`,\n  `- Success rate: ${((autoLatest.heartbeat_success_rate || 0) * 100).toFixed(1)}%`,\n  `- Override rate: ${((autoLatest.override_rate || 0) * 100).toFixed(1)}%`,\n].join('\\n');\n\nreturn [{json: {report: reportFull, week: latest.week}}];"
+      },
+      "id": "format-report",
+      "name": "Format Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"pipeline\", \"event_type\": \"weekly_report\", \"payload\": {\"report\": \"={{ $json.report }}\", \"week\": \"={{ $json.week }}\"}}"
+      },
+      "id": "emit-telemetry",
+      "name": "Emit Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W4 - Pipeline Metrics Reporter\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Monday 9 AM ET": {
+      "main": [
+        [
+          {
+            "node": "Query Outreach KPIs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Automation KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Outreach KPIs": {
+      "main": [
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Automation KPIs": {
+      "main": [
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Report": {
+      "main": [
+        [
+          {
+            "node": "Emit Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

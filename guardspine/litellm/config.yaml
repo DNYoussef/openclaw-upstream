@@ -1,0 +1,109 @@
+model_list:
+  # --- Anthropic (current gen) ---
+  - model_name: opus-4.6
+    litellm_params:
+      model: anthropic/claude-opus-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: sonnet-4.6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: haiku
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # --- OpenAI (current gen: GPT-5.4) ---
+  - model_name: gpt-5.4
+    litellm_params:
+      model: openai/gpt-5.4
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-5.4-mini
+    litellm_params:
+      model: openai/gpt-5.4-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-5.4-nano
+    litellm_params:
+      model: openai/gpt-5.4-nano
+      api_key: os.environ/OPENAI_API_KEY
+
+  # --- Google Gemini (stable: 2.5) ---
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GOOGLE_API_KEY
+
+  - model_name: gemini-pro
+    litellm_params:
+      model: gemini/gemini-2.5-pro
+      api_key: os.environ/GOOGLE_API_KEY
+
+  # --- Legacy aliases: OpenClaw agents request these exact model strings ---
+  # Route to funded current-gen providers instead of dead OpenRouter.
+  # Gemini rejects OpenClaw tool schemas (missing items field on arrays),
+  # so all agent routes go to Anthropic.
+  - model_name: openrouter/deepseek/deepseek-v3.2
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: openrouter/google/gemini-2.0-flash-001
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: openrouter/meta-llama/llama-3.3-70b-instruct
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: openrouter/openai/gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-5.4-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  # Short aliases for direct access
+  - model_name: deepseek-v3
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: llama-70b
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # Backwards compat aliases (old names -> current models)
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-5.4-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-5.4
+    litellm_params:
+      model: openai/gpt-5.4
+      api_key: os.environ/OPENAI_API_KEY
+
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 2
+  timeout: 60
+  fallbacks:
+    - opus-4.6: [sonnet-4.6, gpt-5.4]
+    - sonnet-4.6: [haiku, gpt-5.4]
+    - gpt-5.4: [sonnet-4.6, haiku]
+    - gpt-5.4-mini: [haiku, gpt-5.4-nano]
+    - gemini-flash: [haiku, sonnet-4.6, gpt-5.4-mini]
+    - gemini-pro: [sonnet-4.6, gpt-5.4]
+    - deepseek-v3: [sonnet-4.6, gpt-5.4]
+    - openrouter/deepseek/deepseek-v3.2: [haiku, sonnet-4.6, gpt-5.4-mini]
+    - openrouter/google/gemini-2.0-flash-001: [haiku, sonnet-4.6]
+    - openrouter/meta-llama/llama-3.3-70b-instruct: [haiku, gpt-5.4-mini]
+    - openrouter/openai/gpt-4o-mini: [gpt-5.4-mini, haiku]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

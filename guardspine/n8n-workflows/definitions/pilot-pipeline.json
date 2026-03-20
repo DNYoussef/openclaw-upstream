@@ -4,7 +4,12 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "hours", "hoursInterval": 12 }]
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 12
+            }
+          ]
         }
       },
       "name": "Schedule Trigger",
@@ -15,19 +20,32 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/pilot-pipeline",
+        "url": "http://openclaw.railway.internal:18789/webhook/pilot-pipeline",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "bodyParameters": {
-          "parameters": [{ "name": "action", "value": "check_pilot_repos" }]
+          "parameters": [
+            {
+              "name": "action",
+              "value": "check_pilot_repos"
+            }
+          ]
         },
-        "options": { "timeout": 60000 }
+        "options": {
+          "timeout": 60000
+        }
       },
       "name": "Check Pilot Repos",
       "type": "n8n-nodes-base.httpRequest",
@@ -37,19 +55,32 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/pilot-pipeline",
+        "url": "http://openclaw.railway.internal:18789/webhook/pilot-pipeline",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "bodyParameters": {
-          "parameters": [{ "name": "action", "value": "check_evidence_bundles" }]
+          "parameters": [
+            {
+              "name": "action",
+              "value": "check_evidence_bundles"
+            }
+          ]
         },
-        "options": { "timeout": 60000 }
+        "options": {
+          "timeout": 60000
+        }
       },
       "name": "Check Evidence Bundles",
       "type": "n8n-nodes-base.httpRequest",
@@ -70,13 +101,19 @@
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
           "conditions": [
             {
               "id": "has-issues",
               "leftValue": "={{ $json.issues_count }}",
               "rightValue": 0,
-              "operator": { "type": "number", "operation": "gt" }
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
           ]
         }
@@ -89,23 +126,40 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.WEBHOOK_BASE_URL || 'http://openclaw.railway.internal:18789' }}/webhook/pilot-pipeline",
+        "url": "http://openclaw.railway.internal:18789/webhook/pilot-pipeline",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENCLAW_GATEWAY_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "action", "value": "generate_pilot_report" },
-            { "name": "repos", "value": "={{ JSON.stringify($json.repos) }}" },
-            { "name": "bundles", "value": "={{ JSON.stringify($json.evidence_summary) }}" }
+            {
+              "name": "action",
+              "value": "generate_pilot_report"
+            },
+            {
+              "name": "repos",
+              "value": "={{ JSON.stringify($json.repos) }}"
+            },
+            {
+              "name": "bundles",
+              "value": "={{ JSON.stringify($json.evidence_summary) }}"
+            }
           ]
         },
-        "options": { "timeout": 60000 }
+        "options": {
+          "timeout": 60000
+        }
       },
       "name": "Generate Pilot Report",
       "type": "n8n-nodes-base.httpRequest",
@@ -118,32 +172,112 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [1130, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"P2 - Pilot Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
     }
   ],
   "connections": {
     "Schedule Trigger": {
       "main": [
         [
-          { "node": "Check Pilot Repos", "type": "main", "index": 0 },
-          { "node": "Check Evidence Bundles", "type": "main", "index": 0 }
+          {
+            "node": "Check Pilot Repos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Evidence Bundles",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Check Pilot Repos": {
-      "main": [[{ "node": "Merge Pilot Data", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Merge Pilot Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Check Evidence Bundles": {
-      "main": [[{ "node": "Merge Pilot Data", "type": "main", "index": 1 }]]
+      "main": [
+        [
+          {
+            "node": "Merge Pilot Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
     },
     "Merge Pilot Data": {
-      "main": [[{ "node": "Issues Found?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Issues Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Issues Found?": {
       "main": [
-        [{ "node": "Generate Pilot Report", "type": "main", "index": 0 }],
-        [{ "node": "All Clear", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Generate Pilot Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "All Clear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

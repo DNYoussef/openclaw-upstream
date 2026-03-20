@@ -1,0 +1,221 @@
+{
+  "name": "W25 - Signal Detector",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 2 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 100}}"
+      },
+      "id": "fetch-telemetry",
+      "name": "Fetch Recent Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"4 hours\"}}"
+      },
+      "id": "fetch-heartbeats",
+      "name": "Fetch Agent Heartbeats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const telemetry = $('Fetch Recent Telemetry').first().json.rows || [];\nconst heartbeats = $('Fetch Agent Heartbeats').first().json.rows || [];\n\nconst cmo_events = telemetry.filter(e => e.service === 'cmo' || e.event_type === 'outreach_draft');\nconst cmo_heartbeats = heartbeats.filter(h => h.name === 'CMO');\nconst cmo_successes = cmo_heartbeats.filter(h => h.status === 'succeeded');\n\nconst signal_events = telemetry.filter(e =>\n  e.event_type === 'signal_green' ||\n  e.event_type === 'signal_yellow' ||\n  e.event_type === 'prospect_responded'\n);\n\nconst followup_events = telemetry.filter(e => e.event_type === 'followup_needed');\n\nreturn [{json: {\n  cmo_activity: {\n    events: cmo_events.length,\n    heartbeats: cmo_heartbeats.length,\n    successes: cmo_successes.length\n  },\n  signals: {\n    count: signal_events.length,\n    events: signal_events.slice(0, 5)\n  },\n  followups: {\n    pending: followup_events.length\n  },\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "analyze-signals",
+      "name": "Analyze Signals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-signals",
+              "leftValue": "={{ $json.signals.count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "has-signals",
+      "name": "Has New Signals?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"signal-detector\", \"event_type\": \"new_signals_detected\", \"payload\": {\"signal_count\": {{ $json.signals.count }}, \"signal_events\": {{ JSON.stringify($json.signals.events) }}, \"cmo_activity\": {{ JSON.stringify($json.cmo_activity) }}, \"followups_pending\": {{ $json.followups.pending }}, \"timestamp\": \"{{ $json.timestamp }}\"}}"
+      },
+      "id": "emit-signals-found",
+      "name": "Log Signals Found",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"signal-detector\", \"event_type\": \"no_new_signals\", \"payload\": {\"cmo_activity\": {{ JSON.stringify($json.cmo_activity) }}, \"followups_pending\": {{ $json.followups.pending }}, \"timestamp\": \"{{ $json.timestamp }}\"}}"
+      },
+      "id": "emit-no-signals",
+      "name": "Log No Signals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W25 - Signal Detector\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+      },
+      "id": "post-error-telemetry",
+      "name": "POST Error to Telemetry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Every 2 Hours": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Telemetry": {
+      "main": [
+        [
+          {
+            "node": "Fetch Agent Heartbeats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Agent Heartbeats": {
+      "main": [
+        [
+          {
+            "node": "Analyze Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Signals": {
+      "main": [
+        [
+          {
+            "node": "Has New Signals?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has New Signals?": {
+      "main": [
+        [
+          {
+            "node": "Log Signals Found",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "POST Error to Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
