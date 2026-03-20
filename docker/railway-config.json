@@ -4,7 +4,8 @@
     "bind": "lan",
     "port": 18789,
     "controlUi": {
-      "dangerouslyDisableDeviceAuth": false
+      "dangerouslyDisableDeviceAuth": false,
+      "allowedOrigins": ["https://openclaw-production-e5a2.up.railway.app"]
     }
   },
   "agents": {
