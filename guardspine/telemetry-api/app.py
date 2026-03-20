@@ -91,12 +91,45 @@ QUERY_REGISTRY = {
             "limit": {"type": "int", "default": 20, "max": 1000},
         },
     },
+    "cost_summary": {
+        "sql": (
+            "SELECT "
+            "  DATE_TRUNC('day', ts) AS day, "
+            "  service, "
+            "  COUNT(*) AS event_count, "
+            "  SUM(CASE WHEN event_type LIKE '%%error%%' OR event_type LIKE '%%billing%%' THEN 1 ELSE 0 END) AS error_count, "
+            "  SUM(CASE WHEN event_type = 'llm_request' THEN 1 ELSE 0 END) AS llm_requests "
+            "FROM telemetry_events "
+            "WHERE ts > NOW() - INTERVAL %(days)s "
+            "GROUP BY day, service "
+            "ORDER BY day DESC, service"
+        ),
+        "params": {"days": {"type": "interval", "default": "30 days"}},
+    },
+    "finance_bundles": {
+        "sql": (
+            "SELECT id, ts, service, event_type, "
+            "  payload->>'bundle_id' AS bundle_id, "
+            "  payload->>'risk_tier' AS risk_tier, "
+            "  payload->>'file_type' AS file_type, "
+            "  payload->>'repo' AS repo "
+            "FROM telemetry_events "
+            "WHERE event_type IN ('bundle_created', 'sheetguard_review', 'finance_review') "
+            "  AND ts > NOW() - INTERVAL %(days)s "
+            "ORDER BY ts DESC LIMIT %(limit)s"
+        ),
+        "params": {
+            "days": {"type": "interval", "default": "30 days"},
+            "limit": {"type": "int", "default": 50, "max": 500},
+        },
+    },
 }
 
 # Allowed KPI views (whitelist to prevent SQL injection)
 ALLOWED_VIEWS = {
     "kpi_outreach", "kpi_content", "kpi_automation",
     "kpi_governance", "kpi_funnel", "kpi_health",
+    "kpi_costs",
     "champion_leaderboard",
 }
 
@@ -218,9 +251,39 @@ def ensure_views():
             ORDER BY day DESC
         """)
 
+        # kpi_costs: daily aggregate of cost-related events.
+        # Tracks LLM requests, billing errors, and service-level spend signals.
+        # CFO agent and W13 Cost Tracker read from this view.
+        cur.execute("""
+            CREATE OR REPLACE VIEW kpi_costs AS
+            SELECT
+                ts::date AS day,
+                service,
+                COUNT(*) AS total_events,
+                COUNT(*) FILTER (
+                    WHERE event_type LIKE '%%error%%'
+                       OR event_type LIKE '%%billing%%'
+                       OR event_type = 'budget_alert'
+                ) AS error_events,
+                COUNT(*) FILTER (
+                    WHERE event_type IN ('llm_request', 'model_request', 'heartbeat_summary')
+                ) AS llm_events,
+                COUNT(*) FILTER (
+                    WHERE event_type IN ('bundle_created', 'sheetguard_review', 'finance_review')
+                ) AS governance_events,
+                COALESCE(
+                    SUM((payload->>'cost_usd')::numeric),
+                    0
+                ) AS total_cost_usd
+            FROM telemetry_events
+            WHERE ts > NOW() - INTERVAL '90 days'
+            GROUP BY ts::date, service
+            ORDER BY day DESC, service
+        """)
+
         conn.commit()
         cur.close()
-        logger.info("kpi_health view created/replaced")
+        logger.info("kpi_health + kpi_costs views created/replaced")
     except Exception as exc:
         logger.error(f"ensure_views failed: {exc}")
     finally:

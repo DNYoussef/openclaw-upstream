@@ -1,0 +1,163 @@
+{
+  "name": "W31 - CFO Finance Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "id": "schedule",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/query",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"query\": \"finance_bundles\", \"params\": {\"days\": \"24 hours\", \"limit\": 20}}"
+      },
+      "id": "fetch-finance-bundles",
+      "name": "Fetch Finance Bundles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.item.json;\nconst rows = response.rows || response.data || [];\n\nif (!rows || rows.length === 0) {\n  return [{json: {has_bundles: false, count: 0, summary: 'No finance bundles in last 24h'}}];\n}\n\nconst critical = rows.filter(r => r.risk_tier === 'L3' || r.risk_tier === 'L4');\nconst summary = `${rows.length} finance bundle(s) found. ${critical.length} at L3+.`;\n\nreturn [{json: {\n  has_bundles: true,\n  count: rows.length,\n  critical_count: critical.length,\n  bundles: rows.slice(0, 5),\n  summary: summary\n}}];"
+      },
+      "id": "classify",
+      "name": "Classify Bundles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.has_bundles }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "has-bundles",
+      "name": "Has Bundles?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://paperclip.railway.internal:3100/api/companies/guardspine/issues",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"title\": \"CFO Review: {{ $json.summary }}\", \"description\": \"Finance evidence bundles require CFO review.\\n\\nBundles: {{ $json.count }}\\nCritical (L3+): {{ $json.critical_count }}\\n\\nReview each bundle for formula integrity, cascade ratios, and external connections.\\n\\nSource: W31 CFO Finance Monitor\", \"assigneeAgentName\": \"CFO\", \"status\": \"backlog\", \"priority\": \"{{ $json.critical_count > 0 ? 'high' : 'medium' }}\", \"labels\": [\"finance\", \"sheetguard\", \"auto-created\"]}"
+      },
+      "id": "create-issue",
+      "name": "Create CFO Issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={\"service\": \"n8n\", \"event_type\": \"cfo_finance_check\", \"payload\": {\"bundles_found\": {{ $json.count }}, \"critical\": {{ $json.critical_count }}, \"issue_created\": true, \"timestamp\": \"{{ $now.toISO() }}\"}}"
+      },
+      "id": "log-created",
+      "name": "Log Issue Created",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"cfo_finance_check\", \"payload\": {\"bundles_found\": 0, \"critical\": 0, \"issue_created\": false, \"status\": \"clean\"}}"
+      },
+      "id": "log-clean",
+      "name": "Log Clean",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 420]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://telemetry-api.railway.internal:8090/telemetry",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W31 - CFO Finance Monitor\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\"}}"
+      },
+      "id": "post-error",
+      "name": "POST Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 600]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [{ "node": "Fetch Finance Bundles", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Finance Bundles": {
+      "main": [
+        [{ "node": "Classify Bundles", "type": "main", "index": 0 }]
+      ]
+    },
+    "Classify Bundles": {
+      "main": [
+        [{ "node": "Has Bundles?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has Bundles?": {
+      "main": [
+        [{ "node": "Create CFO Issue", "type": "main", "index": 0 }],
+        [{ "node": "Log Clean", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create CFO Issue": {
+      "main": [
+        [{ "node": "Log Issue Created", "type": "main", "index": 0 }]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [{ "node": "POST Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
