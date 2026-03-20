@@ -121,7 +121,7 @@ run_checks() {
   LITELLM_HEALTH_URL="${LITELLM_HEALTH_URL:-http://litellm.railway.internal:4000}"
   TELEMETRY_API_HEALTH_URL="${TELEMETRY_API_HEALTH_URL:-http://telemetry-api.railway.internal:8090}"
   DECISION_ENGINE_HEALTH_URL="${DECISION_ENGINE_HEALTH_URL:-http://decision-engine.railway.internal:8091}"
-  MIROFISH_HEALTH_URL="${MIROFISH_HEALTH_URL:-http://mirofish-sim.railway.internal:5001}"
+  MIROFISH_HEALTH_URL="${MIROFISH_HEALTH_URL:-http://mirofish.railway.internal:5001}"
 
   check "litellm"         "$LITELLM_HEALTH_URL"         "/health/readiness"
   check "telemetry-api"   "$TELEMETRY_API_HEALTH_URL"   "/health"

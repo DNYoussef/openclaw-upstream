@@ -455,7 +455,7 @@ def solve_simulation(decision):
     sim_config = decision.get("simulation_config", {})
 
     # If mirofish-sim is available, submit a real simulation
-    mirofish_url = os.environ.get("MIROFISH_SIM_URL", "http://mirofish-sim.railway.internal:5001")
+    mirofish_url = os.environ.get("MIROFISH_SIM_URL", "http://mirofish.railway.internal:5001")
 
     try:
         import urllib.request

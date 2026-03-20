@@ -56,7 +56,7 @@ All on flat-rate subscriptions. No per-token API costs.
 | LiteLLM             | litellm.railway.internal:4000             | Running | Model proxy. 20+ models. Embedding: gemini-embedding-001. Free sim: llama-3.2-3b. |
 | n8n                 | n8n.railway.internal:5678                 | Running | 32+ active workflows. Public: n8n-production-7528.up.railway.app                  |
 | guardspine-internal | guardspine-internal.railway.internal:8000 | Running | Governance API. 29 tools classified L0-L4.                                        |
-| mirofish            | mirofish-sim.railway.internal:5001        | Running | Stock MiroFish backend. Free models via LiteLLM.                                  |
+| mirofish            | mirofish.railway.internal:5001            | Running | Stock MiroFish backend. Free models via LiteLLM.                                  |
 | memory-mcp          | memory-mcp.railway.internal               | Running | v1.4.0. Embedding fixed (gemini-embedding-001). ZEP_API_KEY set.                  |
 | Postgres            | postgres.railway.internal:5432            | Running | Shared database. 7 active agents.                                                 |
 | soak-monitor        | soak-monitor.railway.internal             | Running | Persistent loop, 5-min health checks.                                             |

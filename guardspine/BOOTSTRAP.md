@@ -21,7 +21,7 @@ Ping every service on the Railway internal network. For each, do a simple HTTP G
 | LiteLLM | `http://litellm.railway.internal:4000/health` | GET |
 | n8n | `http://n8n.railway.internal:5678/healthz` | GET |
 | guardspine-internal | `http://guardspine-internal.railway.internal:8000/health` | GET |
-| mirofish | `http://mirofish-sim.railway.internal:5001/health` | GET |
+| mirofish | `http://mirofish.railway.internal:5001/health` | GET |
 | Postgres | TCP connect to `postgres.railway.internal:5432` | Connection test via SQL query |
 
 For any service that fails, log the error and continue. Do not block on failures.
