@@ -83,6 +83,39 @@ POST /decide with decision_type: simulation_only, strategic_only, optimization_o
 
 Auth: Better Auth sessions. Allowed hostnames include all Railway internal services.
 
+## GuardSpine Product Features (use in your work)
+
+### SheetGuard v2 (Financial Model Governance)
+SheetGuard deterministically re-computes every formula in committed spreadsheets. It does NOT trust cached Excel values.
+- Evaluator: tokenizes formulas, walks dependency graphs, re-evaluates deterministically
+- Detects: formula injection (WEBSERVICE, FILTERXML), circular refs, cascade ratios, external connections
+- XLS Bridge: normalizes legacy .xls (BIFF8) files, detects macros and hidden sheets
+- Policy: L0 (metadata only) to L4 (macros, external connections, bulk changes >500 cells)
+- Rubric scores: FormulaIntegrity, StructuralRisk, DataFlowControl, ChangeAttribution
+- CFO agent uses this for financial model validation. CTO uses it for policy customization.
+
+### Strictest-Wins Consensus (Multi-Model Review)
+codeguard-action uses strictest-wins: any single model concern vetoes the merge.
+- Old: 2-of-3 approve = merge. New: 1-of-3 flags = block.
+- agreement_score: fraction of models that picked the consensus verdict (0.0-1.0)
+- High agreement = unanimous. Low agreement = one model caught something others missed.
+- Low agreement does NOT weaken the veto. It means "one model was more careful."
+- CEO tracks divided decisions. CTO tracks which model catches which vulnerability class.
+
+### Slack Watch + Bundle Notifications
+- `/guardspine watch <repo>` subscribes a Slack channel to evidence bundle notifications
+- On every bundle creation: auto-posts Block Kit message with risk tier, repo, findings
+- Per-workspace OAuth V2: each org gets its own encrypted bot token
+- Chief of Staff coordinates which teams watch which repos
+
+### Evidence Bundles (Governance Proof)
+Every governed change produces a signed evidence bundle:
+- bundle_id, generated_at, artifact, diff, policy, review, findings, rubric_scores
+- Deterministic SHA-256 hash of canonical JSON
+- Policy version tracked: "which policy was used for this review?"
+- Provable vs opinionated findings distinguished
+- Use for audit queries: "show all L3+ reviews on finance repos this month"
+
 ## Budget discipline
 
 LLM calls are subscription-based ($0 marginal cost), but don't waste context.

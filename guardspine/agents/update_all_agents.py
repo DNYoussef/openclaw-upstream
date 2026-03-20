@@ -24,18 +24,42 @@ MODELS = {
     "Content Director": "anthropic/claude-sonnet-4-6",     # Blog posts, LinkedIn content
     # CRITIC tier (OpenAI Codex subscription)
     "CTO":              "openai-codex/gpt-5.4",            # Code review, engineering standards
+    "CFO":              "openai-codex/gpt-5.4",            # Financial model governance, cost tracking
     "Chief of Staff":   "openai-codex/gpt-5.4",            # Task routing, coordination, ops
     "Narrowcast Scout": "openai-codex/gpt-5.4-mini",       # Thread scoring, keyword analysis
 }
 
+# Load role-specific prompts from .md files (if they exist)
+def load_prompt(filename):
+    path = os.path.join(os.path.dirname(__file__), filename)
+    if os.path.exists(path):
+        with open(path) as f:
+            return f.read()
+    return None
+
+ROLE_PROMPTS = {
+    "CEO":              load_prompt("ceo-system-prompt.md"),
+    "CTO":              load_prompt("cto-system-prompt.md"),
+    "CMO":              load_prompt("cmo-system-prompt.md"),
+    "CFO":              load_prompt("cfo-system-prompt.md"),
+    "Content Director": load_prompt("content-system-prompt.md"),
+    "Chief of Staff":   load_prompt("cos-system-prompt.md"),
+    "Narrowcast Scout": load_prompt("narrowcast-system-prompt.md"),
+}
+
 PROMPTS = {
     "CEO": {
-        "prompt": "# Your Role: CEO\n\nStrategic oversight. Review daily briefing (compiled by n8n). Flag strategic issues.\n\n## n8n handles\nDaily KPI summary, weekly goal progress, constitutional metric alerts.\n\n## You handle (edge cases)\nStrategic goal adjustments, founder time allocation, system-wide priority changes.\n\n## KPIs\nPrimary: system_uptime_pct | Counter: decision_reversal_rate\n\n## Heartbeat: daily\nReview briefing. If nothing strategic, post 'No flags' and complete.",
+        "prompt": ROLE_PROMPTS.get("CEO"),
         "heartbeat_sec": 86400,
         "kpis": {"system_uptime_pct": {"target": 99, "dir": "max"}, "decision_reversal_rate": {"target": 0, "dir": "min"}},
     },
+    "CFO": {
+        "prompt": ROLE_PROMPTS.get("CFO"),
+        "heartbeat_sec": 86400,
+        "kpis": {"financial_model_review_coverage": {"target": 100, "dir": "max"}, "false_positive_rate": {"target": 10, "dir": "min"}, "cost_anomaly_detection_time_hours": {"target": 2, "dir": "min"}},
+    },
     "Chief of Staff": {
-        "prompt": "# Your Role: Chief of Staff\n\nCross-department coordination when conflicts or blockers arise.\n\n## n8n handles\nAgent status aggregation, cross-department dashboard, blocker age tracking.\n\n## You handle (edge cases)\nResolve agent conflicts, escalate unresolved blockers, re-prioritize across departments.\n\n## KPIs\nPrimary: blocker_resolution_hours (<4h) | Counter: false_escalation_rate\n\n## Heartbeat: every 2 hours\nCheck for issues tagged 'needs_coordination'. If none, complete immediately.",
+        "prompt": ROLE_PROMPTS.get("Chief of Staff"),
         "heartbeat_sec": 7200,
         "kpis": {"blocker_resolution_hours": {"target": 4, "dir": "min"}, "false_escalation_rate": {"target": 0, "dir": "min"}},
     },
@@ -55,7 +79,7 @@ PROMPTS = {
         "deactivate": True,
     },
     "CTO": {
-        "prompt": "# Your Role: CTO\n\nTechnical quality, CI/CD health, code governance infrastructure.\n\n## n8n handles\nGitHub PR webhook monitoring, codeguard-action result tracking, deployment status, evidence bundle creation rate.\n\n## You handle (technical judgment)\nIncident root cause analysis, architecture decisions, evidence verification disputes, pilot repo assessment, agent prompt code review.\n\n## KPIs\nPrimary: prs_governed_per_day | Counter: false_positive_rate\n\n## Heartbeat: every 2 hours\nCheck for issues tagged 'needs_cto'. Review CI/CD health dashboard.",
+        "prompt": ROLE_PROMPTS.get("CTO"),
         "heartbeat_sec": 7200,
         "kpis": {"prs_governed_per_day": {"target": 10, "dir": "max"}, "false_positive_rate": {"target": 10, "dir": "min"}},
     },
@@ -80,7 +104,7 @@ PROMPTS = {
         "deactivate": True,
     },
     "Narrowcast Scout": {
-        "prompt": "# Your Role: Narrowcast Scout (Lead Intelligence)\n\nFind prospects by monitoring public discussions about code governance.\n\n## n8n handles (Narrowcast Scanner workflow)\nRSS feed scanning, Reddit/HN keyword monitoring, thread extraction, basic filtering.\n\n## You handle (relevance judgment)\nIs this thread about our pain? Is this person a real prospect? Which pain bucket? Engage or observe? Extract prospect data for CMO pipeline.\n\n## KPIs\nPrimary: qualified_signals_per_week (10) | Counter: false_positive_rate (<30%)\n\n## Heartbeat: every 6 hours\nReview threads flagged by n8n. Classify relevance. Extract prospects.",
+        "prompt": ROLE_PROMPTS.get("Narrowcast Scout"),
         "heartbeat_sec": 21600,
         "kpis": {"qualified_signals_per_week": {"target": 10, "dir": "max"}, "false_positive_rate": {"target": 30, "dir": "min"}},
     },
