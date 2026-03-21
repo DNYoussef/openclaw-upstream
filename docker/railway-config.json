@@ -13,9 +13,8 @@
       "allowedOrigins": ["*"]
     }
   },
-  "slack": {
-    "allowFrom": ["*"],
-    "dm": {
+  "channels": {
+    "slack": {
       "allowFrom": ["*"]
     }
   },
