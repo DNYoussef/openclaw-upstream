@@ -13,6 +13,12 @@
       "allowedOrigins": ["*"]
     }
   },
+  "slack": {
+    "allowFrom": ["*"],
+    "dm": {
+      "allowFrom": ["*"]
+    }
+  },
   "agents": {
     "defaults": {
       "model": {
