@@ -3,26 +3,37 @@
     "mode": "local",
     "bind": "lan",
     "port": 18789,
+    "auth": {
+      "mode": "token",
+      "token": "${OPENCLAW_GATEWAY_TOKEN}"
+    },
+    "trustedProxies": ["100.64.0.0/10", "10.0.0.0/8"],
     "controlUi": {
-      "dangerouslyDisableDeviceAuth": false
+      "dangerouslyDisableDeviceAuth": true,
+      "allowedOrigins": ["*"]
+    }
+  },
+  "channels": {
+    "slack": {
+      "allowFrom": ["*"]
     }
   },
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openai-codex/gpt-5.4",
+        "primary": "anthropic/claude-opus-4-6",
         "fallbacks": [
           "anthropic/claude-sonnet-4-6",
-          "anthropic/claude-haiku-4-5",
-          "litellm/gemini-flash"
+          "openai-codex/gpt-5.4",
+          "anthropic/claude-haiku-4-5"
         ]
       },
       "models": {
-        "openai-codex/gpt-5.4": { "alias": "GPT-5.4 (Codex Sub)" },
-        "openai-codex/gpt-5.4-mini": { "alias": "GPT-5.4 Mini (Codex Sub)" },
         "anthropic/claude-opus-4-6": { "alias": "Claude Opus (Sub)" },
         "anthropic/claude-sonnet-4-6": { "alias": "Claude Sonnet (Sub)" },
         "anthropic/claude-haiku-4-5": { "alias": "Claude Haiku (Sub)" },
+        "openai-codex/gpt-5.4": { "alias": "GPT-5.4 (Codex Sub)" },
+        "openai-codex/gpt-5.4-mini": { "alias": "GPT-5.4 Mini (Codex Sub)" },
         "litellm/gemini-flash": { "alias": "Gemini 2.5 Flash" },
         "litellm/gemini-pro": { "alias": "Gemini 2.5 Pro" }
       }

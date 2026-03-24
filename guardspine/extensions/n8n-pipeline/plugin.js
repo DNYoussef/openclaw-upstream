@@ -351,6 +351,7 @@ module.exports = function register(api) {
             type: "array",
             description:
               "Array of n8n node objects. Each needs: name, type, typeVersion, position [x,y], parameters.",
+            items: { type: "object" },
           },
           connections: {
             type: "object",
@@ -444,7 +445,7 @@ module.exports = function register(api) {
         properties: {
           workflow_id: { type: "string", description: "The workflow ID or name to update" },
           name: { type: "string", description: "New workflow name" },
-          nodes: { type: "array", description: "Updated nodes array" },
+          nodes: { type: "array", description: "Updated nodes array", items: { type: "object" } },
           connections: { type: "object", description: "Updated connections" },
           settings: { type: "object", description: "Updated settings" },
         },

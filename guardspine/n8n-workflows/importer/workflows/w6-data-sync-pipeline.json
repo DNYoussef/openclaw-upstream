@@ -1,0 +1,85 @@
+{
+  "name": "W6 - Data Sync Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "sync-trigger",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/sync",
+        "method": "POST",
+        "body": {
+          "json": {}
+        }
+      },
+      "id": "run-sync",
+      "name": "Run Data Sync",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "method": "POST",
+        "body": {
+          "json": {
+            "service": "infrastructure",
+            "event_type": "data_sync_completed",
+            "payload": {
+              "heartbeats_synced": "={{ $json.heartbeats_synced }}",
+              "activities_synced": "={{ $json.activities_synced }}",
+              "pruned": "={{ $json.pruned }}"
+            }
+          }
+        }
+      },
+      "id": "log-sync",
+      "name": "Log Sync Complete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Run Data Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Data Sync": {
+      "main": [
+        [
+          {
+            "node": "Log Sync Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

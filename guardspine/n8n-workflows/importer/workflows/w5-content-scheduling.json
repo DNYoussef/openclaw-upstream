@@ -1,0 +1,117 @@
+{
+  "name": "W5 - Content Scheduling Pipeline",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 4 }] } },
+      "id": "content-trigger",
+      "name": "Every 4 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.PAPERCLIP_API_URL }}/api/companies/{{ $env.PAPERCLIP_COMPANY_ID }}/issues",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "assigneeAgentId", "value": "={{ $env.CONTENT_AGENT_ID }}" },
+            { "name": "status", "value": "backlog" }
+          ]
+        }
+      },
+      "id": "fetch-content-issues",
+      "name": "Fetch Content Backlog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300],
+      "credentials": { "httpHeaderAuth": { "id": "paperclip-auth", "name": "Paperclip API Key" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const issues = $input.all();\nconst items = [];\nfor (const item of issues) {\n  const issue = item.json;\n  let desc;\n  try { desc = JSON.parse(issue.description || '{}'); } catch { desc = {}; }\n  const contentType = desc.content_type || 'linkedin_post';\n  const topic = desc.topic || issue.title || '';\n  const angle = desc.angle || 'hot_take';\n  const slopWords = ['delve','leverage','paradigm','synergy','holistic','robust','seamless','innovative','cutting-edge','game-changing','empower','transform'];\n  // Simple template for hot_take posts\n  let draft = '';\n  if (contentType === 'linkedin_post' && angle === 'hot_take') {\n    draft = topic;\n  }\n  items.push({json: {issue_id: issue.id, title: issue.title, content_type: contentType, topic, angle, draft, needs_llm: draft.length < 50}});\n}\nreturn items;"
+      },
+      "id": "parse-content",
+      "name": "Parse Content Issues",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{ $json.needs_llm }}", "value2": true }] }
+      },
+      "id": "needs-creative",
+      "name": "Needs Creative?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "method": "POST",
+        "body": {
+          "json": {
+            "service": "content",
+            "event_type": "content_draft",
+            "payload": {
+              "issue_id": "={{ $json.issue_id }}",
+              "content_type": "={{ $json.content_type }}",
+              "source": "n8n_template",
+              "needs_llm": false
+            }
+          }
+        }
+      },
+      "id": "log-template-draft",
+      "name": "Log Template Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "method": "POST",
+        "body": {
+          "json": {
+            "service": "content",
+            "event_type": "content_draft",
+            "payload": {
+              "issue_id": "={{ $json.issue_id }}",
+              "content_type": "={{ $json.content_type }}",
+              "source": "llm_fallback",
+              "needs_llm": true
+            }
+          }
+        }
+      },
+      "id": "log-llm-needed",
+      "name": "Log LLM Needed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 420]
+    }
+  ],
+  "connections": {
+    "Every 4 Hours": {
+      "main": [[{ "node": "Fetch Content Backlog", "type": "main", "index": 0 }]]
+    },
+    "Fetch Content Backlog": {
+      "main": [[{ "node": "Parse Content Issues", "type": "main", "index": 0 }]]
+    },
+    "Parse Content Issues": {
+      "main": [[{ "node": "Needs Creative?", "type": "main", "index": 0 }]]
+    },
+    "Needs Creative?": {
+      "main": [
+        [{ "node": "Log Template Draft", "type": "main", "index": 0 }],
+        [{ "node": "Log LLM Needed", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

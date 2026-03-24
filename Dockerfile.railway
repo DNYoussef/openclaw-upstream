@@ -1,7 +1,7 @@
 FROM node:22-bookworm
 
 # Install Bun (required for build scripts)
-RUN curl -fsSL https://bun.sh/install | bash
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.1.0"
 ENV PATH="/root/.bun/bin:${PATH}"
 
 RUN corepack enable
@@ -102,8 +102,15 @@ RUN mkdir -p /app/docs/reference/templates && \
 RUN groupadd -r openclaw && useradd -r -g openclaw -d /app -s /bin/bash openclaw && \
     chown -R openclaw:openclaw /app/.openclaw/data
 
+# Bake auth-profiles outside volume mount so entrypoint can restore it
+COPY guardspine/auth/auth-profiles.json /app/auth-profiles.json.baked
+
+COPY guardspine/seed-auth.cjs /app/seed-auth.cjs
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-ENTRYPOINT ["entrypoint.sh"]
-CMD ["node", "dist/index.js", "gateway", "--allow-unconfigured", "--bind", "lan", "--port", "18789"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:18789/health || exit 1
+
+# No ENTRYPOINT -- put everything in CMD so Railway can't skip it
+CMD ["bash", "-c", "echo '[boot] starting' && /usr/local/bin/entrypoint.sh node --require /app/seed-auth.cjs dist/index.js gateway --allow-unconfigured --bind lan --port 18789"]

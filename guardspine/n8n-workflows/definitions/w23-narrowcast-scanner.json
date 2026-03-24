@@ -83,7 +83,7 @@
         "sendBody": true,
         "specifyBody": "json",
         "contentType": "json",
-        "jsonBody": "{\"service\": \"narrowcast\", \"event_type\": \"signals_found\", \"payload\": {\"total_scanned\": \"={{ $json.total_scanned }}\", \"relevant_found\": \"={{ $json.relevant_found }}\", \"scan_timestamp\": \"={{ $json.scan_timestamp }}\", \"threads\": {{ JSON.stringify($json.threads) }}}}"
+        "jsonBody": "={{ JSON.stringify({service: 'narrowcast', event_type: 'signals_found', payload: {total_scanned: $json.total_scanned, relevant_found: $json.relevant_found, scan_timestamp: $json.scan_timestamp, threads: $json.threads}}) }}"
       },
       "id": "log-signals",
       "name": "Log Narrowcast Signals",

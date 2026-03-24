@@ -1,0 +1,16 @@
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+.git
+node_modules
+**/node_modules
+__pycache__
+**/__pycache__
+*.pyc
+ops/
+content/
+workspace/
+scripts/outreach/
+*.log

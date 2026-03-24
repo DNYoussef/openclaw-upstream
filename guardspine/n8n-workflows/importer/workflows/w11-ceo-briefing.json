@@ -1,0 +1,161 @@
+{
+  "name": "W11 - Daily CEO Briefing",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "Daily 8 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/kpi/kpi_automation?weeks=4&limit=10"
+      },
+      "id": "q-automation",
+      "name": "Automation KPIs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/kpi/kpi_outreach?weeks=4&limit=10"
+      },
+      "id": "q-outreach",
+      "name": "Outreach KPIs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 350]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/query",
+        "method": "POST",
+        "body": {
+          "json": {
+            "sql": "SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE service = 'guardspine' AND event_type = 'policy_violation') as violations FROM telemetry_events WHERE ts > NOW() - INTERVAL '24 hours'",
+            "limit": 100
+          }
+        }
+      },
+      "id": "q-24h",
+      "name": "Last 24h Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const auto = $('Automation KPIs').first().json || {};\nconst out = $('Outreach KPIs').first().json || {};\nconst events = $('Last 24h Events').first().json || {};\n\nconst briefing = [\n  '# Daily CEO Briefing',\n  `Date: ${new Date().toISOString().split('T')[0]}`,\n  '',\n  '## System Health',\n  `- Heartbeat success: ${((auto.heartbeat_success_rate || 0) * 100).toFixed(0)}%`,\n  `- Override rate: ${((auto.override_rate || 0) * 100).toFixed(0)}%`,\n  `- Events (24h): ${events.total || 0}`,\n  `- Policy violations (24h): ${events.violations || 0}`,\n  '',\n  '## Pipeline (this week)',\n  `- Drafts: ${out.drafts || 0}`,\n  `- Sent: ${out.sent || 0}`,\n  `- Responses: ${out.responses || 0}`,\n  `- Response rate: ${((out.response_rate || 0) * 100).toFixed(1)}%`,\n  '',\n  '## Flags',\n];\n\nconst flags = [];\nif ((auto.heartbeat_success_rate || 0) < 0.8) flags.push('Heartbeat success below 80%');\nif ((auto.override_rate || 0) > 0.25) flags.push('Override rate above 25%');\nif ((events.violations || 0) > 0) flags.push(`${events.violations} policy violations in 24h`);\nif ((out.negative_rate || 0) > 0.05) flags.push('Negative reply rate above 5%');\n\nif (flags.length === 0) briefing.push('- No strategic flags.');\nelse flags.forEach(f => briefing.push(`- !! ${f}`));\n\nreturn [{json: {briefing: briefing.join('\\n'), has_flags: flags.length > 0, flag_count: flags.length}}];"
+      },
+      "id": "compile",
+      "name": "Compile Briefing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 350]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.TELEMETRY_API_URL }}/telemetry",
+        "method": "POST",
+        "body": {
+          "json": {
+            "service": "ceo",
+            "event_type": "daily_briefing",
+            "payload": {
+              "briefing": "={{ $json.briefing }}",
+              "has_flags": "={{ $json.has_flags }}",
+              "flag_count": "={{ $json.flag_count }}"
+            }
+          }
+        }
+      },
+      "id": "emit-briefing",
+      "name": "Log Briefing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 350]
+    }
+  ],
+  "connections": {
+    "Daily 8 AM": {
+      "main": [
+        [
+          {
+            "node": "Automation KPIs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Outreach KPIs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Last 24h Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Automation KPIs": {
+      "main": [
+        [
+          {
+            "node": "Compile Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outreach KPIs": {
+      "main": [
+        [
+          {
+            "node": "Compile Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Last 24h Events": {
+      "main": [
+        [
+          {
+            "node": "Compile Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Briefing": {
+      "main": [
+        [
+          {
+            "node": "Log Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
