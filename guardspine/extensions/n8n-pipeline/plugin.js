@@ -51,7 +51,9 @@ module.exports = function register(api) {
   // BUG N4: Status codes that should NOT be retried (client errors)
   const NON_RETRYABLE_STATUS = new Set([400, 401, 403, 404, 405, 409, 422]);
 
-  function n8nRequestOnce(method, path, body) {
+  function n8nRequestOnce(method, path, body, opts) {
+    const effectiveMaxBytes = (opts && typeof opts.maxResponseBytes === "number") ? opts.maxResponseBytes : maxResponseBytes;
+    // effectiveMaxBytes === 0 means no truncation
     return new Promise((resolve, reject) => {
       const url = new URL(baseUrl + path);
       const isHttps = url.protocol === "https:";
@@ -96,9 +98,9 @@ module.exports = function register(api) {
             }
             // BUG N3: Truncate oversized responses before JSON.parse
             let truncated = false;
-            if (data.length > maxResponseBytes) {
+            if (effectiveMaxBytes > 0 && data.length > effectiveMaxBytes) {
               // Find the last complete JSON object/array boundary before the limit
-              let cutoff = maxResponseBytes;
+              let cutoff = effectiveMaxBytes;
               const slice = data.substring(0, cutoff);
               // Walk backward to find last '}' or ']' that could close a JSON structure
               for (let i = slice.length - 1; i >= 0; i--) {
@@ -113,7 +115,7 @@ module.exports = function register(api) {
             try {
               const parsed = JSON.parse(data);
               if (truncated) {
-                parsed._truncated = "response exceeded " + maxResponseBytes + " byte limit";
+                parsed._truncated = "response exceeded " + effectiveMaxBytes + " byte limit";
               }
               resolve(parsed);
             } catch (e) {
@@ -121,7 +123,7 @@ module.exports = function register(api) {
                 resolve({
                   raw: data,
                   _truncated:
-                    "response exceeded " + maxResponseBytes + " byte limit (parse failed)",
+                    "response exceeded " + effectiveMaxBytes + " byte limit (parse failed)",
                 });
               } else {
                 resolve({ raw: data });
@@ -142,14 +144,14 @@ module.exports = function register(api) {
   }
 
   // BUG N4: Retry wrapper - only retries on server/timeout/rate-limit errors
-  async function n8nRequest(method, path, body) {
+  async function n8nRequest(method, path, body, opts) {
     const MAX_RETRIES = 3;
     const BASE_DELAY_MS = 1000;
     let lastErr = null;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        return await n8nRequestOnce(method, path, body);
+        return await n8nRequestOnce(method, path, body, opts);
       } catch (e) {
         lastErr = e;
         const status = e.statusCode;
@@ -200,7 +202,7 @@ module.exports = function register(api) {
 
   async function refreshWorkflowCache() {
     try {
-      const result = await n8nRequest("GET", "/api/v1/workflows?limit=250");
+      const result = await n8nRequest("GET", "/api/v1/workflows?limit=250", null, { maxResponseBytes: 0 });
       const map = {};
       for (const wf of result.data || []) {
         map[wf.name] = wf.id;
@@ -278,7 +280,7 @@ module.exports = function register(api) {
           let path = "/api/v1/workflows?limit=" + (params.limit || 100);
           if (params.active !== undefined) path += "&active=" + params.active;
           if (params.tags) path += "&tags=" + encodeURIComponent(params.tags);
-          const result = await n8nRequest("GET", path);
+          const result = await n8nRequest("GET", path, null, { maxResponseBytes: 0 });
           const workflows = (result.data || []).map((w) => ({
             id: w.id,
             name: w.name,
@@ -1063,21 +1065,22 @@ module.exports = function register(api) {
   }
 
   // HTTP POST helper (returns parsed JSON)
-  function httpPost(targetUrl, payload, timeoutMs) {
+  function httpPost(targetUrl, payload, timeoutMs, extraHeaders) {
     return new Promise((resolve, reject) => {
       const parsed = new URL(targetUrl);
       const mod = parsed.protocol === "https:" ? https : http;
       const data = JSON.stringify(payload);
+      const baseHeaders = {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(data),
+      };
       const opts = {
         method: "POST",
         hostname: parsed.hostname,
         port: parsed.port,
         path: parsed.pathname + parsed.search,
         timeout: timeoutMs || 15000,
-        headers: {
-          "Content-Type": "application/json",
-          "Content-Length": Buffer.byteLength(data),
-        },
+        headers: Object.assign(baseHeaders, extraHeaders || {}),
       };
       const req = mod.request(opts, (res) => {
         let body = "";
@@ -1125,6 +1128,8 @@ module.exports = function register(api) {
         (prospect.name || "this person") +
         " at " +
         (prospect.company || "their company") +
+        ". Signal type: " + (prospect.signal_type || "unknown") +
+        ". Followup count so far: " + (prospect.followup_count || 0) +
         ". Their pain bucket is " +
         (prospect.pain_bucket || "unknown") +
         ". Previous message was about " +
@@ -1135,11 +1140,13 @@ module.exports = function register(api) {
         const result = await httpPost(
           litellmUrl + "/v1/chat/completions",
           {
-            model: "gemini-2.0-flash",
+            model: "gemini-flash",
             messages: [
               {
                 role: "system",
-                content: "You draft brief, direct follow-up messages for B2B outreach. No fluff.",
+                content: "You draft brief, direct follow-up messages for B2B outreach. No fluff. " +
+                  "Never use 'just checking in' or 'circling back'. Lead with new value or a specific question. " +
+                  "Reference their specific pain point. One short paragraph, no greeting.",
               },
               { role: "user", content: prompt },
             ],
@@ -1184,7 +1191,8 @@ module.exports = function register(api) {
       /* skip */
     }
 
-    const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
+    const slackBotToken = process.env.SLACK_BOT_TOKEN;
+    const slackChannel = body.channel || process.env.GUARDSPINE_APPROVAL_CHANNEL || "#alerts";
     const telemetryUrl =
       process.env.TELEMETRY_URL || "http://telemetry-api.railway.internal:8090/telemetry";
 
@@ -1207,20 +1215,22 @@ module.exports = function register(api) {
         )
         .join("\n") || "Alert triggered (no structured signal data)";
 
-    if (slackWebhookUrl) {
+    if (slackBotToken) {
       try {
         await httpPost(
-          slackWebhookUrl,
+          "https://slack.com/api/chat.postMessage",
           {
+            channel: slackChannel,
             text: "*Outreach Alert*\n" + summary,
           },
           10000,
+          { Authorization: "Bearer " + slackBotToken },
         );
-        console.log("[outreach-alert] Sent to Slack");
-        return { alerted: true, channel: "slack", data: parsed };
+        console.log("[outreach-alert] Sent to Slack via Bot API (channel: " + slackChannel + ")");
+        return { alerted: true, channel: "slack", slack_channel: slackChannel, data: parsed };
       } catch (e) {
         console.error(
-          "[outreach-alert] Slack delivery failed: " + e.message + ". Falling back to telemetry.",
+          "[outreach-alert] Slack Bot API failed: " + e.message + ". Falling back to telemetry.",
         );
         // Fall through to telemetry
       }
@@ -1348,19 +1358,65 @@ module.exports = function register(api) {
 
     const telemetryUrl =
       process.env.TELEMETRY_URL || "http://telemetry-api.railway.internal:8090/telemetry";
+    const litellmUrl = process.env.LITELLM_URL || "http://litellm.railway.internal:4000";
     const evaluated = [];
     let prospectsAdded = 0;
 
     for (const thread of parsed) {
-      const score = scoreThreadRelevance(thread);
+      const keywordScore = scoreThreadRelevance(thread);
+      let llmScore = 0;
+      let painSignal = null;
+      let compositeScore = keywordScore;
+
+      // LLM-assisted evaluation for threads with keyword score >= 30
+      if (keywordScore >= 30) {
+        try {
+          const threadText = [thread.title || "", thread.body || thread.content || ""].join("\n").substring(0, 2000);
+          const llmResult = await httpPost(
+            litellmUrl + "/v1/chat/completions",
+            {
+              model: "gemini-flash",
+              messages: [
+                {
+                  role: "system",
+                  content: "You evaluate community threads for B2B code governance outreach relevance. " +
+                    "Score 0-100 how relevant this thread is for someone selling AI code review/governance tools. " +
+                    "Extract the specific pain signal if present. Respond in JSON: {\"score\": N, \"pain_signal\": \"...\"}",
+                },
+                { role: "user", content: threadText },
+              ],
+              max_tokens: 100,
+              temperature: 0.3,
+            },
+            15000,
+          );
+          const content = llmResult.choices && llmResult.choices[0] ? llmResult.choices[0].message.content : "";
+          try {
+            const llmParsed = JSON.parse(content.replace(/```json?\n?/g, "").replace(/```/g, "").trim());
+            llmScore = Math.min(Math.max(Number(llmParsed.score) || 0, 0), 100);
+            painSignal = llmParsed.pain_signal || null;
+          } catch (e) {
+            llmScore = keywordScore; // fallback to keyword score if LLM parse fails
+          }
+          compositeScore = Math.round(keywordScore * 0.4 + llmScore * 0.6);
+        } catch (e) {
+          // LLM failed, fall back to keyword-only scoring
+          compositeScore = keywordScore;
+          console.error("[evaluate] LLM scoring failed for " + (thread.url || "thread") + ": " + e.message);
+        }
+      }
+
       const entry = {
         url: thread.url || null,
         title: thread.title || null,
-        score: score,
-        qualified: score >= 60,
+        keyword_score: keywordScore,
+        llm_score: llmScore,
+        composite_score: compositeScore,
+        pain_signal: painSignal,
+        qualified: compositeScore >= 50,
       };
 
-      if (score >= 60) {
+      if (compositeScore >= 50) {
         try {
           await httpPost(
             telemetryUrl,
@@ -1372,7 +1428,10 @@ module.exports = function register(api) {
                 title: thread.title,
                 author: thread.author || null,
                 platform: thread.platform || null,
-                relevance_score: score,
+                keyword_score: keywordScore,
+                llm_score: llmScore,
+                composite_score: compositeScore,
+                pain_signal: painSignal,
               },
               timestamp: new Date().toISOString(),
             },
@@ -1525,7 +1584,7 @@ module.exports = function register(api) {
           "/webhook/morning-brief\n" +
           "  Actions: gather_data, format_brief, deliver_brief\n" +
           "\n" +
-          "STUBS REMAINING (INT-2): draft_followups (AI drafting), evaluate_and_source (AI eval), send_alert (Slack/Discord delivery).\n" +
+          "INT-2 IMPLEMENTED: draft_followups (gemini-flash via litellm), evaluate_and_source (keyword+LLM composite scoring), send_alert (Slack Bot API).\n" +
           "Tools accept workflow name OR ID. Names are resolved dynamically (cache TTL: 5min).",
       };
     },
