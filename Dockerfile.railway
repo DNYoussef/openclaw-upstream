@@ -43,6 +43,14 @@ COPY docker/railway-config.json /app/.openclaw/openclaw.json.baked
 COPY guardspine/extensions/guardspine /app/.openclaw/extensions/guardspine
 COPY guardspine/extensions/n8n-pipeline /app/.openclaw/extensions/n8n-pipeline
 
+# Install Lossless Claw Memory (LCM) context engine plugin from npm
+RUN cd /tmp && npm pack @martian-engineering/lossless-claw@0.5.1 && \
+    mkdir -p /app/.openclaw/extensions/lossless-claw && \
+    tar xzf martian-engineering-lossless-claw-0.5.1.tgz -C /app/.openclaw/extensions/lossless-claw --strip-components=1 && \
+    cd /app/.openclaw/extensions/lossless-claw && \
+    npm install --ignore-scripts && \
+    rm -f /tmp/martian-engineering-lossless-claw-0.5.1.tgz
+
 # Schema only -- data lives on Railway volume, never in git or Docker image
 COPY guardspine/data/migration.sql /app/.openclaw/data/migration.sql
 

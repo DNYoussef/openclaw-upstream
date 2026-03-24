@@ -67,5 +67,23 @@
         ]
       }
     }
+  },
+  "plugins": {
+    "slots": {
+      "contextEngine": "lossless-claw"
+    },
+    "entries": {
+      "lossless-claw": {
+        "enabled": true,
+        "config": {
+          "freshTailCount": 32,
+          "contextThreshold": 0.75,
+          "incrementalMaxDepth": -1,
+          "summaryProvider": "litellm",
+          "summaryModel": "gemini-flash",
+          "ignoreSessionPatterns": ["agent:*:cron:**"]
+        }
+      }
+    }
   }
 }
