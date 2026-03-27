@@ -123,6 +123,80 @@ QUERY_REGISTRY = {
             "limit": {"type": "int", "default": 50, "max": 500},
         },
     },
+    "recent_decisions": {
+        "sql": (
+            "SELECT case_id, route_taken, "
+            "  decision_artifacts->>'domain' AS domain, "
+            "  decision_artifacts->>'decision_type' AS decision_type, "
+            "  decision_artifacts->>'governance_status' AS governance_status, "
+            "  outcomes->>'actual_metrics' AS actual_metrics, "
+            "  created_at "
+            "FROM case_traces "
+            "ORDER BY created_at DESC LIMIT %(limit)s"
+        ),
+        "params": {"limit": {"type": "int", "default": 20, "max": 100}},
+    },
+    "agent_recent_work": {
+        "sql": (
+            "SELECT ts, event_type, payload "
+            "FROM telemetry_events "
+            "WHERE service = %(agent)s "
+            "  AND ts > NOW() - INTERVAL '7 days' "
+            "ORDER BY ts DESC LIMIT %(limit)s"
+        ),
+        "params": {
+            "agent": {"type": "str", "required": True},
+            "limit": {"type": "int", "default": 10, "max": 50},
+        },
+    },
+    "prospect_contact_history": {
+        "sql": (
+            "SELECT ts, service, event_type, "
+            "  payload->>'prospect_name' AS prospect_name, "
+            "  payload->>'company' AS company, "
+            "  payload->>'channel' AS channel "
+            "FROM telemetry_events "
+            "WHERE event_type IN ('prospect_discovered', 'outreach_drafted', "
+            "  'signal_briefing', 'duplicate_skipped', 'llm_call_complete') "
+            "  AND ts > NOW() - INTERVAL %(days)s "
+            "ORDER BY ts DESC LIMIT %(limit)s"
+        ),
+        "params": {
+            "days": {"type": "interval", "default": "14 days"},
+            "limit": {"type": "int", "default": 30, "max": 200},
+        },
+    },
+    "decision_outcomes": {
+        "sql": (
+            "SELECT case_id, route_taken, "
+            "  decision_artifacts->>'chosen_action' AS chosen_action, "
+            "  outcomes->>'projected_metrics' AS projected, "
+            "  outcomes->>'actual_metrics' AS actual, "
+            "  created_at "
+            "FROM case_traces "
+            "WHERE outcomes->>'actual_metrics' != '{}' "
+            "ORDER BY created_at DESC LIMIT %(limit)s"
+        ),
+        "params": {"limit": {"type": "int", "default": 10, "max": 50}},
+    },
+    "governance_recent": {
+        "sql": (
+            "SELECT ts, event_type, "
+            "  payload->>'tool' AS tool, "
+            "  payload->>'action' AS action, "
+            "  payload->>'risk_tier' AS risk_tier, "
+            "  payload->>'agreement_score' AS agreement_score "
+            "FROM telemetry_events "
+            "WHERE service = 'guardspine' "
+            "  AND event_type IN ('council_decision', 'governance_decision', 'policy_violation') "
+            "  AND ts > NOW() - INTERVAL %(days)s "
+            "ORDER BY ts DESC LIMIT %(limit)s"
+        ),
+        "params": {
+            "days": {"type": "interval", "default": "7 days"},
+            "limit": {"type": "int", "default": 20, "max": 100},
+        },
+    },
 }
 
 # Allowed KPI views (whitelist to prevent SQL injection)

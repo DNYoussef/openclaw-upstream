@@ -60,6 +60,7 @@ All on flat-rate subscriptions. No per-token API costs.
 | memory-mcp          | memory-mcp.railway.internal               | Running | v1.4.0. Embedding fixed (gemini-embedding-001). ZEP_API_KEY set.                  |
 | Postgres            | postgres.railway.internal:5432            | Running | Shared database. 7 active agents.                                                 |
 | soak-monitor        | soak-monitor.railway.internal             | Running | Persistent loop, 5-min health checks.                                             |
+| ops-portal          | ops-portal.railway.internal:8080          | Running | Paperclip UI frontend. Public: ops-portal-production-bb8b.up.railway.app          |
 
 ## Decision Engine (S/G/O pipeline)
 
@@ -86,7 +87,9 @@ Auth: Better Auth sessions. Allowed hostnames include all Railway internal servi
 ## GuardSpine Product Features (use in your work)
 
 ### SheetGuard v2 (Financial Model Governance)
+
 SheetGuard deterministically re-computes every formula in committed spreadsheets. It does NOT trust cached Excel values.
+
 - Evaluator: tokenizes formulas, walks dependency graphs, re-evaluates deterministically
 - Detects: formula injection (WEBSERVICE, FILTERXML), circular refs, cascade ratios, external connections
 - XLS Bridge: normalizes legacy .xls (BIFF8) files, detects macros and hidden sheets
@@ -95,7 +98,9 @@ SheetGuard deterministically re-computes every formula in committed spreadsheets
 - CFO agent uses this for financial model validation. CTO uses it for policy customization.
 
 ### Strictest-Wins Consensus (Multi-Model Review)
+
 codeguard-action uses strictest-wins: any single model concern vetoes the merge.
+
 - Old: 2-of-3 approve = merge. New: 1-of-3 flags = block.
 - agreement_score: fraction of models that picked the consensus verdict (0.0-1.0)
 - High agreement = unanimous. Low agreement = one model caught something others missed.
@@ -103,18 +108,74 @@ codeguard-action uses strictest-wins: any single model concern vetoes the merge.
 - CEO tracks divided decisions. CTO tracks which model catches which vulnerability class.
 
 ### Slack Watch + Bundle Notifications
+
 - `/guardspine watch <repo>` subscribes a Slack channel to evidence bundle notifications
 - On every bundle creation: auto-posts Block Kit message with risk tier, repo, findings
 - Per-workspace OAuth V2: each org gets its own encrypted bot token
 - Chief of Staff coordinates which teams watch which repos
 
 ### Evidence Bundles (Governance Proof)
+
 Every governed change produces a signed evidence bundle:
+
 - bundle_id, generated_at, artifact, diff, policy, review, findings, rubric_scores
 - Deterministic SHA-256 hash of canonical JSON
 - Policy version tracked: "which policy was used for this review?"
 - Provable vs opinionated findings distinguished
 - Use for audit queries: "show all L3+ reviews on finance repos this month"
+
+## Heartbeat Preamble (MANDATORY first step on every heartbeat)
+
+Before doing ANY work, recall your context. This prevents repeating work and builds on prior learnings.
+
+Step 1 -- Query your recent work:
+POST http://telemetry-api.railway.internal:8090/query
+Content-Type: application/json
+{"query_name": "agent_recent_work", "params": {"agent": "YOUR_AGENT_NAME", "limit": 5}}
+
+Step 2 -- Review results. If you did similar work <48h ago, BUILD ON IT. Do not repeat.
+
+Step 3 -- Query cross-session memory:
+POST http://memory-mcp.railway.internal:8080/tools/unified_search
+Content-Type: application/json
+{"query": "<keywords from your current task>", "limit": 3}
+
+Step 4 -- If memory returns relevant context, incorporate it into your reasoning.
+
+Skip steps 3-4 if memory-mcp is unreachable (non-blocking).
+
+## Memory Store (after significant work)
+
+After completing work that produced new insights, store them for future recall:
+
+POST http://memory-mcp.railway.internal:8080/tools/memory_store
+Content-Type: application/json
+{"text": "<what you learned -- key finding, prospect insight, decision outcome>",
+"metadata": {"agent": "YOUR_AGENT_NAME", "domain": "outreach|governance|strategy|ops"}}
+
+What to store:
+
+- Prospect insights (pain bucket confirmed, contact preference, company context)
+- Decision outcomes (optimization worked/failed, strategy validated)
+- Governance findings (common vulnerability patterns, false positive trends)
+- Process improvements (workflow that should migrate to n8n)
+
+What NOT to store:
+
+- Raw data (already in telemetry)
+- Duplicate of issue comments (already in Paperclip)
+- Temporary task state (belongs in issue, not memory)
+
+## Memory-MCP HTTP API (for agents on Railway)
+
+| Endpoint                | Method | Body                                        | Purpose                                 |
+| ----------------------- | ------ | ------------------------------------------- | --------------------------------------- |
+| /tools/memory_store     | POST   | {"text": "...", "metadata": {...}}          | Store a memory                          |
+| /tools/unified_search   | POST   | {"query": "...", "limit": N}                | Search across vector + graph + Bayesian |
+| /tools/vector_search    | POST   | {"query": "...", "limit": N}                | Semantic vector search only             |
+| /tools/graph_query      | POST   | {"query": "...", "max_hops": 2, "limit": N} | Graph-based multi-hop query             |
+| /tools/lifecycle_status | GET    | -                                           | Check memory health + stage stats       |
+| /health                 | GET    | -                                           | Service health check                    |
 
 ## Budget discipline
 
@@ -173,3 +234,31 @@ Before debugging anything, check these first:
 - **Code architecture and data flow**: docs/CODE-ARCHITECTURE.md
 - **SOPs and voice rules**: docs/PLAYBOOK.md
 - **Telemetry event catalog**: telemetry-api/TELEMETRY-EVENTS.md
+
+## Nightly Engineering Cycle (1:45-4:00 AM UTC)
+
+Autonomous code audit + test generation + PR creation + doc sync. Runs every night.
+
+| Time (UTC) | Workflow             | Agent                    | What Happens                                                     |
+| ---------- | -------------------- | ------------------------ | ---------------------------------------------------------------- |
+| 1:45 AM    | W40 Monorepo Auditor | Staff Engineer (Codex)   | Audits 5-10 files across all branches, posts structured findings |
+| 2:30 AM    | W41 Test Generator   | QA Engineer (Codex)      | Writes unit tests that reproduce bugs found by Staff Engineer    |
+| 3:15 AM    | W42 PR Factory       | Release Engineer (Codex) | Bundles patches + tests into GitHub PRs for David's review       |
+| 3:30 AM    | W43 Doc Drift Sync   | Staff Engineer + CTO     | Two-agent code<->doc comparison, creates doc-sync PR             |
+
+All engineering agents use OpenAI Codex (gpt-5.4) with workspace-write sandbox.
+All PRs go to feature branches. David reviews and merges. Never auto-merge.
+
+## GitHub PR Creation Protocol
+
+When creating a PR from the nightly cycle:
+
+1. Branch name: `audit/nightly-{YYYY-MM-DD}-{scope}` or `docs/nightly-sync-{YYYY-MM-DD}`
+2. Commit format: conventional commits (`fix:`, `docs:`, `test:`, `refactor:`)
+3. PR body: `## Findings` table + `## Test Results` + `## Before/After` diffs
+4. Labels: `automated-audit` or `docs-sync`
+5. Always request review from `DNYoussef`
+6. NEVER auto-merge. Human review required.
+7. If tests fail: do NOT create PR. Log failure to telemetry instead.
+8. Max 10 findings per PR. Split into multiple PRs if more.
+9. Never force-push. If branch exists from prior night, use `-v2` suffix.

@@ -2,12 +2,12 @@
 
 Primitive routes:
   policy_only          -> GuardSpine (can this action happen?)
-  optimization_only    -> O: pymoo NSGA-II (what tradeoff is best?)  [STUB]
-  strategic_only       -> G: Mieza MCP (how will actors react?)      [STUB]
+  optimization_only    -> O: pymoo NSGA-II (what tradeoff is best?)
+  strategic_only       -> G: Mieza MCP (how will actors react?)
   simulation_only      -> S: MiroFish (what worlds emerge?)
 
-Pairwise compositions:  [DISABLED -- primitives are stubs]
-Three-tool:             [DISABLED -- primitives are stubs]
+Pairwise compositions:  ENABLED. Real when MIEZA_API_TOKEN + pymoo installed.
+Three-tool:             ENABLED. full_stack requires all three real solvers.
 
 See INTERACTION-ATLAS.md for the full combinatorial space.
 Runs as a standalone service or importable module.
@@ -405,7 +405,7 @@ def solve_strategic(decision):
                 payoffs[key] = [p1, p2]
 
     # Call Mieza API
-    mieza_url = "https://mieza.ai/api/v1/solve"
+    mieza_url = os.environ.get("MIEZA_API_URL", "https://api.mieza.ai/api/public/v1/gto/api/gt/nf-solve")
     try:
         payload = json.dumps({
             "players": players,
@@ -502,75 +502,6 @@ def solve_simulation(decision):
         }
 
 
-# --- Composition solvers DISABLED ---
-# These wrap stub primitives, producing misleading "schema_validated" chains.
-# Re-enable when solve_optimization and solve_strategic have real implementations.
-#
-# def solve_strategic_optimization(decision):
-#     """G -> O: Strategic posture then business-plan optimization."""
-#     strategic = solve_strategic(decision)
-#     optimization = solve_optimization(decision)
-#     return {
-#         "solver": "mieza_then_pymoo",
-#         "status": "schema_validated",
-#         "flow": "G -> O: Mieza strategic posture -> pymoo Pareto frontier",
-#         "stage_1_strategic": strategic,
-#         "stage_2_optimization": optimization,
-#     }
-#
-# def solve_simulation_optimization(decision):
-#     """S -> O: Scenario uncertainty then robust action choice."""
-#     simulation = solve_simulation(decision)
-#     optimization = solve_optimization(decision)
-#     return {
-#         "solver": "mirofish_then_pymoo",
-#         "status": "schema_validated",
-#         "flow": "S -> O: MiroFish scenarios -> pymoo robust optimization",
-#         "stage_1_simulation": simulation,
-#         "stage_2_optimization": optimization,
-#     }
-#
-# def solve_simulation_strategic(decision):
-#     """S -> G: Discover world then solve interaction."""
-#     simulation = solve_simulation(decision)
-#     strategic = solve_strategic(decision)
-#     return {
-#         "solver": "mirofish_then_mieza",
-#         "status": "schema_validated",
-#         "flow": "S -> G: MiroFish discovers actors/strategies -> Mieza solves game",
-#         "stage_1_simulation": simulation,
-#         "stage_2_strategic": strategic,
-#     }
-#
-# def solve_full_stack(decision):
-#     """S -> G -> O: Discover world -> solve interaction -> choose plan."""
-#     simulation = solve_simulation(decision)
-#     strategic = solve_strategic(decision)
-#     optimization = solve_optimization(decision)
-#     return {
-#         "solver": "mirofish_mieza_pymoo",
-#         "status": "schema_validated",
-#         "flow": "S -> G -> O: Full stack (major positioning moves only)",
-#         "stage_1_simulation": simulation,
-#         "stage_2_strategic": strategic,
-#         "stage_3_optimization": optimization,
-#     }
-#
-# def solve_verify_stack(decision):
-#     """G -> O -> S: Solve -> optimize -> stress-test."""
-#     strategic = solve_strategic(decision)
-#     optimization = solve_optimization(decision)
-#     simulation = solve_simulation(decision)
-#     return {
-#         "solver": "mieza_pymoo_mirofish",
-#         "status": "schema_validated",
-#         "flow": "G -> O -> S: Solve strategic -> optimize plan -> stress-test in simulation",
-#         "stage_1_strategic": strategic,
-#         "stage_2_optimization": optimization,
-#         "stage_3_verification": simulation,
-#     }
-
-
 def solve_strategic_optimization(decision):
     """G -> O: Strategic posture then business-plan optimization."""
     strategic = solve_strategic(decision)
@@ -585,15 +516,32 @@ def solve_strategic_optimization(decision):
 
 
 def solve_simulation_optimization(decision):
-    """S -> O: Scenario uncertainty then robust action choice."""
+    """S -> O: Scenario uncertainty then robust action choice.
+
+    MiroFish is async (returns job_id). Don't block O on S.
+    Run O immediately. Wire S results via /trace/{id}/outcome when job completes.
+    """
     simulation = solve_simulation(decision)
+
+    if simulation.get("status") == "simulation_queued":
+        decision.setdefault("simulation_context", {
+            "job_id": simulation.get("job_id"),
+            "poll_url": simulation.get("poll_url"),
+        })
+    elif simulation.get("status") == "service_unavailable":
+        log.warning("MiroFish unavailable, running O-only for S->O request")
+
     optimization = solve_optimization(decision)
+
+    o_ok = optimization.get("status") == "solved"
     return {
         "solver": "mirofish_then_pymoo",
-        "status": "solved",
-        "flow": "S -> O: MiroFish scenarios -> pymoo robust optimization",
+        "status": "solved" if o_ok else "partial",
+        "flow": "S -> O: MiroFish buyer scenarios -> pymoo robust plan",
         "stage_1_simulation": simulation,
         "stage_2_optimization": optimization,
+        "note": ("Simulation async. Call /trace/{id}/outcome when MiroFish job completes."
+                 if simulation.get("status") == "simulation_queued" else None),
     }
 
 
@@ -667,14 +615,106 @@ def route(decision):
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
-    # Log to decision_journal if DB is available
+    # Log to decision_journal and case_traces if DB is available
     if DB_URL:
         try:
             log_decision(decision, output)
         except Exception as e:
             output["journal_error"] = str(e)
+        try:
+            log_case_trace(decision, output)
+        except Exception as e:
+            output["trace_error"] = str(e)
 
     return output
+
+
+def log_case_trace(decision, output):
+    """Write case trace for learning feedback loop.
+
+    Captures solver stages, governance status, and empty outcome slots.
+    Outcomes filled later via POST /trace/{decision_id}/outcome.
+    """
+    result = output.get("result", {})
+    tool_passes = []
+
+    # Extract stages from composition results
+    stage_keys = [
+        "stage_1_simulation", "stage_1_strategic", "stage_1_optimization",
+        "stage_2_simulation", "stage_2_strategic", "stage_2_optimization",
+        "stage_3_simulation", "stage_3_strategic", "stage_3_optimization",
+        "stage_3_verification",
+    ]
+    for sk in stage_keys:
+        stage = result.get(sk)
+        if stage:
+            tool_passes.append({
+                "tool": stage.get("solver", "unknown"),
+                "status": stage.get("status", "unknown"),
+                "confidence": 1.0 if stage.get("status") == "solved" else 0.0,
+                "duration_ms": stage.get("computation_time_ms", 0),
+                "cost_usd": 0.0,
+            })
+
+    # If no composition stages, log the top-level result as a single pass
+    if not tool_passes:
+        tool_passes.append({
+            "tool": result.get("solver", "unknown"),
+            "status": result.get("status", "unknown"),
+            "confidence": 1.0 if result.get("status") == "solved" else 0.0,
+            "duration_ms": result.get("computation_time_ms", 0),
+            "cost_usd": 0.0,
+        })
+
+    # Best candidate action from Pareto solutions or equilibria
+    chosen = {}
+    if "pareto_solutions" in result and result["pareto_solutions"]:
+        chosen = result["pareto_solutions"][0]
+    elif "equilibria" in result and result["equilibria"]:
+        chosen = result["equilibria"][0] if isinstance(result["equilibria"][0], dict) else {}
+
+    conn = psycopg2.connect(DB_URL)
+    cur = conn.cursor()
+    # Existing case_traces schema: id, case_id, ts, route_taken,
+    # inputs_snapshot, tool_passes, decision_artifacts, execution_artifacts,
+    # outcomes, disagreement_analysis, learning_updates, created_at, updated_at
+    cur.execute(
+        """INSERT INTO case_traces
+           (case_id, ts, route_taken,
+            inputs_snapshot, tool_passes, decision_artifacts,
+            execution_artifacts, outcomes,
+            disagreement_analysis, learning_updates)
+           VALUES (%s, NOW(), %s,
+                   %s::jsonb, %s::jsonb, %s::jsonb,
+                   %s::jsonb, %s::jsonb,
+                   %s::jsonb, %s::jsonb)
+           ON CONFLICT (case_id) DO NOTHING""",
+        (
+            decision["decision_id"],
+            decision.get("decision_type", ""),
+            json.dumps({k: v for k, v in decision.items()
+                        if k not in ("payoff_matrix",) and not isinstance(v, bytes)}),
+            json.dumps(tool_passes),
+            json.dumps({
+                "governance_status": "approved",
+                "chosen_action": chosen,
+                "domain": decision.get("domain", ""),
+                "decision_type": decision.get("decision_type", ""),
+            }),
+            json.dumps({
+                "workflow_id": None,
+                "owner_role": decision.get("domain", ""),
+                "action_status": "pending",
+            }),
+            json.dumps({"projected_metrics": {}, "actual_metrics": {}, "variance": {}}),
+            json.dumps({}),
+            json.dumps({}),
+        ),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+    log.info("case_trace written: %s", decision["decision_id"])
 
 
 def log_decision(decision, output):
@@ -713,6 +753,42 @@ class Handler(BaseHTTPRequestHandler):
         self._json(404, {"error": "not found"})
 
     def do_POST(self):
+        # Outcome feedback endpoint: POST /trace/{decision_id}/outcome
+        if self.path.startswith("/trace/") and self.path.endswith("/outcome"):
+            parts = self.path.split("/")
+            if len(parts) == 4:
+                decision_id = parts[2]
+                body = self._read_body()
+                if body is None:
+                    return
+                if not DB_URL:
+                    self._json(503, {"error": "No database configured"})
+                    return
+                try:
+                    actual = body.get("actual_metrics", {})
+                    conn = psycopg2.connect(DB_URL)
+                    cur = conn.cursor()
+                    cur.execute(
+                        """UPDATE case_traces
+                           SET outcomes = jsonb_set(outcomes, '{actual_metrics}', %s::jsonb),
+                               updated_at = NOW()
+                           WHERE case_id = %s""",
+                        (json.dumps(actual), decision_id),
+                    )
+                    updated = cur.rowcount
+                    conn.commit()
+                    cur.close()
+                    conn.close()
+                    if updated:
+                        self._json(200, {"updated": decision_id, "actual_metrics": actual})
+                    else:
+                        self._json(404, {"error": f"No case_trace for {decision_id}"})
+                except Exception as e:
+                    self._json(500, {"error": str(e)})
+                return
+            self._json(400, {"error": "Expected /trace/{decision_id}/outcome"})
+            return
+
         # Individual solver endpoints
         if self.path == "/simulate":
             body = self._read_body()

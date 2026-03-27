@@ -127,6 +127,7 @@ run_checks() {
   check "telemetry-api"   "$TELEMETRY_API_HEALTH_URL"   "/health"
   check "decision-engine" "$DECISION_ENGINE_HEALTH_URL" "/health"
   check "mirofish"        "$MIROFISH_HEALTH_URL"        "/health"
+  check "ops-portal"      "${OPS_PORTAL_HEALTH_URL:-http://ops-portal.railway.internal:8080}" "/"
 
   # Log summary
   echo "[INFO]  checked=$CHECKED healthy=$HEALTHY unhealthy=[$UNHEALTHY] details=[$DETAILS]"

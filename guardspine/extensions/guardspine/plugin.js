@@ -274,6 +274,39 @@ function logDecision(decision) {
   } catch (e) {
     console.error("[guardspine] Log write failed:", e.message);
   }
+  // Post to telemetry-api for kpi_governance view
+  const telemetryUrl =
+    process.env.TELEMETRY_API_URL || "http://telemetry-api.railway.internal:8090";
+  const isCouncil =
+    decision.action &&
+    (decision.action.includes("COUNCIL") ||
+      decision.action.includes("BLOCK") ||
+      decision.action.includes("L3") ||
+      decision.action.includes("L4") ||
+      decision.action.includes("OPUS"));
+  const eventType = isCouncil ? "council_decision" : "governance_decision";
+  try {
+    const payload = JSON.stringify({
+      service: "guardspine",
+      event_type: eventType,
+      payload: {
+        tool: decision.tool || "unknown",
+        action: decision.action || "unknown",
+        risk_tier: decision.riskTier || decision.risk_tier || "L0",
+        agreement_score: decision.agreement_score || null,
+        enforcement: decision.enforcement || "enforce",
+      },
+    });
+    const url = new URL("/telemetry", telemetryUrl);
+    const req = require("http").request(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) },
+      timeout: 3000,
+    });
+    req.on("error", () => {}); // fire-and-forget, do not block governance on telemetry
+    req.write(payload);
+    req.end();
+  } catch (_) {}
 }
 
 // ═══════════════════════════════════════════════════════════════

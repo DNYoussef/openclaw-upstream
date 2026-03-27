@@ -1,0 +1,32 @@
+{
+  "review_velocity_gap": {
+    "subject": "The PR that caught everything and approved it anyway",
+    "hook": "Your team reviewed 847 PRs last quarter. 847 approved. But evidence says: one of them should not have been.",
+    "body_template": "{hook}\n\n{pain_bridge}\n\nGuardSpine catches the ones your review process misses. Not by slowing you down -- by adding evidence to what you already do.\n\n{cta}",
+    "cta": "15 minutes to show you which one? cal.com/david-youssef"
+  },
+  "evidence_chain_gap": {
+    "subject": "Your auditor will ask for the evidence bundle. Do you have it?",
+    "hook": "Approved is not governed. Your auditor knows the difference.",
+    "body_template": "{hook}\n\n{pain_bridge}\n\nGuardSpine generates cryptographically signed evidence bundles on every code change. Free GitHub Action. Zero config.\n\n{cta}",
+    "cta": "See what evidence-first governance looks like: guardspine.com"
+  },
+  "semantic_governance_gap": {
+    "subject": "The AI wrote it. Who reviewed the AI?",
+    "hook": "50% of your PRs now have AI-generated code. Your governance policy was written for humans.",
+    "body_template": "{hook}\n\n{pain_bridge}\n\nGuardSpine applies proportional AI review to AI-generated code. Different risk = different treatment.\n\n{cta}",
+    "cta": "One repo. Free install. See what it catches. cal.com/david-youssef"
+  },
+  "authorization_provenance_gap": {
+    "subject": "Who approved that change? Prove it.",
+    "hook": "Your CI passed. Your reviewer clicked approve. But can you prove the reviewer actually read the diff?",
+    "body_template": "{hook}\n\n{pain_bridge}\n\nGuardSpine tracks review provenance -- not just who clicked, but what they saw and what the AI council found.\n\n{cta}",
+    "cta": "Evidence your auditor will actually accept: cal.com/david-youssef"
+  },
+  "regulatory_readiness_gap": {
+    "subject": "SOC 2 asks for evidence of code review. Got it?",
+    "hook": "Your compliance team needs evidence that risky changes got proportional review. A green checkmark is not evidence.",
+    "body_template": "{hook}\n\n{pain_bridge}\n\nGuardSpine generates the evidence bundle your compliance team needs. Free tier covers most repos.\n\n{cta}",
+    "cta": "See a real evidence bundle: guardspine.com"
+  }
+}
