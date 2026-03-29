@@ -8,8 +8,9 @@
     "governance",
     "guardspine",
     "multi-model-council",
-    "ollama",
+    "litellm",
     "openclaw",
+    "openrouter",
     "risk-tiers"
   ],
   "license": "Apache-2.0",

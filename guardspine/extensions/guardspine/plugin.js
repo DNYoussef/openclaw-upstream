@@ -596,24 +596,26 @@ function isFrozenPath(filePath) {
 // L3: SEQUENTIAL COUNCIL (3 models via Ollama)
 // ═══════════════════════════════════════════════════════════════
 
+// Council models — routed through LiteLLM proxy (OpenRouter backend).
+// Uses 3 distinct models for multi-provider diversity on L3 reviews.
 const COUNCIL_MODELS = [
   {
     id: "A",
-    model: "qwen3:8b",
+    model: "haiku",
     weight: 0.4,
     role: "Primary Evaluator",
     focus: "completeness, logical validity",
   },
   {
     id: "B",
-    model: "qwen3-coder:30b",
+    model: "gemini-flash",
     weight: 0.35,
     role: "Technical Verifier",
     focus: "precision, adversarial checking, code quality",
   },
   {
     id: "C",
-    model: "gpt-oss:20b",
+    model: "gpt-5.4-mini",
     weight: 0.25,
     role: "Code Auditor",
     focus: "compliance, chain integrity, tool calling",
@@ -639,19 +641,29 @@ Respond with JSON ONLY:
   "reason": "one line explanation"
 }`;
 
-function ollamaGenerate(endpoint, model, prompt, timeoutMs) {
+// --- Council LLM call via LiteLLM proxy (OpenAI-compatible /v1/chat/completions) ---
+function litellmGenerate(endpoint, model, prompt, timeoutMs) {
   return new Promise((resolve, reject) => {
-    const url = new URL(endpoint + "/api/generate");
+    const url = new URL(endpoint + "/v1/chat/completions");
+    const apiKey = process.env.LITELLM_API_KEY || "";
     const payload = JSON.stringify({
       model: model,
-      prompt: prompt,
-      stream: false,
-      options: { temperature: 0.1, num_predict: 1000 },
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.1,
+      max_tokens: 1000,
     });
 
-    const req = http.request(
+    const proto = url.protocol === "https:" ? https : http;
+    const req = proto.request(
       url,
-      { method: "POST", headers: { "Content-Type": "application/json" }, timeout: timeoutMs },
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiKey ? { Authorization: "Bearer " + apiKey } : {}),
+        },
+        timeout: timeoutMs,
+      },
       (res) => {
         let data = "";
         res.on("data", (chunk) => {
@@ -659,25 +671,25 @@ function ollamaGenerate(endpoint, model, prompt, timeoutMs) {
         });
         res.on("end", () => {
           try {
-            resolve(JSON.parse(data));
+            const parsed = JSON.parse(data);
+            // Normalize to same shape the council aggregator expects:
+            // { response: "..." }
+            const content = parsed.choices?.[0]?.message?.content || "";
+            resolve({ response: content });
           } catch (e) {
-            reject(new Error("Invalid JSON from Ollama: " + data.substring(0, 200)));
+            reject(new Error("Invalid JSON from LiteLLM: " + data.substring(0, 200)));
           }
         });
       },
     );
     req.on("timeout", () => {
       req.destroy();
-      reject(new Error("Ollama timeout"));
+      reject(new Error("LiteLLM council timeout after " + timeoutMs + "ms"));
     });
     req.on("error", (e) => reject(e));
     req.write(payload);
     req.end();
   });
-}
-
-function ollamaUnload(endpoint, model) {
-  return ollamaGenerate(endpoint, model, "", 10000).catch(() => {});
 }
 
 async function runCouncilReview(endpoint, toolName, params, reason) {
@@ -691,7 +703,7 @@ async function runCouncilReview(endpoint, toolName, params, reason) {
     const rolePrompt = `YOUR ROLE: ${auditor.role} (Auditor ${auditor.id})\nYOUR FOCUS: ${auditor.focus}\n\n${prompt}`;
     try {
       const start = Date.now();
-      const result = await ollamaGenerate(endpoint, auditor.model, rolePrompt, 120000);
+      const result = await litellmGenerate(endpoint, auditor.model, rolePrompt, 120000);
       const elapsed = Date.now() - start;
       const responseText = result.response || "";
 
@@ -712,8 +724,7 @@ async function runCouncilReview(endpoint, toolName, params, reason) {
         elapsed_ms: elapsed,
       });
 
-      // Unload model from VRAM before loading next
-      await ollamaUnload(endpoint, auditor.model);
+      // No VRAM unload needed — LiteLLM proxy handles model lifecycle
     } catch (e) {
       votes.push({
         auditor: auditor.id,
@@ -762,13 +773,19 @@ let _runCouncilReview = runCouncilReview;
 // L3.5: OPUS TIE-BREAKER (called on council deadlock)
 // ═══════════════════════════════════════════════════════════════
 
-const OPUS_MODEL = "anthropic/claude-opus-4-5-20250514";
-const OPUS_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+// L3.5 tie-breaker routes through LiteLLM (which routes to OpenRouter).
+// Model alias "opus-4.6" resolves to openrouter/anthropic/claude-opus-4.6 in config.yaml.
+const OPUS_MODEL = "opus-4.6";
 
-async function escalateToOpus(toolName, params, councilVotes, apiKey) {
+async function escalateToOpus(toolName, params, councilVotes, _apiKey) {
   if (!canAffordOpus()) {
     console.log("[guardspine] L3.5 blocked: daily Opus budget ($5) exceeded");
     return { verdict: "ESCALATE", reason: "budget_exceeded", opus_called: false };
+  }
+
+  const councilEndpoint = (process.env.GUARDSPINE_COUNCIL_ENDPOINT || "").trim();
+  if (!councilEndpoint) {
+    return { verdict: "ESCALATE", reason: "no_council_endpoint", opus_called: false };
   }
 
   const voteSummary = councilVotes
@@ -786,23 +803,9 @@ Make the final call. Respond with JSON ONLY:
 {"verdict": "PASS" or "FAIL", "reason": "one line explanation"}`;
 
   try {
-    const response = await fetch(OPUS_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://openclaw.local",
-        "X-Title": "GuardSpine L3.5",
-      },
-      body: JSON.stringify({
-        model: OPUS_MODEL,
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 200,
-      }),
-    });
+    const result = await litellmGenerate(councilEndpoint, OPUS_MODEL, prompt, 60000);
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    const content = result.response || "";
 
     // Record spend
     recordOpusSpend(OPUS_COST_PER_CALL);

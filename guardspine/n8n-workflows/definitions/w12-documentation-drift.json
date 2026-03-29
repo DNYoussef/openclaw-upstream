@@ -16,7 +16,10 @@
       "name": "Daily 3 AM UTC",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
@@ -26,7 +29,10 @@
       "name": "Fetch Service Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,7 +47,10 @@
       "name": "Fetch Agent Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -56,7 +65,10 @@
       "name": "Fetch Recent Heartbeats",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [860, 300]
+      "position": [
+        860,
+        300
+      ]
     },
     {
       "parameters": {
@@ -71,17 +83,23 @@
       "name": "Fetch Workflow Telemetry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1080, 300]
+      "position": [
+        1080,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const serviceData = $('Fetch Service Status').first().json || {};\nconst agentData = $('Fetch Agent Status').all().map(i => i.json);\nconst heartbeatData = $('Fetch Recent Heartbeats').all().map(i => i.json);\nconst telemetryData = $('Fetch Workflow Telemetry').all().map(i => i.json);\n\n// --- EXPECTED STATE (update when docs change) ---\nconst EXPECTED = {\n  core_services: [\n    'telemetry-api',\n    'n8n',\n    'postgres',\n    'decision-engine',\n    'litellm-proxy',\n    'redis',\n    'guardspine-api',\n    'ollama'\n  ],\n  active_agents: [\n    'content-scheduler',\n    'outreach-sequencer',\n    'health-monitor',\n    'pipeline-metrics',\n    'partner-scanner',\n    'performance-tracker'\n  ],\n  min_active_workflows: 8,\n  telemetry_rejects_raw_sql: true,\n  kpi_health_has_data: true\n};\n\nconst drift_items = [];\nconst now = new Date().toISOString();\n\n// Check 1: Core services\nconst healthStatus = serviceData.status || serviceData.health || 'unknown';\nif (healthStatus !== 'ok' && healthStatus !== 'healthy') {\n  drift_items.push({\n    category: 'service_health',\n    expected: 'ok or healthy',\n    actual: healthStatus,\n    detail: 'Telemetry API health endpoint returned unexpected status'\n  });\n}\n\n// Check available routes/services from health response\nconst reportedServices = serviceData.services || serviceData.routes || [];\nif (Array.isArray(reportedServices) && reportedServices.length > 0) {\n  for (const svc of EXPECTED.core_services) {\n    const found = reportedServices.some(r => {\n      const name = (typeof r === 'string') ? r : (r.name || r.service || '');\n      return name.toLowerCase().includes(svc.toLowerCase());\n    });\n    if (!found) {\n      drift_items.push({\n        category: 'missing_service',\n        expected: svc,\n        actual: 'not found in health response',\n        detail: 'Expected service not reported by health endpoint'\n      });\n    }\n  }\n}\n\n// Check 2: Active agents\nconst actualAgents = agentData.map(a => a.name || a.agent_name || '').filter(Boolean);\nfor (const expectedAgent of EXPECTED.active_agents) {\n  const found = actualAgents.some(a => a.toLowerCase().includes(expectedAgent.toLowerCase()));\n  if (!found) {\n    drift_items.push({\n      category: 'missing_agent',\n      expected: expectedAgent,\n      actual: 'not found in agent_status query',\n      detail: 'Expected agent not returned by agent_status'\n    });\n  }\n}\n\n// Check for unexpected agents (new agents not in docs)\nfor (const actual of actualAgents) {\n  const documented = EXPECTED.active_agents.some(e => actual.toLowerCase().includes(e.toLowerCase()));\n  if (!documented) {\n    drift_items.push({\n      category: 'undocumented_agent',\n      expected: 'not in expected list',\n      actual: actual,\n      detail: 'Agent exists in system but not documented'\n    });\n  }\n}\n\n// Check 3: Heartbeat health\nconst totalHeartbeats = heartbeatData.reduce((sum, h) => sum + (parseInt(h.cnt || h.count || h.total || 0)), 0);\nif (totalHeartbeats === 0) {\n  drift_items.push({\n    category: 'heartbeat_gap',\n    expected: 'heartbeat data for past 24h',\n    actual: 'no heartbeat records found',\n    detail: 'Zero heartbeats in 24h window suggests agents are not running'\n  });\n}\n\n// Check for agents with high failure rates\nfor (const hb of heartbeatData) {\n  const name = hb.name || hb.agent_name || 'unknown';\n  const failed = parseInt(hb.failed || hb.failure_count || 0);\n  const succeeded = parseInt(hb.succeeded || hb.success_count || 0);\n  const total = failed + succeeded;\n  if (total > 0 && failed / total > 0.5) {\n    drift_items.push({\n      category: 'agent_degraded',\n      expected: 'failure rate < 50%',\n      actual: name + ': ' + ((failed / total) * 100).toFixed(0) + '% failures',\n      detail: 'Agent heartbeat failure rate exceeds 50%'\n    });\n  }\n}\n\n// Check 4: Recent telemetry for workflow errors\nconst workflowErrors = telemetryData.filter(t => t.event_type === 'workflow_error');\nif (workflowErrors.length > 10) {\n  drift_items.push({\n    category: 'excessive_errors',\n    expected: 'fewer than 10 workflow errors in recent telemetry',\n    actual: workflowErrors.length + ' workflow errors found',\n    detail: 'High workflow error count may indicate system-doc mismatch'\n  });\n}\n\nreturn [{\n  json: {\n    drift_items: drift_items,\n    drift_count: drift_items.length,\n    checked_at: now,\n    services_checked: EXPECTED.core_services.length,\n    agents_checked: EXPECTED.active_agents.length\n  }\n}];"
+        "jsCode": "const serviceData = $('Fetch Service Status').first().json || {};\nconst agentData = $('Fetch Agent Status').all().map(i => i.json);\nconst heartbeatData = $('Fetch Recent Heartbeats').all().map(i => i.json);\nconst telemetryData = $('Fetch Workflow Telemetry').all().map(i => i.json);\n\n// --- EXPECTED STATE (update when docs change) ---\nconst EXPECTED = {\n  core_services: [\n    'telemetry-api',\n    'n8n',\n    'postgres',\n    'decision-engine',\n    'litellm-proxy',\n    'redis',\n    'guardspine-api',\n  ],\n  active_agents: [\n    'content-scheduler',\n    'outreach-sequencer',\n    'health-monitor',\n    'pipeline-metrics',\n    'partner-scanner',\n    'performance-tracker'\n  ],\n  min_active_workflows: 8,\n  telemetry_rejects_raw_sql: true,\n  kpi_health_has_data: true\n};\n\nconst drift_items = [];\nconst now = new Date().toISOString();\n\n// Check 1: Core services\nconst healthStatus = serviceData.status || serviceData.health || 'unknown';\nif (healthStatus !== 'ok' && healthStatus !== 'healthy') {\n  drift_items.push({\n    category: 'service_health',\n    expected: 'ok or healthy',\n    actual: healthStatus,\n    detail: 'Telemetry API health endpoint returned unexpected status'\n  });\n}\n\n// Check available routes/services from health response\nconst reportedServices = serviceData.services || serviceData.routes || [];\nif (Array.isArray(reportedServices) && reportedServices.length > 0) {\n  for (const svc of EXPECTED.core_services) {\n    const found = reportedServices.some(r => {\n      const name = (typeof r === 'string') ? r : (r.name || r.service || '');\n      return name.toLowerCase().includes(svc.toLowerCase());\n    });\n    if (!found) {\n      drift_items.push({\n        category: 'missing_service',\n        expected: svc,\n        actual: 'not found in health response',\n        detail: 'Expected service not reported by health endpoint'\n      });\n    }\n  }\n}\n\n// Check 2: Active agents\nconst actualAgents = agentData.map(a => a.name || a.agent_name || '').filter(Boolean);\nfor (const expectedAgent of EXPECTED.active_agents) {\n  const found = actualAgents.some(a => a.toLowerCase().includes(expectedAgent.toLowerCase()));\n  if (!found) {\n    drift_items.push({\n      category: 'missing_agent',\n      expected: expectedAgent,\n      actual: 'not found in agent_status query',\n      detail: 'Expected agent not returned by agent_status'\n    });\n  }\n}\n\n// Check for unexpected agents (new agents not in docs)\nfor (const actual of actualAgents) {\n  const documented = EXPECTED.active_agents.some(e => actual.toLowerCase().includes(e.toLowerCase()));\n  if (!documented) {\n    drift_items.push({\n      category: 'undocumented_agent',\n      expected: 'not in expected list',\n      actual: actual,\n      detail: 'Agent exists in system but not documented'\n    });\n  }\n}\n\n// Check 3: Heartbeat health\nconst totalHeartbeats = heartbeatData.reduce((sum, h) => sum + (parseInt(h.cnt || h.count || h.total || 0)), 0);\nif (totalHeartbeats === 0) {\n  drift_items.push({\n    category: 'heartbeat_gap',\n    expected: 'heartbeat data for past 24h',\n    actual: 'no heartbeat records found',\n    detail: 'Zero heartbeats in 24h window suggests agents are not running'\n  });\n}\n\n// Check for agents with high failure rates\nfor (const hb of heartbeatData) {\n  const name = hb.name || hb.agent_name || 'unknown';\n  const failed = parseInt(hb.failed || hb.failure_count || 0);\n  const succeeded = parseInt(hb.succeeded || hb.success_count || 0);\n  const total = failed + succeeded;\n  if (total > 0 && failed / total > 0.5) {\n    drift_items.push({\n      category: 'agent_degraded',\n      expected: 'failure rate < 50%',\n      actual: name + ': ' + ((failed / total) * 100).toFixed(0) + '% failures',\n      detail: 'Agent heartbeat failure rate exceeds 50%'\n    });\n  }\n}\n\n// Check 4: Recent telemetry for workflow errors\nconst workflowErrors = telemetryData.filter(t => t.event_type === 'workflow_error');\nif (workflowErrors.length > 10) {\n  drift_items.push({\n    category: 'excessive_errors',\n    expected: 'fewer than 10 workflow errors in recent telemetry',\n    actual: workflowErrors.length + ' workflow errors found',\n    detail: 'High workflow error count may indicate system-doc mismatch'\n  });\n}\n\nreturn [{\n  json: {\n    drift_items: drift_items,\n    drift_count: drift_items.length,\n    checked_at: now,\n    services_checked: EXPECTED.core_services.length,\n    agents_checked: EXPECTED.active_agents.length\n  }\n}];"
       },
       "id": "compare-state",
       "name": "Compare Against Expected",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -99,7 +117,10 @@
       "name": "Drift Found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1520, 300]
+      "position": [
+        1520,
+        300
+      ]
     },
     {
       "parameters": {
@@ -114,7 +135,10 @@
       "name": "Log Drift Report",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1740, 200]
+      "position": [
+        1740,
+        200
+      ]
     },
     {
       "parameters": {
@@ -129,7 +153,10 @@
       "name": "Log Clean Report",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1740, 400]
+      "position": [
+        1740,
+        400
+      ]
     },
     {
       "parameters": {},
@@ -137,7 +164,10 @@
       "name": "Error Trigger",
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
-      "position": [200, 600]
+      "position": [
+        200,
+        600
+      ]
     },
     {
       "parameters": {
@@ -152,7 +182,10 @@
       "name": "POST Error to Telemetry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [420, 600]
+      "position": [
+        420,
+        600
+      ]
     }
   ],
   "connections": {
