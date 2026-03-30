@@ -1,0 +1,156 @@
+{
+    "updatedAt": "2026-03-27T11:52:48.411Z",
+    "createdAt": "2026-03-27T11:52:48.411Z",
+    "id": "Wf0UxPlGKiRm4SGm",
+    "name": "W7 - GitHub PR Monitor",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "events": [
+                    "pull_request"
+                ],
+                "owner": "DNYoussef",
+                "repository": "codeguard-action"
+            },
+            "id": "gh-webhook",
+            "name": "GitHub PR Webhook",
+            "type": "n8n-nodes-base.githubTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const pr = $input.item.json.body || $input.item.json;\nconst action = pr.action || '';\nconst prNum = pr.number || pr.pull_request?.number || 0;\nconst title = pr.pull_request?.title || '';\nconst user = pr.pull_request?.user?.login || '';\nconst changedFiles = pr.pull_request?.changed_files || 0;\nconst additions = pr.pull_request?.additions || 0;\nconst deletions = pr.pull_request?.deletions || 0;\n\n// Only process opened/synchronize\nif (!['opened', 'synchronize', 'reopened'].includes(action)) {\n  return [];\n}\n\nreturn [{json: {action, pr_number: prNum, title, user, changed_files: changedFiles, additions, deletions, repo: pr.repository?.full_name || ''}}];"
+            },
+            "id": "parse-pr",
+            "name": "Parse PR Event",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                420,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"github\", \"event_type\": \"pr_opened\", \"payload\": {\"pr_number\": \"={{ $json.pr_number }}\", \"title\": \"={{ $json.title }}\", \"user\": \"={{ $json.user }}\", \"changed_files\": \"={{ $json.changed_files }}\", \"additions\": \"={{ $json.additions }}\", \"repo\": \"={{ $json.repo }}\"}}"
+            },
+            "id": "emit-pr-event",
+            "name": "Log PR Event",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                640,
+                300
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "error-trigger",
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W7 - GitHub PR Monitor\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+            },
+            "id": "post-error-telemetry",
+            "name": "POST Error to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                600
+            ]
+        }
+    ],
+    "connections": {
+        "GitHub PR Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Parse PR Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse PR Event": {
+            "main": [
+                [
+                    {
+                        "node": "Log PR Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "POST Error to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "3bdd3bae-6776-4629-b992-e705c5db07fa",
+    "activeVersionId": null,
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "shared": [
+        {
+            "updatedAt": "2026-03-27T11:52:48.413Z",
+            "createdAt": "2026-03-27T11:52:48.413Z",
+            "role": "workflow:owner",
+            "workflowId": "Wf0UxPlGKiRm4SGm",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": null
+}

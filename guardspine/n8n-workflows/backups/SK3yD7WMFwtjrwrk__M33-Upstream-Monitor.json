@@ -1,0 +1,911 @@
+{
+    "updatedAt": "2026-03-23T15:52:20.437Z",
+    "createdAt": "2026-03-22T21:29:37.224Z",
+    "id": "SK3yD7WMFwtjrwrk",
+    "name": "M33-Upstream-Monitor",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Every-Other-Day 1AM",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                300
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "triggerAtHour": 1,
+                            "field": "hours",
+                            "hoursInterval": 48
+                        }
+                    ]
+                }
+            },
+            "id": "3ab636f4-9e1e-4f4b-aa85-9c7556e650bd"
+        },
+        {
+            "name": "Fetch OpenClaw Updates",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                500,
+                200
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "https://api.github.com/repos/openclaw/openclaw/commits?per_page=10&since={{ new Date(Date.now() - 2*86400000).toISOString() }}",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "6Cliqjk7UlsZOGZJ",
+                    "name": "paperclip-auth"
+                }
+            },
+            "id": "703f9303-178c-4ebc-b593-04cfa1fbe603"
+        },
+        {
+            "name": "Fetch Paperclip Updates",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                500,
+                400
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "https://api.github.com/repos/wopr-network/paperclip-platform/commits?per_page=10&since={{ new Date(Date.now() - 2*86400000).toISOString() }}",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "6Cliqjk7UlsZOGZJ",
+                    "name": "paperclip-auth"
+                }
+            },
+            "id": "552fb3a0-a7b8-46dc-94b8-2177843a4781"
+        },
+        {
+            "name": "Fetch OpenClaw Release",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                500,
+                600
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "https://api.github.com/repos/openclaw/openclaw/releases/latest",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "6Cliqjk7UlsZOGZJ",
+                    "name": "paperclip-auth"
+                }
+            },
+            "id": "5535696f-3a2d-4cc0-bfa2-c66e3567fd15"
+        },
+        {
+            "name": "Merge Results",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                750,
+                300
+            ],
+            "parameters": {
+                "mode": "append"
+            },
+            "id": "3b94cb20-d2dd-4aea-94c5-25e542a328f0"
+        },
+        {
+            "name": "Merge All",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                950,
+                400
+            ],
+            "parameters": {
+                "mode": "append"
+            },
+            "id": "746df9d8-4af1-4bf8-9eda-04958dfb3234"
+        },
+        {
+            "name": "Analyze Impact",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1150,
+                400
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://litellm.railway.internal:4000/v1/chat/completions",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "string",
+                "body": "{\"model\":\"openrouter/anthropic/claude-sonnet-4\",\"messages\":[{\"role\":\"system\",\"content\":\"You are an ops engineer for GuardSpine. Return strict JSON only. Assess each upstream change against GuardSpine custom components and version lag.\"},{\"role\":\"user\",\"content\":\"Running version: {{ $json.running_version }}\\nLatest release: {{ JSON.stringify($json.latest_release) }}\\nCustom components to watch: n8n-pipeline plugin; HEARTBEAT.md channel scanning; /app/skills custom skills; custom webhook endpoints; SOUL/IDENTITY/TOOLS/AGENTS/BOOTSTRAP files; outreach.db SQLite tables; n8n credential-based workflows; memory files; Paperclip custom agents; LiteLLM OpenRouter routing.\\n\\nRecent normalized commits:\\n{{ JSON.stringify($json.commits, null, 2) }}\\n\\nReturn JSON with shape: {\\\"summary\\\":string,\\\"version_assessment\\\":{\\\"running_version\\\":string,\\\"latest_version\\\":string|null,\\\"update_recommendation\\\":\\\"update_now\\\"|\\\"test_first\\\"|\\\"wait\\\"|\\\"skip\\\",\\\"reason\\\":string},\\\"changes\\\":[{\\\"sha\\\":string,\\\"repo\\\":string,\\\"change_type\\\":string,\\\"risk_level\\\":\\\"HIGH\\\"|\\\"MEDIUM\\\"|\\\"LOW\\\"|\\\"NONE\\\",\\\"affected_components\\\":[string],\\\"recommended_action\\\":\\\"update_now\\\"|\\\"test_first\\\"|\\\"wait\\\"|\\\"skip\\\",\\\"reason\\\":string,\\\"citations\\\":[string]}],\\\"highest_risk\\\":\\\"HIGH\\\"|\\\"MEDIUM\\\"|\\\"LOW\\\"|\\\"NONE\\\"}\\nDo not include markdown fences.\"}],\"max_tokens\":2200,\"temperature\":0.1}",
+                "contentType": "application/json",
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "JOEzshTgTJqyjYRg",
+                    "name": "litellm-auth"
+                }
+            },
+            "id": "c0b89de4-50d3-4d50-b5a1-e953836e01f1"
+        },
+        {
+            "name": "Format Report",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1400,
+                400
+            ],
+            "parameters": {
+                "jsCode": "const data = $input.first().json;\nconst parsed = data.parsed || {};\nconst highestRisk = parsed.highest_risk || 'LOW';\nconst valid = data.valid_analysis === true;\nconst status = !valid ? 'NEEDS_REVIEW' : highestRisk;\nconst changes = Array.isArray(parsed.changes) ? parsed.changes : [];\nconst lines = [\n  '*Upstream Monitor Report*',\n  'Running: ' + (data.normalized?.running_version || 'unknown'),\n  'Latest: ' + (parsed.version_assessment?.latest_version || data.normalized?.latest_release?.tag_name || 'unknown'),\n  'Status: ' + status,\n  'Summary: ' + (parsed.summary || 'analysis unavailable'),\n  '',\n  ...changes.slice(0, 8).map(c => '\u2022 [' + c.risk_level + '] ' + c.repo + ' ' + String(c.sha).slice(0,7) + ': ' + c.reason)\n];\nreturn [{json:{\n  timestamp: new Date().toISOString(),\n  running_version: data.normalized?.running_version || 'v2026.3.9',\n  latest_release: parsed.version_assessment?.latest_version || data.normalized?.latest_release?.tag_name || null,\n  status,\n  valid_analysis: valid,\n  parse_error: data.parse_error || null,\n  validation_missing: data.validation_missing || [],\n  commit_count: data.expected_commit_count || 0,\n  analyzed_commit_count: data.analyzed_commit_count || 0,\n  structured_report: parsed,\n  report: lines.join('\\n')\n}}];"
+            },
+            "id": "fc884729-a51f-49a8-9aeb-ee6f5629d613"
+        },
+        {
+            "name": "Post to Eng",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1650,
+                400
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "slackApi",
+                "sendBody": true,
+                "specifyBody": "string",
+                "body": "{\"channel\":\"C0AJZKU6T45\",\"text\":\"\ud83d\udd04 *Upstream Monitor Report*\\nRunning: v2026.3.9\\nTime: {{ $json.timestamp }}\\nStatus: {{ $json.status }}\\n\\n{{ $json.report.slice(0, 3000) }}\"}",
+                "contentType": "application/json",
+                "options": {}
+            },
+            "credentials": {
+                "slackApi": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            },
+            "id": "cac35f5a-670d-4394-ac1a-021866c93962"
+        },
+        {
+            "name": "Seal Evidence",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1900,
+                400
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"stream\":\"upstream_monitor\",\"event_type\":\"dependency_scan\",\"payload\":{\"status\":$json.status,\"running\":$json.running_version,\"latest_release\":$json.latest_release,\"valid_analysis\":$json.valid_analysis,\"commit_count\":$json.commit_count,\"analyzed_commit_count\":$json.analyzed_commit_count,\"parse_error\":$json.parse_error,\"validation_missing\":$json.validation_missing},\"source\":\"M33-Upstream-Monitor\"}",
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "6Cliqjk7UlsZOGZJ",
+                    "name": "paperclip-auth"
+                }
+            },
+            "id": "5be2730b-ed2d-4abe-961f-10b542fe7751"
+        },
+        {
+            "name": "Normalize Upstream Inputs",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1080,
+                240
+            ],
+            "parameters": {
+                "jsCode": "const items = $input.all().map(i => i.json);\nconst normalized = [];\nlet latestRelease = null;\nfor (const item of items) {\n  if (item && item.tag_name) {\n    latestRelease = {tag_name: item.tag_name, name: item.name || item.tag_name, published_at: item.published_at || null, html_url: item.html_url || null};\n    continue;\n  }\n  if (Array.isArray(item)) {\n    for (const commit of item) {\n      normalized.push({sha: commit.sha, repo: commit.html_url?.includes('paperclip-platform') ? 'paperclip' : 'openclaw', message: commit.commit?.message || '', author: commit.commit?.author?.name || null, date: commit.commit?.author?.date || null, url: commit.html_url || null});\n    }\n    continue;\n  }\n  if (item && item.sha) {\n    normalized.push({sha: item.sha, repo: item.html_url?.includes('paperclip-platform') ? 'paperclip' : 'openclaw', message: item.commit?.message || '', author: item.commit?.author?.name || null, date: item.commit?.author?.date || null, url: item.html_url || null});\n  }\n}\nconst deduped = []; const seen = new Set();\nfor (const c of normalized) { if (!c.sha || seen.has(c.sha)) continue; seen.add(c.sha); deduped.push(c); }\nreturn [{json:{running_version:'v2026.3.9', latest_release: latestRelease, commit_count: deduped.length, commits: deduped.slice(0,20)}}];"
+            },
+            "id": "58eec4d4-33d0-4600-82e9-cd3aa8492cb6"
+        },
+        {
+            "name": "Validate Upstream Analysis",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1560,
+                240
+            ],
+            "parameters": {
+                "jsCode": "const raw = $input.first().json;\nconst content = raw.choices?.[0]?.message?.content || '';\nlet parsed = null;\nlet parse_error = null;\ntry { parsed = JSON.parse(content); } catch (e) { parse_error = e.message; }\nconst required = ['summary','version_assessment','changes'];\nconst missing = parsed ? required.filter(k => !(k in parsed)) : required;\nconst analyzed = Array.isArray(parsed?.changes) ? parsed.changes.length : 0;\nconst expected = $('Normalize Upstream Inputs').first().json.commit_count || 0;\nconst valid = !!parsed && missing.length === 0 && analyzed <= expected;\nreturn [{json:{raw_content: content, parsed, parse_error, validation_missing: missing, analyzed_commit_count: analyzed, expected_commit_count: expected, valid_analysis: valid, normalized: $('Normalize Upstream Inputs').first().json}}];"
+            },
+            "id": "8643c9e3-d048-48db-ad29-8fbc3e7db484"
+        },
+        {
+            "name": "Risk Requires Post?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                2040,
+                240
+            ],
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ ['HIGH','MEDIUM'].includes($json.status) || !$json.valid_analysis }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "539ea211-0ff5-4107-94c5-fa6b8426fa24"
+        }
+    ],
+    "connections": {
+        "Every-Other-Day 1AM": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch OpenClaw Updates",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Fetch Paperclip Updates",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Fetch OpenClaw Release",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch OpenClaw Updates": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Results",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Paperclip Updates": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Results",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge Results": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch OpenClaw Release": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge All": {
+            "main": [
+                [
+                    {
+                        "node": "Normalize Upstream Inputs",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze Impact": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Upstream Analysis",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Report": {
+            "main": [
+                [
+                    {
+                        "node": "Risk Requires Post?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Post to Eng": {
+            "main": [
+                [
+                    {
+                        "node": "Seal Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Normalize Upstream Inputs": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze Impact",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Upstream Analysis": {
+            "main": [
+                [
+                    {
+                        "node": "Format Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Risk Requires Post?": {
+            "main": [
+                [
+                    {
+                        "node": "Post to Eng",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Seal Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Every-Other-Day 1AM": {
+            "recurrenceRules": [
+                0
+            ]
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "4c07fd82-7ade-4665-9a4f-c0a11885a85b",
+    "activeVersionId": "4c07fd82-7ade-4665-9a4f-c0a11885a85b",
+    "versionCounter": 25,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-22T21:29:37.225Z",
+            "createdAt": "2026-03-22T21:29:37.225Z",
+            "role": "workflow:owner",
+            "workflowId": "SK3yD7WMFwtjrwrk",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-23T15:52:20.437Z",
+        "createdAt": "2026-03-23T15:52:20.437Z",
+        "versionId": "4c07fd82-7ade-4665-9a4f-c0a11885a85b",
+        "workflowId": "SK3yD7WMFwtjrwrk",
+        "nodes": [
+            {
+                "name": "Every-Other-Day 1AM",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    250,
+                    300
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "triggerAtHour": 1,
+                                "field": "hours",
+                                "hoursInterval": 48
+                            }
+                        ]
+                    }
+                },
+                "id": "3ab636f4-9e1e-4f4b-aa85-9c7556e650bd"
+            },
+            {
+                "name": "Fetch OpenClaw Updates",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    500,
+                    200
+                ],
+                "parameters": {
+                    "method": "GET",
+                    "url": "https://api.github.com/repos/openclaw/openclaw/commits?per_page=10&since={{ new Date(Date.now() - 2*86400000).toISOString() }}",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth",
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "6Cliqjk7UlsZOGZJ",
+                        "name": "paperclip-auth"
+                    }
+                },
+                "id": "703f9303-178c-4ebc-b593-04cfa1fbe603"
+            },
+            {
+                "name": "Fetch Paperclip Updates",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    500,
+                    400
+                ],
+                "parameters": {
+                    "method": "GET",
+                    "url": "https://api.github.com/repos/wopr-network/paperclip-platform/commits?per_page=10&since={{ new Date(Date.now() - 2*86400000).toISOString() }}",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth",
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "6Cliqjk7UlsZOGZJ",
+                        "name": "paperclip-auth"
+                    }
+                },
+                "id": "552fb3a0-a7b8-46dc-94b8-2177843a4781"
+            },
+            {
+                "name": "Fetch OpenClaw Release",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    500,
+                    600
+                ],
+                "parameters": {
+                    "method": "GET",
+                    "url": "https://api.github.com/repos/openclaw/openclaw/releases/latest",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth",
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "6Cliqjk7UlsZOGZJ",
+                        "name": "paperclip-auth"
+                    }
+                },
+                "id": "5535696f-3a2d-4cc0-bfa2-c66e3567fd15"
+            },
+            {
+                "name": "Merge Results",
+                "type": "n8n-nodes-base.merge",
+                "typeVersion": 3,
+                "position": [
+                    750,
+                    300
+                ],
+                "parameters": {
+                    "mode": "append"
+                },
+                "id": "3b94cb20-d2dd-4aea-94c5-25e542a328f0"
+            },
+            {
+                "name": "Merge All",
+                "type": "n8n-nodes-base.merge",
+                "typeVersion": 3,
+                "position": [
+                    950,
+                    400
+                ],
+                "parameters": {
+                    "mode": "append"
+                },
+                "id": "746df9d8-4af1-4bf8-9eda-04958dfb3234"
+            },
+            {
+                "name": "Analyze Impact",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1150,
+                    400
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://litellm.railway.internal:4000/v1/chat/completions",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth",
+                    "sendBody": true,
+                    "specifyBody": "string",
+                    "body": "{\"model\":\"openrouter/anthropic/claude-sonnet-4\",\"messages\":[{\"role\":\"system\",\"content\":\"You are an ops engineer for GuardSpine. Return strict JSON only. Assess each upstream change against GuardSpine custom components and version lag.\"},{\"role\":\"user\",\"content\":\"Running version: {{ $json.running_version }}\\nLatest release: {{ JSON.stringify($json.latest_release) }}\\nCustom components to watch: n8n-pipeline plugin; HEARTBEAT.md channel scanning; /app/skills custom skills; custom webhook endpoints; SOUL/IDENTITY/TOOLS/AGENTS/BOOTSTRAP files; outreach.db SQLite tables; n8n credential-based workflows; memory files; Paperclip custom agents; LiteLLM OpenRouter routing.\\n\\nRecent normalized commits:\\n{{ JSON.stringify($json.commits, null, 2) }}\\n\\nReturn JSON with shape: {\\\"summary\\\":string,\\\"version_assessment\\\":{\\\"running_version\\\":string,\\\"latest_version\\\":string|null,\\\"update_recommendation\\\":\\\"update_now\\\"|\\\"test_first\\\"|\\\"wait\\\"|\\\"skip\\\",\\\"reason\\\":string},\\\"changes\\\":[{\\\"sha\\\":string,\\\"repo\\\":string,\\\"change_type\\\":string,\\\"risk_level\\\":\\\"HIGH\\\"|\\\"MEDIUM\\\"|\\\"LOW\\\"|\\\"NONE\\\",\\\"affected_components\\\":[string],\\\"recommended_action\\\":\\\"update_now\\\"|\\\"test_first\\\"|\\\"wait\\\"|\\\"skip\\\",\\\"reason\\\":string,\\\"citations\\\":[string]}],\\\"highest_risk\\\":\\\"HIGH\\\"|\\\"MEDIUM\\\"|\\\"LOW\\\"|\\\"NONE\\\"}\\nDo not include markdown fences.\"}],\"max_tokens\":2200,\"temperature\":0.1}",
+                    "contentType": "application/json",
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "JOEzshTgTJqyjYRg",
+                        "name": "litellm-auth"
+                    }
+                },
+                "id": "c0b89de4-50d3-4d50-b5a1-e953836e01f1"
+            },
+            {
+                "name": "Format Report",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1400,
+                    400
+                ],
+                "parameters": {
+                    "jsCode": "const data = $input.first().json;\nconst parsed = data.parsed || {};\nconst highestRisk = parsed.highest_risk || 'LOW';\nconst valid = data.valid_analysis === true;\nconst status = !valid ? 'NEEDS_REVIEW' : highestRisk;\nconst changes = Array.isArray(parsed.changes) ? parsed.changes : [];\nconst lines = [\n  '*Upstream Monitor Report*',\n  'Running: ' + (data.normalized?.running_version || 'unknown'),\n  'Latest: ' + (parsed.version_assessment?.latest_version || data.normalized?.latest_release?.tag_name || 'unknown'),\n  'Status: ' + status,\n  'Summary: ' + (parsed.summary || 'analysis unavailable'),\n  '',\n  ...changes.slice(0, 8).map(c => '\u2022 [' + c.risk_level + '] ' + c.repo + ' ' + String(c.sha).slice(0,7) + ': ' + c.reason)\n];\nreturn [{json:{\n  timestamp: new Date().toISOString(),\n  running_version: data.normalized?.running_version || 'v2026.3.9',\n  latest_release: parsed.version_assessment?.latest_version || data.normalized?.latest_release?.tag_name || null,\n  status,\n  valid_analysis: valid,\n  parse_error: data.parse_error || null,\n  validation_missing: data.validation_missing || [],\n  commit_count: data.expected_commit_count || 0,\n  analyzed_commit_count: data.analyzed_commit_count || 0,\n  structured_report: parsed,\n  report: lines.join('\\n')\n}}];"
+                },
+                "id": "fc884729-a51f-49a8-9aeb-ee6f5629d613"
+            },
+            {
+                "name": "Post to Eng",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1650,
+                    400
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "slackApi",
+                    "sendBody": true,
+                    "specifyBody": "string",
+                    "body": "{\"channel\":\"C0AJZKU6T45\",\"text\":\"\ud83d\udd04 *Upstream Monitor Report*\\nRunning: v2026.3.9\\nTime: {{ $json.timestamp }}\\nStatus: {{ $json.status }}\\n\\n{{ $json.report.slice(0, 3000) }}\"}",
+                    "contentType": "application/json",
+                    "options": {}
+                },
+                "credentials": {
+                    "slackApi": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                },
+                "id": "cac35f5a-670d-4394-ac1a-021866c93962"
+            },
+            {
+                "name": "Seal Evidence",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1900,
+                    400
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={\"stream\":\"upstream_monitor\",\"event_type\":\"dependency_scan\",\"payload\":{\"status\":$json.status,\"running\":$json.running_version,\"latest_release\":$json.latest_release,\"valid_analysis\":$json.valid_analysis,\"commit_count\":$json.commit_count,\"analyzed_commit_count\":$json.analyzed_commit_count,\"parse_error\":$json.parse_error,\"validation_missing\":$json.validation_missing},\"source\":\"M33-Upstream-Monitor\"}",
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "6Cliqjk7UlsZOGZJ",
+                        "name": "paperclip-auth"
+                    }
+                },
+                "id": "5be2730b-ed2d-4abe-961f-10b542fe7751"
+            },
+            {
+                "name": "Normalize Upstream Inputs",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1080,
+                    240
+                ],
+                "parameters": {
+                    "jsCode": "const items = $input.all().map(i => i.json);\nconst normalized = [];\nlet latestRelease = null;\nfor (const item of items) {\n  if (item && item.tag_name) {\n    latestRelease = {tag_name: item.tag_name, name: item.name || item.tag_name, published_at: item.published_at || null, html_url: item.html_url || null};\n    continue;\n  }\n  if (Array.isArray(item)) {\n    for (const commit of item) {\n      normalized.push({sha: commit.sha, repo: commit.html_url?.includes('paperclip-platform') ? 'paperclip' : 'openclaw', message: commit.commit?.message || '', author: commit.commit?.author?.name || null, date: commit.commit?.author?.date || null, url: commit.html_url || null});\n    }\n    continue;\n  }\n  if (item && item.sha) {\n    normalized.push({sha: item.sha, repo: item.html_url?.includes('paperclip-platform') ? 'paperclip' : 'openclaw', message: item.commit?.message || '', author: item.commit?.author?.name || null, date: item.commit?.author?.date || null, url: item.html_url || null});\n  }\n}\nconst deduped = []; const seen = new Set();\nfor (const c of normalized) { if (!c.sha || seen.has(c.sha)) continue; seen.add(c.sha); deduped.push(c); }\nreturn [{json:{running_version:'v2026.3.9', latest_release: latestRelease, commit_count: deduped.length, commits: deduped.slice(0,20)}}];"
+                },
+                "id": "58eec4d4-33d0-4600-82e9-cd3aa8492cb6"
+            },
+            {
+                "name": "Validate Upstream Analysis",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1560,
+                    240
+                ],
+                "parameters": {
+                    "jsCode": "const raw = $input.first().json;\nconst content = raw.choices?.[0]?.message?.content || '';\nlet parsed = null;\nlet parse_error = null;\ntry { parsed = JSON.parse(content); } catch (e) { parse_error = e.message; }\nconst required = ['summary','version_assessment','changes'];\nconst missing = parsed ? required.filter(k => !(k in parsed)) : required;\nconst analyzed = Array.isArray(parsed?.changes) ? parsed.changes.length : 0;\nconst expected = $('Normalize Upstream Inputs').first().json.commit_count || 0;\nconst valid = !!parsed && missing.length === 0 && analyzed <= expected;\nreturn [{json:{raw_content: content, parsed, parse_error, validation_missing: missing, analyzed_commit_count: analyzed, expected_commit_count: expected, valid_analysis: valid, normalized: $('Normalize Upstream Inputs').first().json}}];"
+                },
+                "id": "8643c9e3-d048-48db-ad29-8fbc3e7db484"
+            },
+            {
+                "name": "Risk Requires Post?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2.2,
+                "position": [
+                    2040,
+                    240
+                ],
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": "",
+                            "typeValidation": "strict"
+                        },
+                        "conditions": [
+                            {
+                                "leftValue": "={{ ['HIGH','MEDIUM'].includes($json.status) || !$json.valid_analysis }}",
+                                "rightValue": true,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "true"
+                                }
+                            }
+                        ],
+                        "combinator": "and"
+                    }
+                },
+                "id": "539ea211-0ff5-4107-94c5-fa6b8426fa24"
+            }
+        ],
+        "connections": {
+            "Every-Other-Day 1AM": {
+                "main": [
+                    [
+                        {
+                            "node": "Fetch OpenClaw Updates",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Fetch Paperclip Updates",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Fetch OpenClaw Release",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch OpenClaw Updates": {
+                "main": [
+                    [
+                        {
+                            "node": "Merge Results",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Paperclip Updates": {
+                "main": [
+                    [
+                        {
+                            "node": "Merge Results",
+                            "type": "main",
+                            "index": 1
+                        }
+                    ]
+                ]
+            },
+            "Merge Results": {
+                "main": [
+                    [
+                        {
+                            "node": "Merge All",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch OpenClaw Release": {
+                "main": [
+                    [
+                        {
+                            "node": "Merge All",
+                            "type": "main",
+                            "index": 1
+                        }
+                    ]
+                ]
+            },
+            "Merge All": {
+                "main": [
+                    [
+                        {
+                            "node": "Normalize Upstream Inputs",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Analyze Impact": {
+                "main": [
+                    [
+                        {
+                            "node": "Validate Upstream Analysis",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Format Report": {
+                "main": [
+                    [
+                        {
+                            "node": "Risk Requires Post?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Post to Eng": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Normalize Upstream Inputs": {
+                "main": [
+                    [
+                        {
+                            "node": "Analyze Impact",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Validate Upstream Analysis": {
+                "main": [
+                    [
+                        {
+                            "node": "Format Report",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Risk Requires Post?": {
+                "main": [
+                    [
+                        {
+                            "node": "Post to Eng",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Seal Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-23T15:52:20.489Z",
+                "id": 1666,
+                "workflowId": "SK3yD7WMFwtjrwrk",
+                "versionId": "4c07fd82-7ade-4665-9a4f-c0a11885a85b",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-23T15:52:20.470Z",
+                "id": 1665,
+                "workflowId": "SK3yD7WMFwtjrwrk",
+                "versionId": "4c07fd82-7ade-4665-9a4f-c0a11885a85b",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

@@ -1,0 +1,321 @@
+{
+    "updatedAt": "2026-03-23T15:52:22.587Z",
+    "createdAt": "2026-03-21T14:10:32.376Z",
+    "id": "d7fnMpSE41VEtG4l",
+    "name": "A10 - Workflow Debugger",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Schedule",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "30 9 * * *"
+                        }
+                    ]
+                }
+            },
+            "id": "f07f8169-4ca3-4c54-a920-4b05304ffd91"
+        },
+        {
+            "name": "Create Agent Task",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"title\":\"[Agent] Workflow Error Debugger\",\"description\":\"Diagnose workflow failures from the past 24h. Decompose as: (1) retrieve failed executions, (2) classify each failure as auth/data/timeout/service/logic, (3) cite root-cause evidence, (4) propose fixes. Never modify, delete, deactivate, or patch workflows automatically. Allowed output is diagnosis plus proposed next steps only.\",\"status\":\"todo\",\"priority\":\"medium\"}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 15000
+                }
+            },
+            "id": "f36d6fa4-e382-4914-81b0-90085d4264e1"
+        },
+        {
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\nconst first = outputItems[0] || {};\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: first.dispatch_status || 'created',\n  evidence_scope: first.evidence_scope || 'dispatch_only',\n  governance_note: first.governance_note || 'seal reflects dispatch only',\n  task_id: first.task_id || null,\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+            },
+            "id": "e2bca33b-c3fa-4937-ad89-51a0d8ecf3e6"
+        },
+        {
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "id": "a955942f-a841-459a-8783-cfaa2426108e"
+        },
+        {
+            "parameters": {
+                "jsCode": "const j = $json || {};\nconst taskId = j.id || j.issueId || j.data?.id || null;\nif (!taskId) { throw new Error('Paperclip task creation returned no task id'); }\nreturn [{json:{...j, task_id: taskId, dispatch_status:'created', evidence_scope:'dispatch_only', governance_note:'seal reflects task dispatch, not task completion'}}];"
+            },
+            "id": "Validate_Task_Response_illd9z",
+            "name": "Validate Task Response",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                520,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Schedule": {
+            "main": [
+                [
+                    {
+                        "node": "Create Agent Task",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Agent Task": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Task Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Task Response": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Schedule": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "8f66ba4f-d571-41e1-97d2-e749b47d6444",
+    "activeVersionId": "8f66ba4f-d571-41e1-97d2-e749b47d6444",
+    "versionCounter": 51,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-21T14:10:32.378Z",
+            "createdAt": "2026-03-21T14:10:32.378Z",
+            "role": "workflow:owner",
+            "workflowId": "d7fnMpSE41VEtG4l",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-23T15:52:22.588Z",
+        "createdAt": "2026-03-23T15:52:22.588Z",
+        "versionId": "8f66ba4f-d571-41e1-97d2-e749b47d6444",
+        "workflowId": "d7fnMpSE41VEtG4l",
+        "nodes": [
+            {
+                "name": "Schedule",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "30 9 * * *"
+                            }
+                        ]
+                    }
+                },
+                "id": "f07f8169-4ca3-4c54-a920-4b05304ffd91"
+            },
+            {
+                "name": "Create Agent Task",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"title\":\"[Agent] Workflow Error Debugger\",\"description\":\"Diagnose workflow failures from the past 24h. Decompose as: (1) retrieve failed executions, (2) classify each failure as auth/data/timeout/service/logic, (3) cite root-cause evidence, (4) propose fixes. Never modify, delete, deactivate, or patch workflows automatically. Allowed output is diagnosis plus proposed next steps only.\",\"status\":\"todo\",\"priority\":\"medium\"}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 15000
+                    }
+                },
+                "id": "f36d6fa4-e382-4914-81b0-90085d4264e1"
+            },
+            {
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\nconst first = outputItems[0] || {};\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: first.dispatch_status || 'created',\n  evidence_scope: first.evidence_scope || 'dispatch_only',\n  governance_note: first.governance_note || 'seal reflects dispatch only',\n  task_id: first.task_id || null,\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+                },
+                "id": "e2bca33b-c3fa-4937-ad89-51a0d8ecf3e6"
+            },
+            {
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                },
+                "id": "a955942f-a841-459a-8783-cfaa2426108e"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const j = $json || {};\nconst taskId = j.id || j.issueId || j.data?.id || null;\nif (!taskId) { throw new Error('Paperclip task creation returned no task id'); }\nreturn [{json:{...j, task_id: taskId, dispatch_status:'created', evidence_scope:'dispatch_only', governance_note:'seal reflects task dispatch, not task completion'}}];"
+                },
+                "id": "Validate_Task_Response_illd9z",
+                "name": "Validate Task Response",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    520,
+                    300
+                ]
+            }
+        ],
+        "connections": {
+            "Schedule": {
+                "main": [
+                    [
+                        {
+                            "node": "Create Agent Task",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Create Agent Task": {
+                "main": [
+                    [
+                        {
+                            "node": "Validate Task Response",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Validate Task Response": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-23T15:52:22.625Z",
+                "id": 1674,
+                "workflowId": "d7fnMpSE41VEtG4l",
+                "versionId": "8f66ba4f-d571-41e1-97d2-e749b47d6444",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-23T15:52:22.610Z",
+                "id": 1673,
+                "workflowId": "d7fnMpSE41VEtG4l",
+                "versionId": "8f66ba4f-d571-41e1-97d2-e749b47d6444",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

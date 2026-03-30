@@ -1,0 +1,671 @@
+{
+    "updatedAt": "2026-03-23T17:23:39.454Z",
+    "createdAt": "2026-03-20T17:30:01.417Z",
+    "id": "h9ux9rhtsBRKgBgL",
+    "name": "W6 - Data Sync Pipeline",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 6
+                        }
+                    ]
+                }
+            },
+            "name": "Every 6 Hours",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                200,
+                300
+            ],
+            "id": "b99929da-7365-4b02-bf3a-d6646560931f"
+        },
+        {
+            "parameters": {
+                "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "status",
+                            "value": "in_progress,done"
+                        },
+                        {
+                            "name": "limit",
+                            "value": "50"
+                        }
+                    ]
+                }
+            },
+            "name": "Fetch Paperclip Issues",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                200
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "6Cliqjk7UlsZOGZJ",
+                    "name": "paperclip-auth"
+                }
+            },
+            "id": "751587bd-af7e-4ee2-831a-872fedab5dc8"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=1&limit=50",
+                "method": "GET",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "service",
+                            "value": "paperclip"
+                        },
+                        {
+                            "name": "limit",
+                            "value": "50"
+                        }
+                    ]
+                }
+            },
+            "name": "Fetch Telemetry Events",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                420
+            ],
+            "id": "052e3638-ce9b-45bc-bf2f-6191d361e81e"
+        },
+        {
+            "parameters": {
+                "mode": "append",
+                "options": {}
+            },
+            "name": "Merge Sources",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                640,
+                300
+            ],
+            "id": "d23e0583-83ae-46e6-9d61-f025014b7740"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst paperclipItem = items[0] ? items[0].json : null;\nconst telemetryItem = items[1] ? items[1].json : null;\n\nconst paperclipIssues = Array.isArray(paperclipItem) ? paperclipItem : (paperclipItem && paperclipItem.issues ? paperclipItem.issues : []);\nconst telemetryEvents = Array.isArray(telemetryItem) ? telemetryItem : (telemetryItem && telemetryItem.events ? telemetryItem.events : []);\n\nconst paperclipIds = new Set(paperclipIssues.map(i => String(i.id || '')));\nconst telemetryIssueIds = new Set(telemetryEvents.filter(e => e.payload && e.payload.issue_id).map(e => String(e.payload.issue_id)));\n\nconst missingFromTelemetry = [...paperclipIds].filter(id => id && !telemetryIssueIds.has(id));\nconst orphanedInTelemetry = [...telemetryIssueIds].filter(id => id && !paperclipIds.has(id));\n\nreturn [{json: {\n  paperclip_count: paperclipIds.size,\n  telemetry_count: telemetryIssueIds.size,\n  missing_from_telemetry: missingFromTelemetry.length,\n  orphaned_in_telemetry: orphanedInTelemetry.length,\n  missing_ids: missingFromTelemetry.slice(0, 20),\n  orphaned_ids: orphanedInTelemetry.slice(0, 20),\n  in_sync: missingFromTelemetry.length === 0 && orphanedInTelemetry.length === 0\n}}];"
+            },
+            "name": "Compare and Find Discrepancies",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                860,
+                300
+            ],
+            "id": "b2ff9597-8045-4905-87cd-a558ed4946d0"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"data_sync_result\", \"payload\": {\"paperclip_count\": \"={{ $json.paperclip_count }}\", \"telemetry_count\": \"={{ $json.telemetry_count }}\", \"missing_from_telemetry\": \"={{ $json.missing_from_telemetry }}\", \"orphaned_in_telemetry\": \"={{ $json.orphaned_in_telemetry }}\", \"in_sync\": \"={{ $json.in_sync }}\", \"missing_ids\": \"={{ JSON.stringify($json.missing_ids) }}\", \"orphaned_ids\": \"={{ JSON.stringify($json.orphaned_ids) }}\"}}"
+            },
+            "name": "Log Sync Result",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1080,
+                300
+            ],
+            "id": "8988ef0c-12ef-4e9e-8224-5bc3e032b1ed"
+        },
+        {
+            "parameters": {},
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                600
+            ],
+            "id": "74fdd153-311f-43dd-92f7-5673a9e6992a"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W6 - Data Sync Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+            },
+            "name": "POST Error to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                600
+            ],
+            "id": "f61453c9-1c4d-4207-ae13-7c36567f8455"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+            },
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1330,
+                377
+            ],
+            "onError": "continueRegularOutput",
+            "id": "3ea4dbff-766b-4d0a-9805-76852f64cd52"
+        },
+        {
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "onError": "continueRegularOutput",
+            "position": [
+                1580,
+                327
+            ],
+            "id": "29711a5c-c574-4951-ae94-04e20ed83133"
+        }
+    ],
+    "connections": {
+        "Every 6 Hours": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Paperclip Issues",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Fetch Telemetry Events",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Paperclip Issues": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Sources",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Telemetry Events": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Sources",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge Sources": {
+            "main": [
+                [
+                    {
+                        "node": "Compare and Find Discrepancies",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Compare and Find Discrepancies": {
+            "main": [
+                [
+                    {
+                        "node": "Log Sync Result",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "POST Error to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Sync Result": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "POST Error to Telemetry": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Every 6 Hours": {
+            "recurrenceRules": [
+                6
+            ]
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "88e03872-e010-4a5f-9d63-35630b3a7e6d",
+    "activeVersionId": "88e03872-e010-4a5f-9d63-35630b3a7e6d",
+    "versionCounter": 118,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-20T17:30:01.418Z",
+            "createdAt": "2026-03-20T17:30:01.418Z",
+            "role": "workflow:owner",
+            "workflowId": "h9ux9rhtsBRKgBgL",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-23T17:23:39.455Z",
+        "createdAt": "2026-03-23T17:23:39.455Z",
+        "versionId": "88e03872-e010-4a5f-9d63-35630b3a7e6d",
+        "workflowId": "h9ux9rhtsBRKgBgL",
+        "nodes": [
+            {
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "hours",
+                                "hoursInterval": 6
+                            }
+                        ]
+                    }
+                },
+                "name": "Every 6 Hours",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    200,
+                    300
+                ],
+                "id": "b99929da-7365-4b02-bf3a-d6646560931f"
+            },
+            {
+                "parameters": {
+                    "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth",
+                    "sendQuery": true,
+                    "queryParameters": {
+                        "parameters": [
+                            {
+                                "name": "status",
+                                "value": "in_progress,done"
+                            },
+                            {
+                                "name": "limit",
+                                "value": "50"
+                            }
+                        ]
+                    }
+                },
+                "name": "Fetch Paperclip Issues",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    200
+                ],
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "6Cliqjk7UlsZOGZJ",
+                        "name": "paperclip-auth"
+                    }
+                },
+                "id": "751587bd-af7e-4ee2-831a-872fedab5dc8"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=1&limit=50",
+                    "method": "GET",
+                    "sendQuery": true,
+                    "queryParameters": {
+                        "parameters": [
+                            {
+                                "name": "service",
+                                "value": "paperclip"
+                            },
+                            {
+                                "name": "limit",
+                                "value": "50"
+                            }
+                        ]
+                    }
+                },
+                "name": "Fetch Telemetry Events",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    420
+                ],
+                "id": "052e3638-ce9b-45bc-bf2f-6191d361e81e"
+            },
+            {
+                "parameters": {
+                    "mode": "append",
+                    "options": {}
+                },
+                "name": "Merge Sources",
+                "type": "n8n-nodes-base.merge",
+                "typeVersion": 3,
+                "position": [
+                    640,
+                    300
+                ],
+                "id": "d23e0583-83ae-46e6-9d61-f025014b7740"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst paperclipItem = items[0] ? items[0].json : null;\nconst telemetryItem = items[1] ? items[1].json : null;\n\nconst paperclipIssues = Array.isArray(paperclipItem) ? paperclipItem : (paperclipItem && paperclipItem.issues ? paperclipItem.issues : []);\nconst telemetryEvents = Array.isArray(telemetryItem) ? telemetryItem : (telemetryItem && telemetryItem.events ? telemetryItem.events : []);\n\nconst paperclipIds = new Set(paperclipIssues.map(i => String(i.id || '')));\nconst telemetryIssueIds = new Set(telemetryEvents.filter(e => e.payload && e.payload.issue_id).map(e => String(e.payload.issue_id)));\n\nconst missingFromTelemetry = [...paperclipIds].filter(id => id && !telemetryIssueIds.has(id));\nconst orphanedInTelemetry = [...telemetryIssueIds].filter(id => id && !paperclipIds.has(id));\n\nreturn [{json: {\n  paperclip_count: paperclipIds.size,\n  telemetry_count: telemetryIssueIds.size,\n  missing_from_telemetry: missingFromTelemetry.length,\n  orphaned_in_telemetry: orphanedInTelemetry.length,\n  missing_ids: missingFromTelemetry.slice(0, 20),\n  orphaned_ids: orphanedInTelemetry.slice(0, 20),\n  in_sync: missingFromTelemetry.length === 0 && orphanedInTelemetry.length === 0\n}}];"
+                },
+                "name": "Compare and Find Discrepancies",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    860,
+                    300
+                ],
+                "id": "b2ff9597-8045-4905-87cd-a558ed4946d0"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"data_sync_result\", \"payload\": {\"paperclip_count\": \"={{ $json.paperclip_count }}\", \"telemetry_count\": \"={{ $json.telemetry_count }}\", \"missing_from_telemetry\": \"={{ $json.missing_from_telemetry }}\", \"orphaned_in_telemetry\": \"={{ $json.orphaned_in_telemetry }}\", \"in_sync\": \"={{ $json.in_sync }}\", \"missing_ids\": \"={{ JSON.stringify($json.missing_ids) }}\", \"orphaned_ids\": \"={{ JSON.stringify($json.orphaned_ids) }}\"}}"
+                },
+                "name": "Log Sync Result",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1080,
+                    300
+                ],
+                "id": "8988ef0c-12ef-4e9e-8224-5bc3e032b1ed"
+            },
+            {
+                "parameters": {},
+                "name": "Error Trigger",
+                "type": "n8n-nodes-base.errorTrigger",
+                "typeVersion": 1,
+                "position": [
+                    200,
+                    600
+                ],
+                "id": "74fdd153-311f-43dd-92f7-5673a9e6992a"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W6 - Data Sync Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                },
+                "name": "POST Error to Telemetry",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    600
+                ],
+                "id": "f61453c9-1c4d-4207-ae13-7c36567f8455"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+                },
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1330,
+                    377
+                ],
+                "onError": "continueRegularOutput",
+                "id": "3ea4dbff-766b-4d0a-9805-76852f64cd52"
+            },
+            {
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                },
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "onError": "continueRegularOutput",
+                "position": [
+                    1580,
+                    327
+                ],
+                "id": "29711a5c-c574-4951-ae94-04e20ed83133"
+            }
+        ],
+        "connections": {
+            "Every 6 Hours": {
+                "main": [
+                    [
+                        {
+                            "node": "Fetch Paperclip Issues",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Fetch Telemetry Events",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Paperclip Issues": {
+                "main": [
+                    [
+                        {
+                            "node": "Merge Sources",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Telemetry Events": {
+                "main": [
+                    [
+                        {
+                            "node": "Merge Sources",
+                            "type": "main",
+                            "index": 1
+                        }
+                    ]
+                ]
+            },
+            "Merge Sources": {
+                "main": [
+                    [
+                        {
+                            "node": "Compare and Find Discrepancies",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Compare and Find Discrepancies": {
+                "main": [
+                    [
+                        {
+                            "node": "Log Sync Result",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Error Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "POST Error to Telemetry",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log Sync Result": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "POST Error to Telemetry": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-23T17:23:39.493Z",
+                "id": 1750,
+                "workflowId": "h9ux9rhtsBRKgBgL",
+                "versionId": "88e03872-e010-4a5f-9d63-35630b3a7e6d",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-23T17:23:39.479Z",
+                "id": 1749,
+                "workflowId": "h9ux9rhtsBRKgBgL",
+                "versionId": "88e03872-e010-4a5f-9d63-35630b3a7e6d",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

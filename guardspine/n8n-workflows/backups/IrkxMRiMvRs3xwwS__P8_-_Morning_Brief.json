@@ -1,0 +1,791 @@
+{
+    "updatedAt": "2026-03-23T16:08:59.597Z",
+    "createdAt": "2026-03-20T17:28:33.277Z",
+    "id": "IrkxMRiMvRs3xwwS",
+    "name": "P8 - Morning Brief",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "7am EST Weekdays",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 12 * * 1-5"
+                        }
+                    ]
+                }
+            },
+            "id": "fc3ac773-b0b2-4ef0-80aa-2eb40df78431"
+        },
+        {
+            "name": "Gather Brief Data",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/morning-brief",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "gather_data"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 120000
+                }
+            },
+            "id": "5f980e3f-0488-429c-ada9-666e75f200c8"
+        },
+        {
+            "name": "Format Brief",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/morning-brief",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "format_brief"
+                        },
+                        {
+                            "name": "data",
+                            "value": "={{ JSON.stringify($json) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "id": "82e0fd03-d161-4fca-8398-f8f120a56e16"
+        },
+        {
+            "name": "Deliver Brief",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/morning-brief",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "deliver_brief"
+                        },
+                        {
+                            "name": "brief",
+                            "value": "={{ $json.formatted_brief }}"
+                        },
+                        {
+                            "name": "channel",
+                            "value": "discord"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "id": "9b191809-d0e5-4756-aba4-4054da1205ab"
+        },
+        {
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "parameters": {
+                "jsCode": "const items = $input.all(); const outputItems = items.map(i=>{const j={...i.json}; for (const k of Object.keys(j)) if (/token|key|secret|password|auth|bearer/i.test(k)) j[k]='[REDACTED]'; return j;}); const first=outputItems[0]||{}; return [{json:{workflow_name:$workflow.name, execution_id:String($execution.id), status:(first.validation_ok===false||first.brief_valid===false)?'validation_failed':'completed', items_count:items.length, finished_at:new Date().toISOString(), service_identity:'n8n-workflows', output_items:outputItems.slice(0,10), metadata:{node_count:$workflow.nodes?.length||0, attention_mode:first.attention_mode||'normal', brief_length:first.brief_length||0}}}];"
+            },
+            "id": "d7fa8839-9d03-4609-90a0-a74828fdd2e6"
+        },
+        {
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "id": "156c6a24-97e2-40f5-8618-4d3d554598b7"
+        },
+        {
+            "parameters": {
+                "jsCode": "const j = $json || {}; const keys = Object.keys(j); const hasData = keys.length > 0; const critical = Number(j.critical_count || 0); return [{json:{...j, validation_ok: hasData, critical_count: critical, attention_mode: critical > 0 ? 'critical' : 'normal'}}];"
+            },
+            "id": "Validate_Gathered_Data_i8fltp",
+            "name": "Validate Gathered Data",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                500,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "version": 2,
+                        "caseSensitive": true,
+                        "typeValidation": "strict"
+                    },
+                    "combinator": "and",
+                    "conditions": [
+                        {
+                            "id": "has-data",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            },
+                            "leftValue": "={{ $json.validation_ok }}",
+                            "rightValue": true
+                        }
+                    ]
+                }
+            },
+            "id": "Data_Valid_if",
+            "name": "Data Valid?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                720,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const j=$json||{}; const brief = j.formatted_brief || j.brief || ''; const ok = typeof brief === 'string' && brief.trim().length >= 40; return [{json:{...j, formatted_brief: brief, brief_valid: ok, brief_length: brief.length}}];"
+            },
+            "id": "Validate_Formatted_Brief_jy3mqv",
+            "name": "Validate Formatted Brief",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                980,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "version": 2,
+                        "caseSensitive": true,
+                        "typeValidation": "strict"
+                    },
+                    "combinator": "and",
+                    "conditions": [
+                        {
+                            "id": "brief-valid",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            },
+                            "leftValue": "={{ $json.brief_valid }}",
+                            "rightValue": true
+                        }
+                    ]
+                }
+            },
+            "id": "Brief_Valid_if",
+            "name": "Brief Valid?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                1200,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "7am EST Weekdays": {
+            "main": [
+                [
+                    {
+                        "node": "Gather Brief Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gather Brief Data": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Gathered Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Brief": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Formatted Brief",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Deliver Brief": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Gathered Data": {
+            "main": [
+                [
+                    {
+                        "node": "Data Valid?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Data Valid?": {
+            "main": [
+                [
+                    {
+                        "node": "Format Brief",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Formatted Brief": {
+            "main": [
+                [
+                    {
+                        "node": "Brief Valid?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Brief Valid?": {
+            "main": [
+                [
+                    {
+                        "node": "Deliver Brief",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:7am EST Weekdays": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "e692d4b8-3dcb-4131-a33c-08e7c19312bd",
+    "activeVersionId": "e692d4b8-3dcb-4131-a33c-08e7c19312bd",
+    "versionCounter": 68,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-20T17:28:33.278Z",
+            "createdAt": "2026-03-20T17:28:33.278Z",
+            "role": "workflow:owner",
+            "workflowId": "IrkxMRiMvRs3xwwS",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-23T16:08:59.598Z",
+        "createdAt": "2026-03-23T16:08:59.598Z",
+        "versionId": "e692d4b8-3dcb-4131-a33c-08e7c19312bd",
+        "workflowId": "IrkxMRiMvRs3xwwS",
+        "nodes": [
+            {
+                "name": "7am EST Weekdays",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 12 * * 1-5"
+                            }
+                        ]
+                    }
+                },
+                "id": "fc3ac773-b0b2-4ef0-80aa-2eb40df78431"
+            },
+            {
+                "name": "Gather Brief Data",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://openclaw.railway.internal:18789/webhook/morning-brief",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            },
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "action",
+                                "value": "gather_data"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 120000
+                    }
+                },
+                "id": "5f980e3f-0488-429c-ada9-666e75f200c8"
+            },
+            {
+                "name": "Format Brief",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://openclaw.railway.internal:18789/webhook/morning-brief",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            },
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "action",
+                                "value": "format_brief"
+                            },
+                            {
+                                "name": "data",
+                                "value": "={{ JSON.stringify($json) }}"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 60000
+                    }
+                },
+                "id": "82e0fd03-d161-4fca-8398-f8f120a56e16"
+            },
+            {
+                "name": "Deliver Brief",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://openclaw.railway.internal:18789/webhook/morning-brief",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            },
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "action",
+                                "value": "deliver_brief"
+                            },
+                            {
+                                "name": "brief",
+                                "value": "={{ $json.formatted_brief }}"
+                            },
+                            {
+                                "name": "channel",
+                                "value": "discord"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 30000
+                    }
+                },
+                "id": "9b191809-d0e5-4756-aba4-4054da1205ab"
+            },
+            {
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "parameters": {
+                    "jsCode": "const items = $input.all(); const outputItems = items.map(i=>{const j={...i.json}; for (const k of Object.keys(j)) if (/token|key|secret|password|auth|bearer/i.test(k)) j[k]='[REDACTED]'; return j;}); const first=outputItems[0]||{}; return [{json:{workflow_name:$workflow.name, execution_id:String($execution.id), status:(first.validation_ok===false||first.brief_valid===false)?'validation_failed':'completed', items_count:items.length, finished_at:new Date().toISOString(), service_identity:'n8n-workflows', output_items:outputItems.slice(0,10), metadata:{node_count:$workflow.nodes?.length||0, attention_mode:first.attention_mode||'normal', brief_length:first.brief_length||0}}}];"
+                },
+                "id": "d7fa8839-9d03-4609-90a0-a74828fdd2e6"
+            },
+            {
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                },
+                "id": "156c6a24-97e2-40f5-8618-4d3d554598b7"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const j = $json || {}; const keys = Object.keys(j); const hasData = keys.length > 0; const critical = Number(j.critical_count || 0); return [{json:{...j, validation_ok: hasData, critical_count: critical, attention_mode: critical > 0 ? 'critical' : 'normal'}}];"
+                },
+                "id": "Validate_Gathered_Data_i8fltp",
+                "name": "Validate Gathered Data",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    500,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "version": 2,
+                            "caseSensitive": true,
+                            "typeValidation": "strict"
+                        },
+                        "combinator": "and",
+                        "conditions": [
+                            {
+                                "id": "has-data",
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "true",
+                                    "singleValue": true
+                                },
+                                "leftValue": "={{ $json.validation_ok }}",
+                                "rightValue": true
+                            }
+                        ]
+                    }
+                },
+                "id": "Data_Valid_if",
+                "name": "Data Valid?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    720,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "jsCode": "const j=$json||{}; const brief = j.formatted_brief || j.brief || ''; const ok = typeof brief === 'string' && brief.trim().length >= 40; return [{json:{...j, formatted_brief: brief, brief_valid: ok, brief_length: brief.length}}];"
+                },
+                "id": "Validate_Formatted_Brief_jy3mqv",
+                "name": "Validate Formatted Brief",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    980,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "version": 2,
+                            "caseSensitive": true,
+                            "typeValidation": "strict"
+                        },
+                        "combinator": "and",
+                        "conditions": [
+                            {
+                                "id": "brief-valid",
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "true",
+                                    "singleValue": true
+                                },
+                                "leftValue": "={{ $json.brief_valid }}",
+                                "rightValue": true
+                            }
+                        ]
+                    }
+                },
+                "id": "Brief_Valid_if",
+                "name": "Brief Valid?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    1200,
+                    300
+                ]
+            }
+        ],
+        "connections": {
+            "7am EST Weekdays": {
+                "main": [
+                    [
+                        {
+                            "node": "Gather Brief Data",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Gather Brief Data": {
+                "main": [
+                    [
+                        {
+                            "node": "Validate Gathered Data",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Format Brief": {
+                "main": [
+                    [
+                        {
+                            "node": "Validate Formatted Brief",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Deliver Brief": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Validate Gathered Data": {
+                "main": [
+                    [
+                        {
+                            "node": "Data Valid?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Data Valid?": {
+                "main": [
+                    [
+                        {
+                            "node": "Format Brief",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Validate Formatted Brief": {
+                "main": [
+                    [
+                        {
+                            "node": "Brief Valid?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Brief Valid?": {
+                "main": [
+                    [
+                        {
+                            "node": "Deliver Brief",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-23T16:08:59.728Z",
+                "id": 1716,
+                "workflowId": "IrkxMRiMvRs3xwwS",
+                "versionId": "e692d4b8-3dcb-4131-a33c-08e7c19312bd",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-23T16:08:59.683Z",
+                "id": 1715,
+                "workflowId": "IrkxMRiMvRs3xwwS",
+                "versionId": "e692d4b8-3dcb-4131-a33c-08e7c19312bd",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

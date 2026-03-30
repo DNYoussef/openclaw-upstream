@@ -1,0 +1,383 @@
+{
+    "updatedAt": "2026-03-22T03:53:27.847Z",
+    "createdAt": "2026-03-21T22:07:30.826Z",
+    "id": "epZkOjdevtgxDL49",
+    "name": "W-Counterpart-Scorer",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Weekly Wednesday 3am ET",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                0,
+                0
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 7 * * 3"
+                        }
+                    ]
+                }
+            },
+            "id": "a99a2ed4-f4aa-407d-84a0-d5f1e238b603"
+        },
+        {
+            "name": "Fetch Prospects",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                220,
+                0
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues?limit=100&status=todo",
+                "sendHeaders": false,
+                "options": {
+                    "timeout": 15000
+                },
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "onError": "continueRegularOutput",
+            "id": "05194288-e403-4d37-87dc-c07ec29fad40",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "6Cliqjk7UlsZOGZJ",
+                    "name": "paperclip-auth"
+                }
+            }
+        },
+        {
+            "name": "Score Counterparts",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                440,
+                0
+            ],
+            "parameters": {
+                "jsCode": "// Counterpart Scoring Model \u2014 Bootstrap Guide Section IX.B\n// Fixed per Codex audit: uses structured prospect fields, not keyword scanning\n// 7 factors, each scored 0-3, consistent naming throughout\n\nconst FACTORS = [\n  'understanding',  // of unfair advantage\n  'growth',         // joint growth potential\n  'longterm',       // long-term orientation\n  'breadth',        // organizational breadth\n  'authority',      // decision authority\n  'creativity',     // packaging creativity\n  'risk_appetite'   // early engagement willingness\n];\n\nconst CLASSIFICATIONS = [\n  { min: 0.75, label: 'true_counterpart' },\n  { min: 0.55, label: 'plausible_partner' },\n  { min: 0.40, label: 'useful_channel' },\n  { min: 0.25, label: 'prestige_target' },\n  { min: 0.0, label: 'low_fit' }\n];\n\n// Known counterpart preset scores (from bootstrap guide Section IX.C)\nconst KNOWN_COUNTERPARTS = {\n  'apco': { understanding: 3, growth: 3, longterm: 2, breadth: 3, authority: 2, creativity: 2, risk_appetite: 2, note: 'Best overall counterpart (AI governance + reputation + accountability)' },\n  'fti': { understanding: 2, growth: 3, longterm: 2, breadth: 3, authority: 3, creativity: 2, risk_appetite: 2, note: 'Best evidence-native (investigations, defensibility, deepfake)' },\n  'weber': { understanding: 2, growth: 2, longterm: 1, breadth: 2, authority: 2, creativity: 3, risk_appetite: 3, note: 'Best fast-experiment' },\n  'fgs': { understanding: 1, growth: 2, longterm: 2, breadth: 3, authority: 3, creativity: 1, risk_appetite: 1, note: 'Best prestige whale' },\n  'brunswick': { understanding: 2, growth: 2, longterm: 2, breadth: 2, authority: 2, creativity: 3, risk_appetite: 1, note: 'Best narrative complement' }\n};\n\nfunction classify(pct) {\n  return (CLASSIFICATIONS.find(c => pct >= c.min) || { label: 'low_fit' }).label;\n}\n\nfunction scoreFromPreset(name, preset) {\n  const scores = {};\n  FACTORS.forEach(f => { scores[f] = preset[f] || 0; });\n  const total = FACTORS.reduce((sum, f) => sum + scores[f], 0);\n  const maxScore = FACTORS.length * 3;\n  const pct = total / maxScore;\n  return {\n    prospect: name,\n    scores,\n    total,\n    pct: Math.round(pct * 100),\n    classification: classify(pct),\n    source: 'preset',\n    note: preset.note || ''\n  };\n}\n\nfunction scoreFromIssue(issue) {\n  const title = (issue.title || '').toLowerCase();\n  const body = (issue.description || issue.body || '').toLowerCase();\n  const text = title + ' ' + body;\n  \n  // Check known counterparts first\n  for (const [key, preset] of Object.entries(KNOWN_COUNTERPARTS)) {\n    if (text.includes(key)) {\n      return scoreFromPreset(issue.title, preset);\n    }\n  }\n  \n  // Heuristic scoring using structured fields from the issue\n  const scores = {};\n  \n  // Parse structured data if present in issue body\n  const hasStructuredData = text.includes('company:') || text.includes('title:') || text.includes('lane:');\n  \n  // Understanding: does the prospect operate near artifact governance?\n  scores.understanding = \n    text.includes('governance') || text.includes('compliance') || text.includes('audit') ? 2 :\n    text.includes('security') || text.includes('risk') || text.includes('review') ? 1 : 0;\n  \n  // Growth: is their market expanding into AI?\n  scores.growth =\n    text.includes('ai practice') || text.includes('ai consulting') || text.includes('ai-assisted') ? 3 :\n    text.includes('digital transformation') || text.includes('ai') ? 2 :\n    text.includes('technology') || text.includes('innovation') ? 1 : 0;\n  \n  // Long-term: signals of strategic thinking\n  scores.longterm =\n    text.includes('strategic') || text.includes('partnership') || text.includes('long-term') ? 2 :\n    text.includes('pilot') || text.includes('explore') ? 1 : 0;\n  \n  // Breadth: organizational size/reach  \n  scores.breadth =\n    text.includes('enterprise') || text.includes('global') || text.includes('fortune') ? 3 :\n    text.includes('mid-market') || text.includes('series b') || text.includes('series c') ? 2 :\n    text.includes('startup') || text.includes('seed') ? 1 : 0;\n  \n  // Authority: contact level\n  scores.authority =\n    text.includes('ceo') || text.includes('cto') || text.includes('ciso') || text.includes('vp') ? 3 :\n    text.includes('director') || text.includes('head of') || text.includes('principal') ? 2 :\n    text.includes('manager') || text.includes('lead') || text.includes('senior') ? 1 : 0;\n  \n  // Creativity: signals of novel approach\n  scores.creativity =\n    text.includes('innovative') || text.includes('new offering') || text.includes('creative') ? 2 :\n    1; // Default 1 (unknown)\n  \n  // Risk appetite: willingness to engage early\n  scores.risk_appetite =\n    text.includes('early adopter') || text.includes('beta') || text.includes('experiment') ? 3 :\n    text.includes('pilot') || text.includes('try') || text.includes('demo') ? 2 :\n    text.includes('proven') || text.includes('established') ? 0 : 1;\n  \n  const total = FACTORS.reduce((sum, f) => sum + (scores[f] || 0), 0);\n  const maxScore = FACTORS.length * 3;\n  const pct = total / maxScore;\n  \n  return {\n    prospect: issue.title,\n    scores,\n    total,\n    pct: Math.round(pct * 100),\n    classification: classify(pct),\n    source: hasStructuredData ? 'structured' : 'heuristic',\n    note: ''\n  };\n}\n\n// Score all known counterparts first (always include these)\nconst presetResults = Object.entries(KNOWN_COUNTERPARTS).map(([name, preset]) => \n  scoreFromPreset(name.charAt(0).toUpperCase() + name.slice(1), preset)\n);\n\n// Score issues from Paperclip\nconst issues = $input.all().map(i => i.json);\nconst allIssues = Array.isArray(issues[0]) ? issues[0] : issues;\nconst issueResults = allIssues\n  .filter(i => i.title)\n  .slice(0, 30)\n  .map(scoreFromIssue);\n\n// Combine, deduplicate, sort\nconst allResults = [...presetResults, ...issueResults]\n  .sort((a, b) => b.pct - a.pct);\n\nconst summary = {\n  total_scored: allResults.length,\n  true_counterparts: allResults.filter(r => r.classification === 'true_counterpart').length,\n  plausible_partners: allResults.filter(r => r.classification === 'plausible_partner').length,\n  useful_channels: allResults.filter(r => r.classification === 'useful_channel').length,\n  prestige_targets: allResults.filter(r => r.classification === 'prestige_target').length,\n  low_fit: allResults.filter(r => r.classification === 'low_fit').length,\n  top_5: allResults.slice(0, 5).map(r => `${r.prospect} (${r.classification}, ${r.pct}%${r.note ? ' \u2014 ' + r.note : ''})`)\n};\n\nreturn [{ json: { summary, results: allResults.slice(0, 20) } }];"
+            },
+            "id": "e1ab797d-45f6-496e-a550-c1f05ba02ada"
+        },
+        {
+            "name": "Post Results to Slack",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                660,
+                -100
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ channel: 'C0AKXAYJ41W', text: '\ud83d\udcca *Weekly Counterpart Scoring Report*\\n\\nTotal scored: ' + $json.summary.total_scored + '\\nTrue counterparts: ' + $json.summary.true_counterparts + '\\nPlausible partners: ' + $json.summary.plausible_partners + '\\n\\nTop 5:\\n' + ($json.summary.top_5 || []).join('\\n') }) }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "onError": "continueRegularOutput",
+            "id": "925eaeed-f691-4162-869c-48bbfae6242e",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            }
+        },
+        {
+            "name": "Seal Evidence",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                660,
+                100
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-Evidence-Key",
+                            "value": "={{ $env.OPS_EVIDENCE_API_KEY || '' }}"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ stream_key: 'counterpart-scoring', execution_id: String($execution.id), workflow_name: $workflow.name, payload: { summary: $json.summary }, sealed_hash: 'djb2:counterpart-' + String($execution.id) }) }}"
+            },
+            "onError": "continueRegularOutput",
+            "id": "e052b5fc-5615-424d-8296-4954b2e65ba6"
+        }
+    ],
+    "connections": {
+        "Weekly Wednesday 3am ET": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Prospects",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Prospects": {
+            "main": [
+                [
+                    {
+                        "node": "Score Counterparts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Score Counterparts": {
+            "main": [
+                [
+                    {
+                        "node": "Post Results to Slack",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Seal Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Weekly Wednesday 3am ET": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "5225f769-cfa7-4a54-8bc2-32ec139743aa",
+    "activeVersionId": "5225f769-cfa7-4a54-8bc2-32ec139743aa",
+    "versionCounter": 29,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-21T22:07:30.828Z",
+            "createdAt": "2026-03-21T22:07:30.828Z",
+            "role": "workflow:owner",
+            "workflowId": "epZkOjdevtgxDL49",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-22T03:53:27.848Z",
+        "createdAt": "2026-03-22T03:53:27.848Z",
+        "versionId": "5225f769-cfa7-4a54-8bc2-32ec139743aa",
+        "workflowId": "epZkOjdevtgxDL49",
+        "nodes": [
+            {
+                "name": "Weekly Wednesday 3am ET",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    0,
+                    0
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 7 * * 3"
+                            }
+                        ]
+                    }
+                },
+                "id": "a99a2ed4-f4aa-407d-84a0-d5f1e238b603"
+            },
+            {
+                "name": "Fetch Prospects",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    220,
+                    0
+                ],
+                "parameters": {
+                    "method": "GET",
+                    "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues?limit=100&status=todo",
+                    "sendHeaders": false,
+                    "options": {
+                        "timeout": 15000
+                    },
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "onError": "continueRegularOutput",
+                "id": "05194288-e403-4d37-87dc-c07ec29fad40",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "6Cliqjk7UlsZOGZJ",
+                        "name": "paperclip-auth"
+                    }
+                }
+            },
+            {
+                "name": "Score Counterparts",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    440,
+                    0
+                ],
+                "parameters": {
+                    "jsCode": "// Counterpart Scoring Model \u2014 Bootstrap Guide Section IX.B\n// Fixed per Codex audit: uses structured prospect fields, not keyword scanning\n// 7 factors, each scored 0-3, consistent naming throughout\n\nconst FACTORS = [\n  'understanding',  // of unfair advantage\n  'growth',         // joint growth potential\n  'longterm',       // long-term orientation\n  'breadth',        // organizational breadth\n  'authority',      // decision authority\n  'creativity',     // packaging creativity\n  'risk_appetite'   // early engagement willingness\n];\n\nconst CLASSIFICATIONS = [\n  { min: 0.75, label: 'true_counterpart' },\n  { min: 0.55, label: 'plausible_partner' },\n  { min: 0.40, label: 'useful_channel' },\n  { min: 0.25, label: 'prestige_target' },\n  { min: 0.0, label: 'low_fit' }\n];\n\n// Known counterpart preset scores (from bootstrap guide Section IX.C)\nconst KNOWN_COUNTERPARTS = {\n  'apco': { understanding: 3, growth: 3, longterm: 2, breadth: 3, authority: 2, creativity: 2, risk_appetite: 2, note: 'Best overall counterpart (AI governance + reputation + accountability)' },\n  'fti': { understanding: 2, growth: 3, longterm: 2, breadth: 3, authority: 3, creativity: 2, risk_appetite: 2, note: 'Best evidence-native (investigations, defensibility, deepfake)' },\n  'weber': { understanding: 2, growth: 2, longterm: 1, breadth: 2, authority: 2, creativity: 3, risk_appetite: 3, note: 'Best fast-experiment' },\n  'fgs': { understanding: 1, growth: 2, longterm: 2, breadth: 3, authority: 3, creativity: 1, risk_appetite: 1, note: 'Best prestige whale' },\n  'brunswick': { understanding: 2, growth: 2, longterm: 2, breadth: 2, authority: 2, creativity: 3, risk_appetite: 1, note: 'Best narrative complement' }\n};\n\nfunction classify(pct) {\n  return (CLASSIFICATIONS.find(c => pct >= c.min) || { label: 'low_fit' }).label;\n}\n\nfunction scoreFromPreset(name, preset) {\n  const scores = {};\n  FACTORS.forEach(f => { scores[f] = preset[f] || 0; });\n  const total = FACTORS.reduce((sum, f) => sum + scores[f], 0);\n  const maxScore = FACTORS.length * 3;\n  const pct = total / maxScore;\n  return {\n    prospect: name,\n    scores,\n    total,\n    pct: Math.round(pct * 100),\n    classification: classify(pct),\n    source: 'preset',\n    note: preset.note || ''\n  };\n}\n\nfunction scoreFromIssue(issue) {\n  const title = (issue.title || '').toLowerCase();\n  const body = (issue.description || issue.body || '').toLowerCase();\n  const text = title + ' ' + body;\n  \n  // Check known counterparts first\n  for (const [key, preset] of Object.entries(KNOWN_COUNTERPARTS)) {\n    if (text.includes(key)) {\n      return scoreFromPreset(issue.title, preset);\n    }\n  }\n  \n  // Heuristic scoring using structured fields from the issue\n  const scores = {};\n  \n  // Parse structured data if present in issue body\n  const hasStructuredData = text.includes('company:') || text.includes('title:') || text.includes('lane:');\n  \n  // Understanding: does the prospect operate near artifact governance?\n  scores.understanding = \n    text.includes('governance') || text.includes('compliance') || text.includes('audit') ? 2 :\n    text.includes('security') || text.includes('risk') || text.includes('review') ? 1 : 0;\n  \n  // Growth: is their market expanding into AI?\n  scores.growth =\n    text.includes('ai practice') || text.includes('ai consulting') || text.includes('ai-assisted') ? 3 :\n    text.includes('digital transformation') || text.includes('ai') ? 2 :\n    text.includes('technology') || text.includes('innovation') ? 1 : 0;\n  \n  // Long-term: signals of strategic thinking\n  scores.longterm =\n    text.includes('strategic') || text.includes('partnership') || text.includes('long-term') ? 2 :\n    text.includes('pilot') || text.includes('explore') ? 1 : 0;\n  \n  // Breadth: organizational size/reach  \n  scores.breadth =\n    text.includes('enterprise') || text.includes('global') || text.includes('fortune') ? 3 :\n    text.includes('mid-market') || text.includes('series b') || text.includes('series c') ? 2 :\n    text.includes('startup') || text.includes('seed') ? 1 : 0;\n  \n  // Authority: contact level\n  scores.authority =\n    text.includes('ceo') || text.includes('cto') || text.includes('ciso') || text.includes('vp') ? 3 :\n    text.includes('director') || text.includes('head of') || text.includes('principal') ? 2 :\n    text.includes('manager') || text.includes('lead') || text.includes('senior') ? 1 : 0;\n  \n  // Creativity: signals of novel approach\n  scores.creativity =\n    text.includes('innovative') || text.includes('new offering') || text.includes('creative') ? 2 :\n    1; // Default 1 (unknown)\n  \n  // Risk appetite: willingness to engage early\n  scores.risk_appetite =\n    text.includes('early adopter') || text.includes('beta') || text.includes('experiment') ? 3 :\n    text.includes('pilot') || text.includes('try') || text.includes('demo') ? 2 :\n    text.includes('proven') || text.includes('established') ? 0 : 1;\n  \n  const total = FACTORS.reduce((sum, f) => sum + (scores[f] || 0), 0);\n  const maxScore = FACTORS.length * 3;\n  const pct = total / maxScore;\n  \n  return {\n    prospect: issue.title,\n    scores,\n    total,\n    pct: Math.round(pct * 100),\n    classification: classify(pct),\n    source: hasStructuredData ? 'structured' : 'heuristic',\n    note: ''\n  };\n}\n\n// Score all known counterparts first (always include these)\nconst presetResults = Object.entries(KNOWN_COUNTERPARTS).map(([name, preset]) => \n  scoreFromPreset(name.charAt(0).toUpperCase() + name.slice(1), preset)\n);\n\n// Score issues from Paperclip\nconst issues = $input.all().map(i => i.json);\nconst allIssues = Array.isArray(issues[0]) ? issues[0] : issues;\nconst issueResults = allIssues\n  .filter(i => i.title)\n  .slice(0, 30)\n  .map(scoreFromIssue);\n\n// Combine, deduplicate, sort\nconst allResults = [...presetResults, ...issueResults]\n  .sort((a, b) => b.pct - a.pct);\n\nconst summary = {\n  total_scored: allResults.length,\n  true_counterparts: allResults.filter(r => r.classification === 'true_counterpart').length,\n  plausible_partners: allResults.filter(r => r.classification === 'plausible_partner').length,\n  useful_channels: allResults.filter(r => r.classification === 'useful_channel').length,\n  prestige_targets: allResults.filter(r => r.classification === 'prestige_target').length,\n  low_fit: allResults.filter(r => r.classification === 'low_fit').length,\n  top_5: allResults.slice(0, 5).map(r => `${r.prospect} (${r.classification}, ${r.pct}%${r.note ? ' \u2014 ' + r.note : ''})`)\n};\n\nreturn [{ json: { summary, results: allResults.slice(0, 20) } }];"
+                },
+                "id": "e1ab797d-45f6-496e-a550-c1f05ba02ada"
+            },
+            {
+                "name": "Post Results to Slack",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    660,
+                    -100
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({ channel: 'C0AKXAYJ41W', text: '\ud83d\udcca *Weekly Counterpart Scoring Report*\\n\\nTotal scored: ' + $json.summary.total_scored + '\\nTrue counterparts: ' + $json.summary.true_counterparts + '\\nPlausible partners: ' + $json.summary.plausible_partners + '\\n\\nTop 5:\\n' + ($json.summary.top_5 || []).join('\\n') }) }}",
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "onError": "continueRegularOutput",
+                "id": "925eaeed-f691-4162-869c-48bbfae6242e",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                }
+            },
+            {
+                "name": "Seal Evidence",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    660,
+                    100
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "X-Evidence-Key",
+                                "value": "={{ $env.OPS_EVIDENCE_API_KEY || '' }}"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({ stream_key: 'counterpart-scoring', execution_id: String($execution.id), workflow_name: $workflow.name, payload: { summary: $json.summary }, sealed_hash: 'djb2:counterpart-' + String($execution.id) }) }}"
+                },
+                "onError": "continueRegularOutput",
+                "id": "e052b5fc-5615-424d-8296-4954b2e65ba6"
+            }
+        ],
+        "connections": {
+            "Weekly Wednesday 3am ET": {
+                "main": [
+                    [
+                        {
+                            "node": "Fetch Prospects",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Prospects": {
+                "main": [
+                    [
+                        {
+                            "node": "Score Counterparts",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Score Counterparts": {
+                "main": [
+                    [
+                        {
+                            "node": "Post Results to Slack",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Seal Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-22T03:53:27.882Z",
+                "id": 1597,
+                "workflowId": "epZkOjdevtgxDL49",
+                "versionId": "5225f769-cfa7-4a54-8bc2-32ec139743aa",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-22T03:53:27.870Z",
+                "id": 1596,
+                "workflowId": "epZkOjdevtgxDL49",
+                "versionId": "5225f769-cfa7-4a54-8bc2-32ec139743aa",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

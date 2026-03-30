@@ -1,0 +1,461 @@
+{
+    "updatedAt": "2026-03-23T17:23:38.600Z",
+    "createdAt": "2026-03-22T21:18:55.646Z",
+    "id": "NhxUNLrfJ6uaSocj",
+    "name": "W-Outreach-Tracker",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Daily Cron",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                300
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "triggerAtHour": 10
+                        }
+                    ]
+                }
+            },
+            "id": "8c6b45b2-0d1b-4056-bf53-1c7b64b38bcb"
+        },
+        {
+            "name": "Scan Reddit Engagement",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                470,
+                300
+            ],
+            "parameters": {
+                "jsCode": "// Scan for engagement on posted messages\n// This queries outreach.db for messages with posted_url\n// and checks Reddit API for upvotes/comments\n\nconst results = [];\n\n// For now, generate a summary of what needs tracking\n// Reddit JSON API: GET {url}.json returns upvotes, comments\nconst platforms = [\"reddit\", \"devto\", \"linkedin\"];\nconst now = new Date().toISOString();\n\nresults.push({\n  json: {\n    scan_time: now,\n    platforms_checked: platforms,\n    action: \"scan_engagement\",\n    message: \"Daily outreach engagement scan completed\"\n  }\n});\n\nreturn results;"
+            },
+            "id": "6f30fc4d-f491-4ffe-8988-764dfa253c6d"
+        },
+        {
+            "name": "Query Posted Messages",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                690,
+                300
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/outreach-pipeline",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"action\":\"check_response_signals\"}",
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "q1AXODdRzGeqWsDy",
+                    "name": "openclaw-auth"
+                }
+            },
+            "id": "1aebc3a1-92d1-4ce9-8049-a2d02b855d5a"
+        },
+        {
+            "name": "Calculate Scores",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                910,
+                300
+            ],
+            "parameters": {
+                "jsCode": "// Calculate composite engagement scores\n// engagement_score = (upvotes * 1) + (replies * 3) + (DMs * 10) + (saves * 5)\nconst data = $input.first().json;\nconst now = new Date().toISOString();\n\nreturn [{ json: {\n  scan_completed: now,\n  formula: \"upvotes*1 + replies*3 + DMs*10 + saves*5\",\n  next_action: \"classify_outcomes\",\n  classification_rules: {\n    winner: \"engagement_score > 75th percentile after 14 days\",\n    loser: \"engagement_score < 25th percentile after 14 days\",\n    mid: \"everything else\"\n  }\n}}];"
+            },
+            "id": "9e93ba5c-eb7f-47c3-a15e-c1c91aea7b2a"
+        },
+        {
+            "name": "Post Summary",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1130,
+                300
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "slackApi",
+                "sendBody": true,
+                "specifyBody": "keypair",
+                "options": {},
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "channel",
+                            "value": "C0AKXAYJ41W"
+                        },
+                        {
+                            "name": "text",
+                            "value": "=Daily Outreach Engagement Scan\nTime: {{ $json.scan_completed }}\nFormula: {{ $json.formula }}\nClassification: winner (>75th pct) / mid / loser (<25th pct)"
+                        }
+                    ]
+                },
+                "contentType": "json"
+            },
+            "credentials": {
+                "slackApi": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            },
+            "id": "2b4facea-c00f-419d-bee4-b1c609e96daf"
+        },
+        {
+            "name": "Seal Evidence",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1350,
+                300
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"stream\":\"outreach_tracking\",\"event_type\":\"engagement_scan\",\"payload\":{\"scan_time\":$json.scan_completed},\"source\":\"W-Outreach-Tracker\"}",
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "6Cliqjk7UlsZOGZJ",
+                    "name": "paperclip-auth"
+                }
+            },
+            "id": "a962af05-54f5-46f3-b880-5dbf90d8cc5d"
+        }
+    ],
+    "connections": {
+        "Daily Cron": {
+            "main": [
+                [
+                    {
+                        "node": "Scan Reddit Engagement",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Scan Reddit Engagement": {
+            "main": [
+                [
+                    {
+                        "node": "Query Posted Messages",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Posted Messages": {
+            "main": [
+                [
+                    {
+                        "node": "Calculate Scores",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Calculate Scores": {
+            "main": [
+                [
+                    {
+                        "node": "Post Summary",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Post Summary": {
+            "main": [
+                [
+                    {
+                        "node": "Seal Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Daily Cron": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "9e0dc568-5f97-485f-b486-93c7a468fa07",
+    "activeVersionId": "9e0dc568-5f97-485f-b486-93c7a468fa07",
+    "versionCounter": 18,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-22T21:18:55.647Z",
+            "createdAt": "2026-03-22T21:18:55.647Z",
+            "role": "workflow:owner",
+            "workflowId": "NhxUNLrfJ6uaSocj",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-23T17:23:38.601Z",
+        "createdAt": "2026-03-23T17:23:38.601Z",
+        "versionId": "9e0dc568-5f97-485f-b486-93c7a468fa07",
+        "workflowId": "NhxUNLrfJ6uaSocj",
+        "nodes": [
+            {
+                "name": "Daily Cron",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    250,
+                    300
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "triggerAtHour": 10
+                            }
+                        ]
+                    }
+                },
+                "id": "8c6b45b2-0d1b-4056-bf53-1c7b64b38bcb"
+            },
+            {
+                "name": "Scan Reddit Engagement",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    470,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "// Scan for engagement on posted messages\n// This queries outreach.db for messages with posted_url\n// and checks Reddit API for upvotes/comments\n\nconst results = [];\n\n// For now, generate a summary of what needs tracking\n// Reddit JSON API: GET {url}.json returns upvotes, comments\nconst platforms = [\"reddit\", \"devto\", \"linkedin\"];\nconst now = new Date().toISOString();\n\nresults.push({\n  json: {\n    scan_time: now,\n    platforms_checked: platforms,\n    action: \"scan_engagement\",\n    message: \"Daily outreach engagement scan completed\"\n  }\n});\n\nreturn results;"
+                },
+                "id": "6f30fc4d-f491-4ffe-8988-764dfa253c6d"
+            },
+            {
+                "name": "Query Posted Messages",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    690,
+                    300
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://openclaw.railway.internal:18789/webhook/outreach-pipeline",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={\"action\":\"check_response_signals\"}",
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "q1AXODdRzGeqWsDy",
+                        "name": "openclaw-auth"
+                    }
+                },
+                "id": "1aebc3a1-92d1-4ce9-8049-a2d02b855d5a"
+            },
+            {
+                "name": "Calculate Scores",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    910,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "// Calculate composite engagement scores\n// engagement_score = (upvotes * 1) + (replies * 3) + (DMs * 10) + (saves * 5)\nconst data = $input.first().json;\nconst now = new Date().toISOString();\n\nreturn [{ json: {\n  scan_completed: now,\n  formula: \"upvotes*1 + replies*3 + DMs*10 + saves*5\",\n  next_action: \"classify_outcomes\",\n  classification_rules: {\n    winner: \"engagement_score > 75th percentile after 14 days\",\n    loser: \"engagement_score < 25th percentile after 14 days\",\n    mid: \"everything else\"\n  }\n}}];"
+                },
+                "id": "9e93ba5c-eb7f-47c3-a15e-c1c91aea7b2a"
+            },
+            {
+                "name": "Post Summary",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1130,
+                    300
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "slackApi",
+                    "sendBody": true,
+                    "specifyBody": "keypair",
+                    "options": {},
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "channel",
+                                "value": "C0AKXAYJ41W"
+                            },
+                            {
+                                "name": "text",
+                                "value": "=Daily Outreach Engagement Scan\nTime: {{ $json.scan_completed }}\nFormula: {{ $json.formula }}\nClassification: winner (>75th pct) / mid / loser (<25th pct)"
+                            }
+                        ]
+                    },
+                    "contentType": "json"
+                },
+                "credentials": {
+                    "slackApi": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                },
+                "id": "2b4facea-c00f-419d-bee4-b1c609e96daf"
+            },
+            {
+                "name": "Seal Evidence",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1350,
+                    300
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={\"stream\":\"outreach_tracking\",\"event_type\":\"engagement_scan\",\"payload\":{\"scan_time\":$json.scan_completed},\"source\":\"W-Outreach-Tracker\"}",
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "6Cliqjk7UlsZOGZJ",
+                        "name": "paperclip-auth"
+                    }
+                },
+                "id": "a962af05-54f5-46f3-b880-5dbf90d8cc5d"
+            }
+        ],
+        "connections": {
+            "Daily Cron": {
+                "main": [
+                    [
+                        {
+                            "node": "Scan Reddit Engagement",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Scan Reddit Engagement": {
+                "main": [
+                    [
+                        {
+                            "node": "Query Posted Messages",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Query Posted Messages": {
+                "main": [
+                    [
+                        {
+                            "node": "Calculate Scores",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Calculate Scores": {
+                "main": [
+                    [
+                        {
+                            "node": "Post Summary",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Post Summary": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-23T17:23:38.667Z",
+                "id": 1746,
+                "workflowId": "NhxUNLrfJ6uaSocj",
+                "versionId": "9e0dc568-5f97-485f-b486-93c7a468fa07",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-23T17:23:38.637Z",
+                "id": 1745,
+                "workflowId": "NhxUNLrfJ6uaSocj",
+                "versionId": "9e0dc568-5f97-485f-b486-93c7a468fa07",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

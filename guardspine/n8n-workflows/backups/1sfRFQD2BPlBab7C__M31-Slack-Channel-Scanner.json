@@ -1,0 +1,589 @@
+{
+    "updatedAt": "2026-03-23T15:52:19.997Z",
+    "createdAt": "2026-03-22T02:34:55.953Z",
+    "id": "1sfRFQD2BPlBab7C",
+    "name": "M31-Slack-Channel-Scanner",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Hourly Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                0,
+                0
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 * * * *"
+                        }
+                    ]
+                }
+            },
+            "id": "43b48571-41ce-41cd-9eaa-7d1d699d2e11"
+        },
+        {
+            "name": "Read Last Check",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                220,
+                0
+            ],
+            "parameters": {
+                "jsCode": "// Channels the bot monitors\nconst channels = [\n  {id: 'C0AENTTKMPH', name: 'all-guardspine'},\n  {id: 'C0AJMK54QCF', name: 'alerts'},\n  {id: 'C0AJMK56U7R', name: 'gtm'},\n  {id: 'C0AJZKU5W4D', name: 'customers'},\n  {id: 'C0AJZKU6T45', name: 'eng'},\n  {id: 'C0AKXAYJ41W', name: 'pipeline'},\n  {id: 'C0AN3AD1DK6', name: 'memory'},\n  {id: 'C0ANU1180QY', name: 'agent-log'},\n  {id: 'C0ANU14MPS4', name: 'decisions'}\n];\n\n// Use 1 hour ago as the \"oldest\" marker\nconst oneHourAgo = (Date.now() / 1000 - 3600).toFixed(6);\n\nreturn channels.map(c => ({\n  json: {\n    channel_id: c.id,\n    channel_name: c.name,\n    oldest: oneHourAgo,\n    bot_user_id: 'U0AMZHZ4B50',\n    david_user_id: 'U0AF29RB1TQ'\n  }\n}));"
+            },
+            "id": "4549f590-e19b-493d-91b0-29799fe5ba7f"
+        },
+        {
+            "name": "Fetch Channel History",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                440,
+                0
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "=https://slack.com/api/conversations.history",
+                "authentication": "genericCredentialType",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "channel",
+                            "value": "={{ $json.channel_id }}"
+                        },
+                        {
+                            "name": "oldest",
+                            "value": "={{ $json.oldest }}"
+                        },
+                        {
+                            "name": "limit",
+                            "value": "50"
+                        }
+                    ]
+                },
+                "options": {},
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "4232b3ce-52f7-475e-8a2a-40aa6d9c31f2",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            }
+        },
+        {
+            "name": "Filter Relevant Messages",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                660,
+                0
+            ],
+            "parameters": {
+                "jsCode": "// Filter for messages that concern the agent while preserving per-channel context\nconst results = [];\n\nconst BOT_USER = 'U0AMZHZ4B50';\nconst DAVID_USER = 'U0AF29RB1TQ';\nconst KEYWORDS = ['agent', 'openclaw', 'cron', 'workflow', 'n8n', 'deploy', 'fix', 'audit', 'codex', 'litellm', 'railway', 'evidence', 'brief', 'scan'];\n\nfor (const item of $input.all()) {\n  const messages = item.json.messages || [];\n  const channelId = item.json.channel_id;\n  const channelName = item.json.channel_name;\n  const oldest = item.json.oldest;\n\n  if (!channelId || !channelName) {\n    continue;\n  }\n\n  for (const msg of messages) {\n    if (msg.user === BOT_USER) continue;\n    if (msg.subtype === 'bot_message' || msg.subtype === 'channel_join') continue;\n\n    const text = String(msg.text || '');\n    const lower = text.toLowerCase();\n    const isMention = lower.includes('<@' + BOT_USER.toLowerCase() + '>') || lower.includes(BOT_USER.toLowerCase());\n    const isFromDavid = msg.user === DAVID_USER;\n    const hasKeyword = KEYWORDS.some((kw) => lower.includes(kw));\n\n    if (isMention || (isFromDavid && hasKeyword)) {\n      results.push({\n        json: {\n          channel_id: channelId,\n          channel_name: channelName,\n          oldest,\n          ts: msg.ts,\n          user: msg.user,\n          text,\n          thread_ts: msg.thread_ts || msg.ts,\n          reason: isMention ? 'direct_mention' : 'david_keyword',\n          is_mention: isMention,\n          valid_context: true\n        }\n      });\n    }\n  }\n}\n\nif (results.length === 0) {\n  return [{json: {skip: true, reason: 'no relevant messages in any channel', scanned_channels: $input.all().length}}];\n}\n\nreturn results;"
+            },
+            "id": "b7f85a95-fb2c-4bc6-910c-32d0aed3e9a8"
+        },
+        {
+            "name": "Has Messages?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                880,
+                0
+            ],
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "skip-check",
+                            "leftValue": "={{ $json.skip }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "notTrue"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "632f3ec6-b1c0-4adb-8425-cdf6e757155d"
+        },
+        {
+            "name": "Forward to OpenClaw",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1100,
+                -50
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/agent_task",
+                "authentication": "genericCredentialType",
+                "sendHeaders": false,
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({task: 'slack_channel_mention', channel: $json.channel_name, channel_id: $json.channel_id, message_ts: $json.ts, thread_ts: $json.thread_ts, user: $json.user, text: $json.text, reason: $json.reason, instruction: 'A user mentioned you or posted something relevant in #' + $json.channel_name + '. Read the full thread if needed and respond appropriately. Message: ' + ($json.text || '').substring(0, 500)}) }}",
+                "options": {},
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "48d3b08e-38cd-4509-bd06-27d46e0885d2",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "sS3WHLXNPKSkpIC2",
+                    "name": "openclaw-gateway-auth"
+                }
+            }
+        },
+        {
+            "name": "Seal Evidence",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1800,
+                300
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "authentication": "noAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({stream_key: 'slack-scanner', execution_id: 'scan-' + Date.now(), event_type: 'channel_scan', payload: {channels_scanned: 9, relevant_messages: 1, channel: $json.channel_name, reason: $json.reason, forward_ok: $json.forward_ok !== false, forward_error: $json.forward_error || null}, meta: {workflow: 'M31-Slack-Channel-Scanner'}}) }}",
+                "options": {}
+            },
+            "id": "aa62ebc2-cf8b-4286-960f-957395f04890"
+        },
+        {
+            "name": "Validate Forward Result",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1550,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const resp = $input.first().json || {};\nconst ok = resp.ok === true;\nconst channel = $json.channel_name || $('Filter Relevant Messages').first().json.channel_name;\nreturn [{json:{...$json, forward_ok: ok, forward_error: ok ? null : (resp.error || 'unknown_error'), validated_at: new Date().toISOString()}}];"
+            },
+            "id": "d44d8f65-09bd-4154-a4e0-f66c4d92ecdd"
+        }
+    ],
+    "connections": {
+        "Hourly Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Read Last Check",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Last Check": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Channel History",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Channel History": {
+            "main": [
+                [
+                    {
+                        "node": "Filter Relevant Messages",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Filter Relevant Messages": {
+            "main": [
+                [
+                    {
+                        "node": "Has Messages?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Has Messages?": {
+            "main": [
+                [
+                    {
+                        "node": "Forward to OpenClaw",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                []
+            ]
+        },
+        "Forward to OpenClaw": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Forward Result",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Forward Result": {
+            "main": [
+                [
+                    {
+                        "node": "Seal Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Hourly Trigger": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "7dcedecd-5e07-4023-a7a6-0aef4e69ff1a",
+    "activeVersionId": "7dcedecd-5e07-4023-a7a6-0aef4e69ff1a",
+    "versionCounter": 33,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-22T02:34:55.954Z",
+            "createdAt": "2026-03-22T02:34:55.954Z",
+            "role": "workflow:owner",
+            "workflowId": "1sfRFQD2BPlBab7C",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-23T15:52:19.997Z",
+        "createdAt": "2026-03-23T15:52:19.997Z",
+        "versionId": "7dcedecd-5e07-4023-a7a6-0aef4e69ff1a",
+        "workflowId": "1sfRFQD2BPlBab7C",
+        "nodes": [
+            {
+                "name": "Hourly Trigger",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    0,
+                    0
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 * * * *"
+                            }
+                        ]
+                    }
+                },
+                "id": "43b48571-41ce-41cd-9eaa-7d1d699d2e11"
+            },
+            {
+                "name": "Read Last Check",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    220,
+                    0
+                ],
+                "parameters": {
+                    "jsCode": "// Channels the bot monitors\nconst channels = [\n  {id: 'C0AENTTKMPH', name: 'all-guardspine'},\n  {id: 'C0AJMK54QCF', name: 'alerts'},\n  {id: 'C0AJMK56U7R', name: 'gtm'},\n  {id: 'C0AJZKU5W4D', name: 'customers'},\n  {id: 'C0AJZKU6T45', name: 'eng'},\n  {id: 'C0AKXAYJ41W', name: 'pipeline'},\n  {id: 'C0AN3AD1DK6', name: 'memory'},\n  {id: 'C0ANU1180QY', name: 'agent-log'},\n  {id: 'C0ANU14MPS4', name: 'decisions'}\n];\n\n// Use 1 hour ago as the \"oldest\" marker\nconst oneHourAgo = (Date.now() / 1000 - 3600).toFixed(6);\n\nreturn channels.map(c => ({\n  json: {\n    channel_id: c.id,\n    channel_name: c.name,\n    oldest: oneHourAgo,\n    bot_user_id: 'U0AMZHZ4B50',\n    david_user_id: 'U0AF29RB1TQ'\n  }\n}));"
+                },
+                "id": "4549f590-e19b-493d-91b0-29799fe5ba7f"
+            },
+            {
+                "name": "Fetch Channel History",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    440,
+                    0
+                ],
+                "parameters": {
+                    "method": "GET",
+                    "url": "=https://slack.com/api/conversations.history",
+                    "authentication": "genericCredentialType",
+                    "sendQuery": true,
+                    "queryParameters": {
+                        "parameters": [
+                            {
+                                "name": "channel",
+                                "value": "={{ $json.channel_id }}"
+                            },
+                            {
+                                "name": "oldest",
+                                "value": "={{ $json.oldest }}"
+                            },
+                            {
+                                "name": "limit",
+                                "value": "50"
+                            }
+                        ]
+                    },
+                    "options": {},
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "4232b3ce-52f7-475e-8a2a-40aa6d9c31f2",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                }
+            },
+            {
+                "name": "Filter Relevant Messages",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    660,
+                    0
+                ],
+                "parameters": {
+                    "jsCode": "// Filter for messages that concern the agent while preserving per-channel context\nconst results = [];\n\nconst BOT_USER = 'U0AMZHZ4B50';\nconst DAVID_USER = 'U0AF29RB1TQ';\nconst KEYWORDS = ['agent', 'openclaw', 'cron', 'workflow', 'n8n', 'deploy', 'fix', 'audit', 'codex', 'litellm', 'railway', 'evidence', 'brief', 'scan'];\n\nfor (const item of $input.all()) {\n  const messages = item.json.messages || [];\n  const channelId = item.json.channel_id;\n  const channelName = item.json.channel_name;\n  const oldest = item.json.oldest;\n\n  if (!channelId || !channelName) {\n    continue;\n  }\n\n  for (const msg of messages) {\n    if (msg.user === BOT_USER) continue;\n    if (msg.subtype === 'bot_message' || msg.subtype === 'channel_join') continue;\n\n    const text = String(msg.text || '');\n    const lower = text.toLowerCase();\n    const isMention = lower.includes('<@' + BOT_USER.toLowerCase() + '>') || lower.includes(BOT_USER.toLowerCase());\n    const isFromDavid = msg.user === DAVID_USER;\n    const hasKeyword = KEYWORDS.some((kw) => lower.includes(kw));\n\n    if (isMention || (isFromDavid && hasKeyword)) {\n      results.push({\n        json: {\n          channel_id: channelId,\n          channel_name: channelName,\n          oldest,\n          ts: msg.ts,\n          user: msg.user,\n          text,\n          thread_ts: msg.thread_ts || msg.ts,\n          reason: isMention ? 'direct_mention' : 'david_keyword',\n          is_mention: isMention,\n          valid_context: true\n        }\n      });\n    }\n  }\n}\n\nif (results.length === 0) {\n  return [{json: {skip: true, reason: 'no relevant messages in any channel', scanned_channels: $input.all().length}}];\n}\n\nreturn results;"
+                },
+                "id": "b7f85a95-fb2c-4bc6-910c-32d0aed3e9a8"
+            },
+            {
+                "name": "Has Messages?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    880,
+                    0
+                ],
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": "",
+                            "typeValidation": "strict"
+                        },
+                        "conditions": [
+                            {
+                                "id": "skip-check",
+                                "leftValue": "={{ $json.skip }}",
+                                "rightValue": true,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "notTrue"
+                                }
+                            }
+                        ],
+                        "combinator": "and"
+                    }
+                },
+                "id": "632f3ec6-b1c0-4adb-8425-cdf6e757155d"
+            },
+            {
+                "name": "Forward to OpenClaw",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1100,
+                    -50
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://openclaw.railway.internal:18789/webhook/agent_task",
+                    "authentication": "genericCredentialType",
+                    "sendHeaders": false,
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({task: 'slack_channel_mention', channel: $json.channel_name, channel_id: $json.channel_id, message_ts: $json.ts, thread_ts: $json.thread_ts, user: $json.user, text: $json.text, reason: $json.reason, instruction: 'A user mentioned you or posted something relevant in #' + $json.channel_name + '. Read the full thread if needed and respond appropriately. Message: ' + ($json.text || '').substring(0, 500)}) }}",
+                    "options": {},
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "48d3b08e-38cd-4509-bd06-27d46e0885d2",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "sS3WHLXNPKSkpIC2",
+                        "name": "openclaw-gateway-auth"
+                    }
+                }
+            },
+            {
+                "name": "Seal Evidence",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1800,
+                    300
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "authentication": "noAuth",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({stream_key: 'slack-scanner', execution_id: 'scan-' + Date.now(), event_type: 'channel_scan', payload: {channels_scanned: 9, relevant_messages: 1, channel: $json.channel_name, reason: $json.reason, forward_ok: $json.forward_ok !== false, forward_error: $json.forward_error || null}, meta: {workflow: 'M31-Slack-Channel-Scanner'}}) }}",
+                    "options": {}
+                },
+                "id": "aa62ebc2-cf8b-4286-960f-957395f04890"
+            },
+            {
+                "name": "Validate Forward Result",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1550,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const resp = $input.first().json || {};\nconst ok = resp.ok === true;\nconst channel = $json.channel_name || $('Filter Relevant Messages').first().json.channel_name;\nreturn [{json:{...$json, forward_ok: ok, forward_error: ok ? null : (resp.error || 'unknown_error'), validated_at: new Date().toISOString()}}];"
+                },
+                "id": "d44d8f65-09bd-4154-a4e0-f66c4d92ecdd"
+            }
+        ],
+        "connections": {
+            "Hourly Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "Read Last Check",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Read Last Check": {
+                "main": [
+                    [
+                        {
+                            "node": "Fetch Channel History",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Channel History": {
+                "main": [
+                    [
+                        {
+                            "node": "Filter Relevant Messages",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Filter Relevant Messages": {
+                "main": [
+                    [
+                        {
+                            "node": "Has Messages?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Has Messages?": {
+                "main": [
+                    [
+                        {
+                            "node": "Forward to OpenClaw",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    []
+                ]
+            },
+            "Forward to OpenClaw": {
+                "main": [
+                    [
+                        {
+                            "node": "Validate Forward Result",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Validate Forward Result": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-23T15:52:20.057Z",
+                "id": 1658,
+                "workflowId": "1sfRFQD2BPlBab7C",
+                "versionId": "7dcedecd-5e07-4023-a7a6-0aef4e69ff1a",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-23T15:52:20.029Z",
+                "id": 1657,
+                "workflowId": "1sfRFQD2BPlBab7C",
+                "versionId": "7dcedecd-5e07-4023-a7a6-0aef4e69ff1a",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

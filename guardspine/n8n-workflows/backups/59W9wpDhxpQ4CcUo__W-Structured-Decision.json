@@ -1,0 +1,923 @@
+{
+    "updatedAt": "2026-03-23T15:56:39.893Z",
+    "createdAt": "2026-03-22T03:20:06.962Z",
+    "id": "59W9wpDhxpQ4CcUo",
+    "name": "W-Structured-Decision",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "parameters": {
+                "path": "structured-decision",
+                "httpMethod": "POST",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "id": "29d62d0d-709b-40b6-8a16-80db19ef73a7"
+        },
+        {
+            "name": "Prepare",
+            "type": "n8n-nodes-base.code",
+            "parameters": {
+                "jsCode": "\n        const b = $json.body || $json;\n        const evidence = Array.isArray(b.evidence_refs) ? b.evidence_refs : [];\n        const question = String(b.question || '').trim();\n        const context = String(b.context || '').trim();\n        const evidenceSummary = evidence.length ? evidence.map((e,i)=> `${i+1}. ${typeof e === 'string' ? e : JSON.stringify(e)}`).join('\n') : 'No evidence refs provided.';\n        return [{json:{question,context,evidence_refs:evidence,evidence_summary:evidenceSummary,urgency:b.urgency || 'normal',requestor:b.requestor || 'unknown',constraints:Array.isArray(b.constraints) ? b.constraints : []}}];\n"
+            },
+            "id": "be37d5f7-c9e1-48c8-bd0e-e7a24941ee81"
+        },
+        {
+            "name": "Validate Input",
+            "type": "n8n-nodes-base.code",
+            "parameters": {
+                "jsCode": "\nconst j=$json; const errors=[];\nif(!j.question) errors.push('missing_question');\nif((j.context||'').length < 20) errors.push('thin_context');\nreturn [{json:{...j,input_valid:errors.length===0,input_errors:errors}}];\n"
+            },
+            "id": "28af1665-a2d1-43e6-8ee8-414ff10878cd"
+        },
+        {
+            "name": "Input OK?",
+            "type": "n8n-nodes-base.if",
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "ok",
+                            "leftValue": "={{ $json.input_valid }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "8cc58551-f2d0-48b2-8470-44aa5e7a6a77"
+        },
+        {
+            "name": "Growth LLM",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "method": "POST",
+                "url": "http://litellm.railway.internal:4000/v1/chat/completions",
+                "authentication": "genericCredentialType",
+                "sendBody": true,
+                "specifyBody": "json",
+                "options": {
+                    "timeout": 30000
+                },
+                "jsonBody": "={{ JSON.stringify({model:\"gpt-4o-mini\",messages:[{role:\"system\",content:\"You are the Growth perspective. Return ONLY JSON with keys: perspective, verdict (support|neutral|oppose), confidence (high|medium|low), impact_area (revenue|market|customer), key_points (array of 2-4 strings), risks (array), evidence_gaps (array), recommendation (string).\"},{role:\"user\",content:\"Question: {{$json.question}}\\nContext: {{$json.context}}\\nEvidence refs:\\n{{$json.evidence_summary}}\"}],max_tokens:500,temperature:0.2}) }}",
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "da450997-b151-4193-bc8f-b195e91edfd7"
+        },
+        {
+            "name": "Parse Growth",
+            "type": "n8n-nodes-base.code",
+            "parameters": {
+                "jsCode": "\nconst prev = $('Prepare').first().json;\nconst content = $json.choices?.[0]?.message?.content || '';\nlet parsed; let parse_error='';\ntry { const m=content.match(/\\{[\\s\\S]*\\}/); parsed = JSON.parse(m?m[0]:content); } catch(e) { parse_error=e.message; parsed={perspective:'growth', verdict:'unknown', confidence:'low', key_points:[], risks:['parse_error'], evidence_gaps:['invalid_json'], recommendation: content.slice(0,240)}; }\nreturn [{json:{...prev, growth_analysis:parsed, growth_raw:content, growth_parse_error:parse_error}}];\n"
+            },
+            "id": "eb44b684-6ebe-4083-96ed-30c214930fbe"
+        },
+        {
+            "name": "Finance LLM",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "method": "POST",
+                "url": "http://litellm.railway.internal:4000/v1/chat/completions",
+                "authentication": "genericCredentialType",
+                "sendBody": true,
+                "specifyBody": "json",
+                "options": {
+                    "timeout": 30000
+                },
+                "jsonBody": "={{ JSON.stringify({model:\"gpt-4o-mini\",messages:[{role:\"system\",content:\"You are the Finance perspective. Return ONLY JSON with keys: perspective, verdict (support|neutral|oppose), confidence (high|medium|low), impact_area (cost|roi|cashflow), key_points (array of 2-4 strings), risks (array), evidence_gaps (array), recommendation (string).\"},{role:\"user\",content:\"Question: {{$json.question}}\\nContext: {{$json.context}}\\nEvidence refs:\\n{{$json.evidence_summary}}\"}],max_tokens:500,temperature:0.2}) }}",
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "87ce96a9-6ac0-4f79-99c5-d4a9b71fcb82"
+        },
+        {
+            "name": "Parse Finance",
+            "type": "n8n-nodes-base.code",
+            "parameters": {
+                "jsCode": "\nconst prev = $('Parse Growth').first().json;\nconst content = $json.choices?.[0]?.message?.content || '';\nlet parsed; let parse_error='';\ntry { const m=content.match(/\\{[\\s\\S]*\\}/); parsed = JSON.parse(m?m[0]:content); } catch(e) { parse_error=e.message; parsed={perspective:'finance', verdict:'unknown', confidence:'low', key_points:[], risks:['parse_error'], evidence_gaps:['invalid_json'], recommendation: content.slice(0,240)}; }\nreturn [{json:{...prev, finance_analysis:parsed, finance_raw:content, finance_parse_error:parse_error}}];\n"
+            },
+            "id": "1fcc8da2-b987-4507-a824-f1ccccdd2bb5"
+        },
+        {
+            "name": "Infra LLM",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "method": "POST",
+                "url": "http://litellm.railway.internal:4000/v1/chat/completions",
+                "authentication": "genericCredentialType",
+                "sendBody": true,
+                "specifyBody": "json",
+                "options": {
+                    "timeout": 30000
+                },
+                "jsonBody": "={{ JSON.stringify({model:\"gpt-4o-mini\",messages:[{role:\"system\",content:\"You are the Infrastructure/Security perspective. Return ONLY JSON with keys: perspective, verdict (support|neutral|oppose), confidence (high|medium|low), impact_area (delivery|security|reliability), key_points (array of 2-4 strings), risks (array), evidence_gaps (array), recommendation (string).\"},{role:\"user\",content:\"Question: {{$json.question}}\\nContext: {{$json.context}}\\nEvidence refs:\\n{{$json.evidence_summary}}\"}],max_tokens:500,temperature:0.2}) }}",
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "d9cd3f08-4a6c-4b0a-9590-a4c9b1a600e8"
+        },
+        {
+            "name": "Parse Infra",
+            "type": "n8n-nodes-base.code",
+            "parameters": {
+                "jsCode": "\nconst prev = $('Parse Finance').first().json;\nconst content = $json.choices?.[0]?.message?.content || '';\nlet parsed; let parse_error='';\ntry { const m=content.match(/\\{[\\s\\S]*\\}/); parsed = JSON.parse(m?m[0]:content); } catch(e) { parse_error=e.message; parsed={perspective:'infra', verdict:'unknown', confidence:'low', key_points:[], risks:['parse_error'], evidence_gaps:['invalid_json'], recommendation: content.slice(0,240)}; }\nreturn [{json:{...prev, infra_analysis:parsed, infra_raw:content, infra_parse_error:parse_error}}];\n"
+            },
+            "id": "19338b57-4e30-4a4c-92f1-7631367c04d9"
+        },
+        {
+            "name": "Critic Prep",
+            "type": "n8n-nodes-base.code",
+            "parameters": {
+                "jsCode": "\nreturn [{json:{...$json, critic_payload:{question:$json.question, context:$json.context, evidence_refs:$json.evidence_refs, growth:$json.growth_analysis, finance:$json.finance_analysis, infra:$json.infra_analysis}}}];\n"
+            },
+            "id": "05b72c85-cc43-4fa7-91c0-8a29454d9109"
+        },
+        {
+            "name": "Critic LLM",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "method": "POST",
+                "url": "http://litellm.railway.internal:4000/v1/chat/completions",
+                "authentication": "genericCredentialType",
+                "sendBody": true,
+                "specifyBody": "json",
+                "options": {
+                    "timeout": 30000
+                },
+                "jsonBody": "={{ JSON.stringify({model:\"claude-sonnet\",messages:[{role:\"system\",content:\"You are a decision critic. Return ONLY JSON with keys: consensus (consensus|mixed|blocked), confidence (high|medium|low), risk_tier (low|medium|high), missing_evidence (array), contradictions (array), final_recommendation (approve|escalate|reject), summary (string).\"},{role:\"user\",content:JSON.stringify($json.critic_payload)}],max_tokens:600,temperature:0.1}) }}",
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "28938c97-b5f6-44b0-9ddf-99ffde1fa3fc"
+        },
+        {
+            "name": "Package",
+            "type": "n8n-nodes-base.code",
+            "parameters": {
+                "jsCode": "\nconst prev=$('Critic Prep').first().json; const content=$json.choices?.[0]?.message?.content||'';\nlet critic={}; let errors=[];\ntry { const m=content.match(/\\{[\\s\\S]*\\}/); critic=JSON.parse(m?m[0]:content);} catch(e){errors.push('critic_parse_error'); critic={consensus:'blocked',confidence:'low',risk_tier:'high',final_recommendation:'escalate',summary:content.slice(0,240),missing_evidence:['critic_invalid_json'],contradictions:['parse_error']}; }\nfor (const field of ['consensus','confidence','risk_tier','final_recommendation','summary']) if(!critic[field]) errors.push('missing_'+field);\n['growth','finance','infra'].forEach(k=>{ if(prev[k+'_parse_error']) errors.push(k+'_parse_error'); if(!prev[k+'_analysis']?.verdict) errors.push('missing_'+k+'_verdict');});\nconst route = errors.length ? 'escalate' : (critic.final_recommendation === 'approve' && critic.risk_tier !== 'high' ? 'publish' : critic.final_recommendation === 'reject' ? 'reject' : 'escalate');\nreturn [{json:{decision_id:'dec-'+Date.now(),question:prev.question,context:prev.context,evidence_refs:prev.evidence_refs,urgency:prev.urgency,requestor:prev.requestor,perspectives:{growth:prev.growth_analysis,finance:prev.finance_analysis,infrastructure:prev.infra_analysis},critic,validation_errors:errors,route_status:route,timestamp:new Date().toISOString(),status: route==='publish' ? 'ready_to_publish' : route==='reject' ? 'rejected' : 'needs_review'}}];\n"
+            },
+            "id": "507b8f4b-1d16-427e-8836-dad10ec93cbe"
+        },
+        {
+            "name": "Route Decision",
+            "type": "n8n-nodes-base.if",
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "publish",
+                            "leftValue": "={{ $json.route_status }}",
+                            "rightValue": "publish",
+                            "operator": {
+                                "type": "string",
+                                "operation": "equals"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "f9854fa5-fb5c-43f6-9091-bf5393e165b4"
+        },
+        {
+            "name": "Post Decision",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "authentication": "genericCredentialType",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({channel: \"C0ANU14MPS4\", text: \"\ud83c\udfdb\ufe0f *Decision:* \" + $json.question.substring(0,80) + \"\\n*Verdict:* \" + $json.critic.final_recommendation + \" | Risk: \" + $json.critic.risk_tier + \" | Confidence: \" + $json.critic.confidence + \"\\n*Summary:* \" + $json.critic.summary + \"\\n_ID: \" + $json.decision_id }) }}",
+                "options": {},
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "24dedfd8-b07f-4629-bc16-6143b3cad808"
+        },
+        {
+            "name": "Post Escalation",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "authentication": "genericCredentialType",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({channel: \"C0ANU14MPS4\", text: \"\u26a0\ufe0f *Decision review required:* \" + $json.question.substring(0,80) + \"\\nRoute: \" + $json.route_status + \"\\nValidation: \" + (($json.validation_errors || []).join(\", \") || \"none\") + \"\\nCritic: \" + ($json.critic.summary || \"n/a\") + \"\\n_ID: \" + $json.decision_id }) }}",
+                "options": {},
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "fa0f211c-402c-44eb-8cf0-8eb864002e88"
+        },
+        {
+            "name": "Seal",
+            "type": "n8n-nodes-base.httpRequest",
+            "parameters": {
+                "method": "POST",
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "string",
+                "body": "=JSON.stringify({\"workflow_name\":\"structured-decision\",\"execution_id\":String($json.decision_id || \"unknown\"),\"stream_key\":\"structured-decisions\",\"status\":$json.status || \"unknown\",\"items_count\":1,\"started_at\":$json.timestamp || new Date().toISOString(),\"finished_at\":new Date().toISOString(),\"service_identity\":\"n8n-structured-decision\",\"meta\":{\"route_status\":$json.route_status,\"validation_errors\":$json.validation_errors || []}})",
+                "contentType": "application/json",
+                "options": {}
+            },
+            "id": "2207d95a-d7b4-4f09-bcc6-a1cc8fa9850e"
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Input",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Input": {
+            "main": [
+                [
+                    {
+                        "node": "Input OK?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Input OK?": {
+            "main": [
+                [
+                    {
+                        "node": "Growth LLM",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Post Escalation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Growth LLM": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Growth",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Growth": {
+            "main": [
+                [
+                    {
+                        "node": "Finance LLM",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Finance LLM": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Finance",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Finance": {
+            "main": [
+                [
+                    {
+                        "node": "Infra LLM",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Infra LLM": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Infra",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Infra": {
+            "main": [
+                [
+                    {
+                        "node": "Critic Prep",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Critic Prep": {
+            "main": [
+                [
+                    {
+                        "node": "Critic LLM",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Critic LLM": {
+            "main": [
+                [
+                    {
+                        "node": "Package",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Package": {
+            "main": [
+                [
+                    {
+                        "node": "Route Decision",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route Decision": {
+            "main": [
+                [
+                    {
+                        "node": "Post Decision",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Post Escalation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Post Decision": {
+            "main": [
+                [
+                    {
+                        "node": "Seal",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Post Escalation": {
+            "main": [
+                [
+                    {
+                        "node": "Seal",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "6818e182-e3a4-41bc-b79d-e1ecd79f50d9",
+    "activeVersionId": "6818e182-e3a4-41bc-b79d-e1ecd79f50d9",
+    "versionCounter": 74,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-22T03:20:06.964Z",
+            "createdAt": "2026-03-22T03:20:06.964Z",
+            "role": "workflow:owner",
+            "workflowId": "59W9wpDhxpQ4CcUo",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-23T15:56:39.893Z",
+        "createdAt": "2026-03-23T15:56:39.893Z",
+        "versionId": "6818e182-e3a4-41bc-b79d-e1ecd79f50d9",
+        "workflowId": "59W9wpDhxpQ4CcUo",
+        "nodes": [
+            {
+                "name": "Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "parameters": {
+                    "path": "structured-decision",
+                    "httpMethod": "POST",
+                    "responseMode": "lastNode",
+                    "options": {}
+                },
+                "id": "29d62d0d-709b-40b6-8a16-80db19ef73a7"
+            },
+            {
+                "name": "Prepare",
+                "type": "n8n-nodes-base.code",
+                "parameters": {
+                    "jsCode": "\n        const b = $json.body || $json;\n        const evidence = Array.isArray(b.evidence_refs) ? b.evidence_refs : [];\n        const question = String(b.question || '').trim();\n        const context = String(b.context || '').trim();\n        const evidenceSummary = evidence.length ? evidence.map((e,i)=> `${i+1}. ${typeof e === 'string' ? e : JSON.stringify(e)}`).join('\n') : 'No evidence refs provided.';\n        return [{json:{question,context,evidence_refs:evidence,evidence_summary:evidenceSummary,urgency:b.urgency || 'normal',requestor:b.requestor || 'unknown',constraints:Array.isArray(b.constraints) ? b.constraints : []}}];\n"
+                },
+                "id": "be37d5f7-c9e1-48c8-bd0e-e7a24941ee81"
+            },
+            {
+                "name": "Validate Input",
+                "type": "n8n-nodes-base.code",
+                "parameters": {
+                    "jsCode": "\nconst j=$json; const errors=[];\nif(!j.question) errors.push('missing_question');\nif((j.context||'').length < 20) errors.push('thin_context');\nreturn [{json:{...j,input_valid:errors.length===0,input_errors:errors}}];\n"
+                },
+                "id": "28af1665-a2d1-43e6-8ee8-414ff10878cd"
+            },
+            {
+                "name": "Input OK?",
+                "type": "n8n-nodes-base.if",
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": "",
+                            "typeValidation": "strict"
+                        },
+                        "conditions": [
+                            {
+                                "id": "ok",
+                                "leftValue": "={{ $json.input_valid }}",
+                                "rightValue": true,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "true"
+                                }
+                            }
+                        ],
+                        "combinator": "and"
+                    }
+                },
+                "id": "8cc58551-f2d0-48b2-8470-44aa5e7a6a77"
+            },
+            {
+                "name": "Growth LLM",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://litellm.railway.internal:4000/v1/chat/completions",
+                    "authentication": "genericCredentialType",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "options": {
+                        "timeout": 30000
+                    },
+                    "jsonBody": "={{ JSON.stringify({model:\"gpt-4o-mini\",messages:[{role:\"system\",content:\"You are the Growth perspective. Return ONLY JSON with keys: perspective, verdict (support|neutral|oppose), confidence (high|medium|low), impact_area (revenue|market|customer), key_points (array of 2-4 strings), risks (array), evidence_gaps (array), recommendation (string).\"},{role:\"user\",content:\"Question: {{$json.question}}\\nContext: {{$json.context}}\\nEvidence refs:\\n{{$json.evidence_summary}}\"}],max_tokens:500,temperature:0.2}) }}",
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "da450997-b151-4193-bc8f-b195e91edfd7"
+            },
+            {
+                "name": "Parse Growth",
+                "type": "n8n-nodes-base.code",
+                "parameters": {
+                    "jsCode": "\nconst prev = $('Prepare').first().json;\nconst content = $json.choices?.[0]?.message?.content || '';\nlet parsed; let parse_error='';\ntry { const m=content.match(/\\{[\\s\\S]*\\}/); parsed = JSON.parse(m?m[0]:content); } catch(e) { parse_error=e.message; parsed={perspective:'growth', verdict:'unknown', confidence:'low', key_points:[], risks:['parse_error'], evidence_gaps:['invalid_json'], recommendation: content.slice(0,240)}; }\nreturn [{json:{...prev, growth_analysis:parsed, growth_raw:content, growth_parse_error:parse_error}}];\n"
+                },
+                "id": "eb44b684-6ebe-4083-96ed-30c214930fbe"
+            },
+            {
+                "name": "Finance LLM",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://litellm.railway.internal:4000/v1/chat/completions",
+                    "authentication": "genericCredentialType",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "options": {
+                        "timeout": 30000
+                    },
+                    "jsonBody": "={{ JSON.stringify({model:\"gpt-4o-mini\",messages:[{role:\"system\",content:\"You are the Finance perspective. Return ONLY JSON with keys: perspective, verdict (support|neutral|oppose), confidence (high|medium|low), impact_area (cost|roi|cashflow), key_points (array of 2-4 strings), risks (array), evidence_gaps (array), recommendation (string).\"},{role:\"user\",content:\"Question: {{$json.question}}\\nContext: {{$json.context}}\\nEvidence refs:\\n{{$json.evidence_summary}}\"}],max_tokens:500,temperature:0.2}) }}",
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "87ce96a9-6ac0-4f79-99c5-d4a9b71fcb82"
+            },
+            {
+                "name": "Parse Finance",
+                "type": "n8n-nodes-base.code",
+                "parameters": {
+                    "jsCode": "\nconst prev = $('Parse Growth').first().json;\nconst content = $json.choices?.[0]?.message?.content || '';\nlet parsed; let parse_error='';\ntry { const m=content.match(/\\{[\\s\\S]*\\}/); parsed = JSON.parse(m?m[0]:content); } catch(e) { parse_error=e.message; parsed={perspective:'finance', verdict:'unknown', confidence:'low', key_points:[], risks:['parse_error'], evidence_gaps:['invalid_json'], recommendation: content.slice(0,240)}; }\nreturn [{json:{...prev, finance_analysis:parsed, finance_raw:content, finance_parse_error:parse_error}}];\n"
+                },
+                "id": "1fcc8da2-b987-4507-a824-f1ccccdd2bb5"
+            },
+            {
+                "name": "Infra LLM",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://litellm.railway.internal:4000/v1/chat/completions",
+                    "authentication": "genericCredentialType",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "options": {
+                        "timeout": 30000
+                    },
+                    "jsonBody": "={{ JSON.stringify({model:\"gpt-4o-mini\",messages:[{role:\"system\",content:\"You are the Infrastructure/Security perspective. Return ONLY JSON with keys: perspective, verdict (support|neutral|oppose), confidence (high|medium|low), impact_area (delivery|security|reliability), key_points (array of 2-4 strings), risks (array), evidence_gaps (array), recommendation (string).\"},{role:\"user\",content:\"Question: {{$json.question}}\\nContext: {{$json.context}}\\nEvidence refs:\\n{{$json.evidence_summary}}\"}],max_tokens:500,temperature:0.2}) }}",
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "d9cd3f08-4a6c-4b0a-9590-a4c9b1a600e8"
+            },
+            {
+                "name": "Parse Infra",
+                "type": "n8n-nodes-base.code",
+                "parameters": {
+                    "jsCode": "\nconst prev = $('Parse Finance').first().json;\nconst content = $json.choices?.[0]?.message?.content || '';\nlet parsed; let parse_error='';\ntry { const m=content.match(/\\{[\\s\\S]*\\}/); parsed = JSON.parse(m?m[0]:content); } catch(e) { parse_error=e.message; parsed={perspective:'infra', verdict:'unknown', confidence:'low', key_points:[], risks:['parse_error'], evidence_gaps:['invalid_json'], recommendation: content.slice(0,240)}; }\nreturn [{json:{...prev, infra_analysis:parsed, infra_raw:content, infra_parse_error:parse_error}}];\n"
+                },
+                "id": "19338b57-4e30-4a4c-92f1-7631367c04d9"
+            },
+            {
+                "name": "Critic Prep",
+                "type": "n8n-nodes-base.code",
+                "parameters": {
+                    "jsCode": "\nreturn [{json:{...$json, critic_payload:{question:$json.question, context:$json.context, evidence_refs:$json.evidence_refs, growth:$json.growth_analysis, finance:$json.finance_analysis, infra:$json.infra_analysis}}}];\n"
+                },
+                "id": "05b72c85-cc43-4fa7-91c0-8a29454d9109"
+            },
+            {
+                "name": "Critic LLM",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://litellm.railway.internal:4000/v1/chat/completions",
+                    "authentication": "genericCredentialType",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "options": {
+                        "timeout": 30000
+                    },
+                    "jsonBody": "={{ JSON.stringify({model:\"claude-sonnet\",messages:[{role:\"system\",content:\"You are a decision critic. Return ONLY JSON with keys: consensus (consensus|mixed|blocked), confidence (high|medium|low), risk_tier (low|medium|high), missing_evidence (array), contradictions (array), final_recommendation (approve|escalate|reject), summary (string).\"},{role:\"user\",content:JSON.stringify($json.critic_payload)}],max_tokens:600,temperature:0.1}) }}",
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "28938c97-b5f6-44b0-9ddf-99ffde1fa3fc"
+            },
+            {
+                "name": "Package",
+                "type": "n8n-nodes-base.code",
+                "parameters": {
+                    "jsCode": "\nconst prev=$('Critic Prep').first().json; const content=$json.choices?.[0]?.message?.content||'';\nlet critic={}; let errors=[];\ntry { const m=content.match(/\\{[\\s\\S]*\\}/); critic=JSON.parse(m?m[0]:content);} catch(e){errors.push('critic_parse_error'); critic={consensus:'blocked',confidence:'low',risk_tier:'high',final_recommendation:'escalate',summary:content.slice(0,240),missing_evidence:['critic_invalid_json'],contradictions:['parse_error']}; }\nfor (const field of ['consensus','confidence','risk_tier','final_recommendation','summary']) if(!critic[field]) errors.push('missing_'+field);\n['growth','finance','infra'].forEach(k=>{ if(prev[k+'_parse_error']) errors.push(k+'_parse_error'); if(!prev[k+'_analysis']?.verdict) errors.push('missing_'+k+'_verdict');});\nconst route = errors.length ? 'escalate' : (critic.final_recommendation === 'approve' && critic.risk_tier !== 'high' ? 'publish' : critic.final_recommendation === 'reject' ? 'reject' : 'escalate');\nreturn [{json:{decision_id:'dec-'+Date.now(),question:prev.question,context:prev.context,evidence_refs:prev.evidence_refs,urgency:prev.urgency,requestor:prev.requestor,perspectives:{growth:prev.growth_analysis,finance:prev.finance_analysis,infrastructure:prev.infra_analysis},critic,validation_errors:errors,route_status:route,timestamp:new Date().toISOString(),status: route==='publish' ? 'ready_to_publish' : route==='reject' ? 'rejected' : 'needs_review'}}];\n"
+                },
+                "id": "507b8f4b-1d16-427e-8836-dad10ec93cbe"
+            },
+            {
+                "name": "Route Decision",
+                "type": "n8n-nodes-base.if",
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": "",
+                            "typeValidation": "strict"
+                        },
+                        "conditions": [
+                            {
+                                "id": "publish",
+                                "leftValue": "={{ $json.route_status }}",
+                                "rightValue": "publish",
+                                "operator": {
+                                    "type": "string",
+                                    "operation": "equals"
+                                }
+                            }
+                        ],
+                        "combinator": "and"
+                    }
+                },
+                "id": "f9854fa5-fb5c-43f6-9091-bf5393e165b4"
+            },
+            {
+                "name": "Post Decision",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "authentication": "genericCredentialType",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({channel: \"C0ANU14MPS4\", text: \"\ud83c\udfdb\ufe0f *Decision:* \" + $json.question.substring(0,80) + \"\\n*Verdict:* \" + $json.critic.final_recommendation + \" | Risk: \" + $json.critic.risk_tier + \" | Confidence: \" + $json.critic.confidence + \"\\n*Summary:* \" + $json.critic.summary + \"\\n_ID: \" + $json.decision_id }) }}",
+                    "options": {},
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "24dedfd8-b07f-4629-bc16-6143b3cad808"
+            },
+            {
+                "name": "Post Escalation",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "authentication": "genericCredentialType",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({channel: \"C0ANU14MPS4\", text: \"\u26a0\ufe0f *Decision review required:* \" + $json.question.substring(0,80) + \"\\nRoute: \" + $json.route_status + \"\\nValidation: \" + (($json.validation_errors || []).join(\", \") || \"none\") + \"\\nCritic: \" + ($json.critic.summary || \"n/a\") + \"\\n_ID: \" + $json.decision_id }) }}",
+                    "options": {},
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "fa0f211c-402c-44eb-8cf0-8eb864002e88"
+            },
+            {
+                "name": "Seal",
+                "type": "n8n-nodes-base.httpRequest",
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth",
+                    "sendBody": true,
+                    "specifyBody": "string",
+                    "body": "=JSON.stringify({\"workflow_name\":\"structured-decision\",\"execution_id\":String($json.decision_id || \"unknown\"),\"stream_key\":\"structured-decisions\",\"status\":$json.status || \"unknown\",\"items_count\":1,\"started_at\":$json.timestamp || new Date().toISOString(),\"finished_at\":new Date().toISOString(),\"service_identity\":\"n8n-structured-decision\",\"meta\":{\"route_status\":$json.route_status,\"validation_errors\":$json.validation_errors || []}})",
+                    "contentType": "application/json",
+                    "options": {}
+                },
+                "id": "2207d95a-d7b4-4f09-bcc6-a1cc8fa9850e"
+            }
+        ],
+        "connections": {
+            "Webhook": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare": {
+                "main": [
+                    [
+                        {
+                            "node": "Validate Input",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Validate Input": {
+                "main": [
+                    [
+                        {
+                            "node": "Input OK?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Input OK?": {
+                "main": [
+                    [
+                        {
+                            "node": "Growth LLM",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Post Escalation",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Growth LLM": {
+                "main": [
+                    [
+                        {
+                            "node": "Parse Growth",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Parse Growth": {
+                "main": [
+                    [
+                        {
+                            "node": "Finance LLM",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Finance LLM": {
+                "main": [
+                    [
+                        {
+                            "node": "Parse Finance",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Parse Finance": {
+                "main": [
+                    [
+                        {
+                            "node": "Infra LLM",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Infra LLM": {
+                "main": [
+                    [
+                        {
+                            "node": "Parse Infra",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Parse Infra": {
+                "main": [
+                    [
+                        {
+                            "node": "Critic Prep",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Critic Prep": {
+                "main": [
+                    [
+                        {
+                            "node": "Critic LLM",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Critic LLM": {
+                "main": [
+                    [
+                        {
+                            "node": "Package",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Package": {
+                "main": [
+                    [
+                        {
+                            "node": "Route Decision",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Route Decision": {
+                "main": [
+                    [
+                        {
+                            "node": "Post Decision",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Post Escalation",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Post Decision": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Post Escalation": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-23T15:56:39.945Z",
+                "id": 1700,
+                "workflowId": "59W9wpDhxpQ4CcUo",
+                "versionId": "6818e182-e3a4-41bc-b79d-e1ecd79f50d9",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-23T15:56:39.929Z",
+                "id": 1699,
+                "workflowId": "59W9wpDhxpQ4CcUo",
+                "versionId": "6818e182-e3a4-41bc-b79d-e1ecd79f50d9",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

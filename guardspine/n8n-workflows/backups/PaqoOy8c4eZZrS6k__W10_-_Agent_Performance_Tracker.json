@@ -1,0 +1,561 @@
+{
+    "updatedAt": "2026-03-21T18:42:23.877Z",
+    "createdAt": "2026-03-20T17:29:54.296Z",
+    "id": "PaqoOy8c4eZZrS6k",
+    "name": "W10 - Agent Performance Tracker",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 8 * * 1"
+                        }
+                    ]
+                }
+            },
+            "name": "Monday 8 AM",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                200,
+                300
+            ],
+            "id": "f9f4b0f3-0472-43d2-a3a5-f8584964fb50"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/query",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"sql\": \"SELECT a.name, hr.status, COUNT(*) as cnt FROM heartbeat_runs hr JOIN agents a ON hr.agent_id = a.id WHERE hr.started_at > NOW() - INTERVAL '7 days' GROUP BY a.name, hr.status ORDER BY a.name, hr.status\", \"limit\": 100}"
+            },
+            "name": "Query Heartbeat Stats",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                250
+            ],
+            "id": "4bfe1f77-5a36-4d0b-9f3c-ab4d71674440"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/query",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"sql\": \"SELECT solver_used, COUNT(*) as decisions, SUM(CASE WHEN human_override THEN 1 ELSE 0 END) as overrides, ROUND(SUM(CASE WHEN human_override THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0), 3) as override_rate FROM decision_journal WHERE ts > NOW() - INTERVAL '7 days' GROUP BY solver_used\", \"limit\": 100}"
+            },
+            "name": "Query Decision Overrides",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                400
+            ],
+            "id": "5c64a187-1211-4577-93f1-cab1a0fa5379"
+        },
+        {
+            "parameters": {
+                "jsCode": "const heartbeats = $('Query Heartbeat Stats').all().map(i => i.json);\nconst decisions = $('Query Decision Overrides').all().map(i => i.json);\n\nconst report = ['# Weekly Agent Performance', ''];\n\n// Heartbeat summary per agent\nconst agentStats = {};\nfor (const hb of heartbeats) {\n  if (!agentStats[hb.name]) agentStats[hb.name] = {succeeded: 0, failed: 0, total: 0};\n  agentStats[hb.name][hb.status] = (agentStats[hb.name][hb.status] || 0) + parseInt(hb.cnt);\n  agentStats[hb.name].total += parseInt(hb.cnt);\n}\n\nreport.push('## Heartbeat Success Rates');\nfor (const [name, stats] of Object.entries(agentStats)) {\n  const rate = stats.total > 0 ? ((stats.succeeded || 0) / stats.total * 100).toFixed(0) : 'N/A';\n  report.push(`- ${name}: ${rate}% (${stats.succeeded || 0}/${stats.total})`);\n}\n\nreport.push('', '## Override Rates');\nfor (const d of decisions) {\n  report.push(`- ${d.solver_used}: ${(d.override_rate * 100).toFixed(1)}% (${d.overrides}/${d.decisions})`);\n}\n\nreturn [{json: {report: report.join('\\n')}}];"
+            },
+            "name": "Format Performance Report",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                640,
+                300
+            ],
+            "id": "d0c854f2-65b7-46f7-8f41-22a9c7ad5b95"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"model_lab\", \"event_type\": \"performance_report\", \"payload\": {\"report\": \"={{ $json.report }}\"}}"
+            },
+            "name": "Log Performance Report",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                860,
+                300
+            ],
+            "id": "1a570897-7618-4d32-a907-498a9a2a993e"
+        },
+        {
+            "parameters": {},
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                600
+            ],
+            "id": "7888ef4b-c6c9-487b-a0b7-ed7f51feb555"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W10 - Agent Performance Tracker\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+            },
+            "name": "POST Error to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                600
+            ],
+            "id": "2dde098c-566d-4f96-9a4d-ae03891c5188"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+            },
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1110,
+                392
+            ],
+            "onError": "continueRegularOutput",
+            "id": "7b1f72a1-3182-4208-bbc6-2441b476301a"
+        },
+        {
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "onError": "continueRegularOutput",
+            "position": [
+                1360,
+                342
+            ],
+            "id": "b50b25a4-4f30-4e77-a090-e751f4dc80bc"
+        }
+    ],
+    "connections": {
+        "Monday 8 AM": {
+            "main": [
+                [
+                    {
+                        "node": "Query Heartbeat Stats",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Query Decision Overrides",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Heartbeat Stats": {
+            "main": [
+                [
+                    {
+                        "node": "Format Performance Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Decision Overrides": {
+            "main": [
+                [
+                    {
+                        "node": "Format Performance Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Performance Report": {
+            "main": [
+                [
+                    {
+                        "node": "Log Performance Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "POST Error to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Performance Report": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "POST Error to Telemetry": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Monday 8 AM": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "b41de560-4cad-4324-a8e1-b52579baa4eb",
+    "activeVersionId": "b41de560-4cad-4324-a8e1-b52579baa4eb",
+    "versionCounter": 48,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-20T17:29:54.297Z",
+            "createdAt": "2026-03-20T17:29:54.297Z",
+            "role": "workflow:owner",
+            "workflowId": "PaqoOy8c4eZZrS6k",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-21T18:42:23.878Z",
+        "createdAt": "2026-03-21T18:42:23.878Z",
+        "versionId": "b41de560-4cad-4324-a8e1-b52579baa4eb",
+        "workflowId": "PaqoOy8c4eZZrS6k",
+        "nodes": [
+            {
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 8 * * 1"
+                            }
+                        ]
+                    }
+                },
+                "name": "Monday 8 AM",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    200,
+                    300
+                ],
+                "id": "f9f4b0f3-0472-43d2-a3a5-f8584964fb50"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/query",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"sql\": \"SELECT a.name, hr.status, COUNT(*) as cnt FROM heartbeat_runs hr JOIN agents a ON hr.agent_id = a.id WHERE hr.started_at > NOW() - INTERVAL '7 days' GROUP BY a.name, hr.status ORDER BY a.name, hr.status\", \"limit\": 100}"
+                },
+                "name": "Query Heartbeat Stats",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    250
+                ],
+                "id": "4bfe1f77-5a36-4d0b-9f3c-ab4d71674440"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/query",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"sql\": \"SELECT solver_used, COUNT(*) as decisions, SUM(CASE WHEN human_override THEN 1 ELSE 0 END) as overrides, ROUND(SUM(CASE WHEN human_override THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0), 3) as override_rate FROM decision_journal WHERE ts > NOW() - INTERVAL '7 days' GROUP BY solver_used\", \"limit\": 100}"
+                },
+                "name": "Query Decision Overrides",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    400
+                ],
+                "id": "5c64a187-1211-4577-93f1-cab1a0fa5379"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const heartbeats = $('Query Heartbeat Stats').all().map(i => i.json);\nconst decisions = $('Query Decision Overrides').all().map(i => i.json);\n\nconst report = ['# Weekly Agent Performance', ''];\n\n// Heartbeat summary per agent\nconst agentStats = {};\nfor (const hb of heartbeats) {\n  if (!agentStats[hb.name]) agentStats[hb.name] = {succeeded: 0, failed: 0, total: 0};\n  agentStats[hb.name][hb.status] = (agentStats[hb.name][hb.status] || 0) + parseInt(hb.cnt);\n  agentStats[hb.name].total += parseInt(hb.cnt);\n}\n\nreport.push('## Heartbeat Success Rates');\nfor (const [name, stats] of Object.entries(agentStats)) {\n  const rate = stats.total > 0 ? ((stats.succeeded || 0) / stats.total * 100).toFixed(0) : 'N/A';\n  report.push(`- ${name}: ${rate}% (${stats.succeeded || 0}/${stats.total})`);\n}\n\nreport.push('', '## Override Rates');\nfor (const d of decisions) {\n  report.push(`- ${d.solver_used}: ${(d.override_rate * 100).toFixed(1)}% (${d.overrides}/${d.decisions})`);\n}\n\nreturn [{json: {report: report.join('\\n')}}];"
+                },
+                "name": "Format Performance Report",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    640,
+                    300
+                ],
+                "id": "d0c854f2-65b7-46f7-8f41-22a9c7ad5b95"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"model_lab\", \"event_type\": \"performance_report\", \"payload\": {\"report\": \"={{ $json.report }}\"}}"
+                },
+                "name": "Log Performance Report",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    860,
+                    300
+                ],
+                "id": "1a570897-7618-4d32-a907-498a9a2a993e"
+            },
+            {
+                "parameters": {},
+                "name": "Error Trigger",
+                "type": "n8n-nodes-base.errorTrigger",
+                "typeVersion": 1,
+                "position": [
+                    200,
+                    600
+                ],
+                "id": "7888ef4b-c6c9-487b-a0b7-ed7f51feb555"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W10 - Agent Performance Tracker\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                },
+                "name": "POST Error to Telemetry",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    600
+                ],
+                "id": "2dde098c-566d-4f96-9a4d-ae03891c5188"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+                },
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1110,
+                    392
+                ],
+                "onError": "continueRegularOutput",
+                "id": "7b1f72a1-3182-4208-bbc6-2441b476301a"
+            },
+            {
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                },
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "onError": "continueRegularOutput",
+                "position": [
+                    1360,
+                    342
+                ],
+                "id": "b50b25a4-4f30-4e77-a090-e751f4dc80bc"
+            }
+        ],
+        "connections": {
+            "Monday 8 AM": {
+                "main": [
+                    [
+                        {
+                            "node": "Query Heartbeat Stats",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Query Decision Overrides",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Query Heartbeat Stats": {
+                "main": [
+                    [
+                        {
+                            "node": "Format Performance Report",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Query Decision Overrides": {
+                "main": [
+                    [
+                        {
+                            "node": "Format Performance Report",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Format Performance Report": {
+                "main": [
+                    [
+                        {
+                            "node": "Log Performance Report",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Error Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "POST Error to Telemetry",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log Performance Report": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "POST Error to Telemetry": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-21T18:42:23.919Z",
+                "id": 1393,
+                "workflowId": "PaqoOy8c4eZZrS6k",
+                "versionId": "b41de560-4cad-4324-a8e1-b52579baa4eb",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

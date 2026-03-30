@@ -1,0 +1,703 @@
+{
+    "updatedAt": "2026-03-21T18:42:22.110Z",
+    "createdAt": "2026-03-20T21:49:51.373Z",
+    "id": "J3SU31cwHgXaLUz0",
+    "name": "W31 - CFO Finance Monitor",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 6
+                        }
+                    ]
+                }
+            },
+            "id": "schedule",
+            "name": "Every 6 Hours",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                200,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/query",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"query_name\": \"kpi_governance\", \"params\": {\"days\": \"24 hours\", \"limit\": 20}}"
+            },
+            "id": "fetch-finance-bundles",
+            "name": "Fetch Finance Bundles",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const response = $input.item.json;\nconst rows = response.rows || response.data || [];\n\nif (!rows || rows.length === 0) {\n  return [{json: {has_bundles: false, count: 0, summary: 'No finance bundles in last 24h'}}];\n}\n\nconst critical = rows.filter(r => r.risk_tier === 'L3' || r.risk_tier === 'L4');\nconst summary = `${rows.length} finance bundle(s) found. ${critical.length} at L3+.`;\n\nreturn [{json: {\n  has_bundles: true,\n  count: rows.length,\n  critical_count: critical.length,\n  bundles: rows.slice(0, 5),\n  summary: summary\n}}];"
+            },
+            "id": "classify",
+            "name": "Classify Bundles",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                640,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.has_bundles }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "id": "has-bundles",
+            "name": "Has Bundles?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                860,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "={\"title\": \"CFO Review: {{ $json.summary }}\", \"description\": \"Finance evidence bundles require CFO review.\\n\\nBundles: {{ $json.count }}\\nCritical (L3+): {{ $json.critical_count }}\\n\\nReview each bundle for formula integrity, cascade ratios, and external connections.\\n\\nSource: W31 CFO Finance Monitor\", \"assigneeAgentName\": \"CFO\", \"status\": \"backlog\", \"priority\": \"{{ $json.critical_count > 0 ? 'high' : 'medium' }}\", \"labels\": [\"finance\", \"sheetguard\", \"auto-created\"]}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "create-issue",
+            "name": "Create CFO Issue",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1080,
+                200
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "6Cliqjk7UlsZOGZJ",
+                    "name": "paperclip-auth"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "={\"service\": \"n8n\", \"event_type\": \"cfo_finance_check\", \"payload\": {\"bundles_found\": {{ $json.count ?? 0 }}, \"critical\": {{ $json.critical_count ?? 0 }}, \"issue_created\": true, \"timestamp\": \"{{ $now.toISO() }}\"}}"
+            },
+            "id": "log-created",
+            "name": "Log Issue Created",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1300,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"cfo_finance_check\", \"payload\": {\"bundles_found\": 0, \"critical\": 0, \"issue_created\": false, \"status\": \"clean\"}}"
+            },
+            "id": "log-clean",
+            "name": "Log Clean",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1080,
+                420
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "error-trigger",
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W31 - CFO Finance Monitor\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\"}}"
+            },
+            "id": "post-error",
+            "name": "POST Error",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+            },
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1550,
+                357
+            ],
+            "onError": "continueRegularOutput",
+            "id": "091fcdd3-fab2-4be7-836c-12de534ee862"
+        },
+        {
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "onError": "continueRegularOutput",
+            "position": [
+                1800,
+                307
+            ],
+            "id": "20be638c-e365-4c1e-9778-41160d776b1c"
+        }
+    ],
+    "connections": {
+        "Every 6 Hours": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Finance Bundles",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Finance Bundles": {
+            "main": [
+                [
+                    {
+                        "node": "Classify Bundles",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Classify Bundles": {
+            "main": [
+                [
+                    {
+                        "node": "Has Bundles?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Has Bundles?": {
+            "main": [
+                [
+                    {
+                        "node": "Create CFO Issue",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Log Clean",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create CFO Issue": {
+            "main": [
+                [
+                    {
+                        "node": "Log Issue Created",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "POST Error",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Issue Created": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Clean": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "POST Error": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Every 6 Hours": {
+            "recurrenceRules": [
+                6
+            ]
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "d9c2bf91-2168-4286-a7e7-de23ac3593ea",
+    "activeVersionId": "d9c2bf91-2168-4286-a7e7-de23ac3593ea",
+    "versionCounter": 98,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-20T21:49:51.376Z",
+            "createdAt": "2026-03-20T21:49:51.376Z",
+            "role": "workflow:owner",
+            "workflowId": "J3SU31cwHgXaLUz0",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-21T18:42:22.110Z",
+        "createdAt": "2026-03-21T18:42:22.110Z",
+        "versionId": "d9c2bf91-2168-4286-a7e7-de23ac3593ea",
+        "workflowId": "J3SU31cwHgXaLUz0",
+        "nodes": [
+            {
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "hours",
+                                "hoursInterval": 6
+                            }
+                        ]
+                    }
+                },
+                "id": "schedule",
+                "name": "Every 6 Hours",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    200,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/query",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"query_name\": \"kpi_governance\", \"params\": {\"days\": \"24 hours\", \"limit\": 20}}"
+                },
+                "id": "fetch-finance-bundles",
+                "name": "Fetch Finance Bundles",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "jsCode": "const response = $input.item.json;\nconst rows = response.rows || response.data || [];\n\nif (!rows || rows.length === 0) {\n  return [{json: {has_bundles: false, count: 0, summary: 'No finance bundles in last 24h'}}];\n}\n\nconst critical = rows.filter(r => r.risk_tier === 'L3' || r.risk_tier === 'L4');\nconst summary = `${rows.length} finance bundle(s) found. ${critical.length} at L3+.`;\n\nreturn [{json: {\n  has_bundles: true,\n  count: rows.length,\n  critical_count: critical.length,\n  bundles: rows.slice(0, 5),\n  summary: summary\n}}];"
+                },
+                "id": "classify",
+                "name": "Classify Bundles",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    640,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "conditions": {
+                        "boolean": [
+                            {
+                                "value1": "={{ $json.has_bundles }}",
+                                "value2": true
+                            }
+                        ]
+                    }
+                },
+                "id": "has-bundles",
+                "name": "Has Bundles?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    860,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "={\"title\": \"CFO Review: {{ $json.summary }}\", \"description\": \"Finance evidence bundles require CFO review.\\n\\nBundles: {{ $json.count }}\\nCritical (L3+): {{ $json.critical_count }}\\n\\nReview each bundle for formula integrity, cascade ratios, and external connections.\\n\\nSource: W31 CFO Finance Monitor\", \"assigneeAgentName\": \"CFO\", \"status\": \"backlog\", \"priority\": \"{{ $json.critical_count > 0 ? 'high' : 'medium' }}\", \"labels\": [\"finance\", \"sheetguard\", \"auto-created\"]}",
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "create-issue",
+                "name": "Create CFO Issue",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1080,
+                    200
+                ],
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "6Cliqjk7UlsZOGZJ",
+                        "name": "paperclip-auth"
+                    }
+                }
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "={\"service\": \"n8n\", \"event_type\": \"cfo_finance_check\", \"payload\": {\"bundles_found\": {{ $json.count ?? 0 }}, \"critical\": {{ $json.critical_count ?? 0 }}, \"issue_created\": true, \"timestamp\": \"{{ $now.toISO() }}\"}}"
+                },
+                "id": "log-created",
+                "name": "Log Issue Created",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1300,
+                    200
+                ]
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"cfo_finance_check\", \"payload\": {\"bundles_found\": 0, \"critical\": 0, \"issue_created\": false, \"status\": \"clean\"}}"
+                },
+                "id": "log-clean",
+                "name": "Log Clean",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1080,
+                    420
+                ]
+            },
+            {
+                "parameters": {},
+                "id": "error-trigger",
+                "name": "Error Trigger",
+                "type": "n8n-nodes-base.errorTrigger",
+                "typeVersion": 1,
+                "position": [
+                    200,
+                    600
+                ]
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W31 - CFO Finance Monitor\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\"}}"
+                },
+                "id": "post-error",
+                "name": "POST Error",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    600
+                ]
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+                },
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1550,
+                    357
+                ],
+                "onError": "continueRegularOutput",
+                "id": "091fcdd3-fab2-4be7-836c-12de534ee862"
+            },
+            {
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                },
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "onError": "continueRegularOutput",
+                "position": [
+                    1800,
+                    307
+                ],
+                "id": "20be638c-e365-4c1e-9778-41160d776b1c"
+            }
+        ],
+        "connections": {
+            "Every 6 Hours": {
+                "main": [
+                    [
+                        {
+                            "node": "Fetch Finance Bundles",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Finance Bundles": {
+                "main": [
+                    [
+                        {
+                            "node": "Classify Bundles",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Classify Bundles": {
+                "main": [
+                    [
+                        {
+                            "node": "Has Bundles?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Has Bundles?": {
+                "main": [
+                    [
+                        {
+                            "node": "Create CFO Issue",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Log Clean",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Create CFO Issue": {
+                "main": [
+                    [
+                        {
+                            "node": "Log Issue Created",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Error Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "POST Error",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log Issue Created": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log Clean": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "POST Error": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-21T18:42:22.152Z",
+                "id": 1371,
+                "workflowId": "J3SU31cwHgXaLUz0",
+                "versionId": "d9c2bf91-2168-4286-a7e7-de23ac3593ea",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

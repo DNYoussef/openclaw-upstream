@@ -1,0 +1,375 @@
+{
+    "updatedAt": "2026-03-22T00:01:54.608Z",
+    "createdAt": "2026-03-21T22:13:34.674Z",
+    "id": "5OgaWcGaPDQY6t0S",
+    "name": "W-Content-Chain-Generator",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Weekly Tuesday 4am ET",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                0,
+                0
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 8 * * 2"
+                        }
+                    ]
+                }
+            },
+            "id": "bfc0b363-dc57-49b5-b285-4d4ed312da74"
+        },
+        {
+            "name": "Define Primary Assets",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                220,
+                0
+            ],
+            "parameters": {
+                "jsCode": "// Section XIV.A - Asset Chaining Rule\n// Define primary content assets and their derivative chains\n// Per bootstrap guide: one artifact -> 2-5 downstream assets\n\nconst primaryAssets = [\n  {\n    id: 'positioning-doc',\n    title: 'Category Positioning Document: Artifact Governance',\n    type: 'positioning',\n    audience: 'all',\n    chain: [\n      { type: 'linkedin_post', title: 'Why PR Review is the New Compliance', audience: 'DevOps/Platform leads', length: '200-300 words', persona: 'builder' },\n      { type: 'email_sequence', title: 'Artifact Governance cold outreach sequence (5-email)', audience: 'AppSec/Compliance leads', length: '80-140 words each', persona: 'buyer' },\n      { type: 'landing_page_copy', title: 'GuardSpine.ai hero section rewrite', audience: 'all personas', length: '150 words', persona: 'all' },\n      { type: 'twitter_thread', title: '10-tweet thread: Why DevOps missed the governance gap', audience: 'technical founders', length: '10 tweets', persona: 'builder' },\n      { type: 'sales_one_pager', title: 'GuardSpine one-pager for enterprise prospects', audience: 'CTO/VP Eng', length: '1 page', persona: 'buyer' }\n    ]\n  },\n  {\n    id: 'codeguard-blog',\n    title: 'Blog: Why PR Review is the New Compliance',\n    type: 'blog_post',\n    audience: 'DevOps/Platform leads',\n    chain: [\n      { type: 'linkedin_post', title: 'LinkedIn version (3 key points)', audience: 'DevOps', length: '200 words', persona: 'builder' },\n      { type: 'dev_to_post', title: 'Dev.to cross-post', audience: 'developers', length: 'same', persona: 'builder' },\n      { type: 'email_newsletter', title: 'Newsletter version with CTA', audience: 'subscribers', length: '300 words', persona: 'all' },\n      { type: 'lead_magnet', title: 'The Artifact Governance Checklist (PDF gate)', audience: 'all', length: '1 page checklist', persona: 'all' }\n    ]\n  },\n  {\n    id: 'sanjay-demo',\n    title: 'CodeGuard 10-Minute Demo Flow',\n    type: 'demo_script',\n    audience: 'prospect: Sanjay Nagaraj',\n    chain: [\n      { type: 'call_script', title: 'Discovery call opening (2 min)', audience: 'all enterprise prospects', length: '2 min script', persona: 'buyer' },\n      { type: 'objection_guide', title: 'Top 5 demo objections + rebuttals', audience: 'David', length: '1 page', persona: 'all' },\n      { type: 'pilot_proposal', title: 'GuardSpine pilot proposal template', audience: 'enterprise CTO', length: '2 pages', persona: 'buyer' },\n      { type: 'follow_up_sequence', title: 'Post-demo 3-email follow-up', audience: 'demo attendees', length: '80 words each', persona: 'buyer' }\n    ]\n  }\n];\n\n// Queue all derivative assets as Paperclip issues\nconst tasks = [];\nfor (const asset of primaryAssets) {\n  for (const derivative of asset.chain) {\n    tasks.push({\n      primary_id: asset.id,\n      primary_title: asset.title,\n      derivative_type: derivative.type,\n      title: `[CHAIN] ${derivative.title}`,\n      description: `Asset chain derivative from: ${asset.title}\\n\\nType: ${derivative.type}\\nAudience: ${derivative.audience}\\nPersona: ${derivative.persona}\\nLength: ${derivative.length}\\n\\nParent asset: ${asset.id}\\nChain rule: Bootstrap Guide \u00a7XIV.A`,\n      priority: 'medium',\n      lane: 'marketing'\n    });\n  }\n}\n\nreturn tasks.map(t => ({ json: t }));"
+            },
+            "id": "0c9577bc-84f6-42f1-835f-5eeb0cafaeac"
+        },
+        {
+            "name": "Create Paperclip Issues",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                440,
+                0
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
+                "sendHeaders": false,
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ title: $json.title, description: $json.description, priority: $json.priority, status: 'todo' }) }}",
+                "options": {
+                    "timeout": 10000
+                },
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "onError": "continueRegularOutput",
+            "id": "9b86d9d5-17e5-4089-9094-1db9c7747e91",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "6Cliqjk7UlsZOGZJ",
+                    "name": "paperclip-auth"
+                }
+            }
+        },
+        {
+            "name": "Summarize Chain",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                660,
+                0
+            ],
+            "parameters": {
+                "jsCode": "const allItems = $input.all();\nconst created = allItems.filter(i => !i.json.error && i.json.id);\nconst failed = allItems.filter(i => i.json.error || !i.json.id);\n\nreturn [{\n  json: {\n    total_derivatives: allItems.length,\n    created: created.length,\n    failed: failed.length,\n    summary: `Asset chain generated: ${created.length}/${allItems.length} derivative tasks queued`,\n    timestamp: new Date().toISOString()\n  }\n}];"
+            },
+            "id": "d7595eb8-305f-49b4-8ce2-cb9c1db356b4"
+        },
+        {
+            "name": "Seal Evidence",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                880,
+                0
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-Evidence-Key",
+                            "value": "={{ $env.OPS_EVIDENCE_API_KEY || '' }}"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ stream_key: 'content-chain-generator', execution_id: String($execution.id), workflow_name: $workflow.name, payload: $json, sealed_hash: 'sha256:chain-' + String($execution.id) }) }}"
+            },
+            "onError": "continueRegularOutput",
+            "id": "94f4bde3-0a28-4259-a51b-afd57a95a2f6"
+        }
+    ],
+    "connections": {
+        "Weekly Tuesday 4am ET": {
+            "main": [
+                [
+                    {
+                        "node": "Define Primary Assets",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Define Primary Assets": {
+            "main": [
+                [
+                    {
+                        "node": "Create Paperclip Issues",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Paperclip Issues": {
+            "main": [
+                [
+                    {
+                        "node": "Summarize Chain",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Summarize Chain": {
+            "main": [
+                [
+                    {
+                        "node": "Seal Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Weekly Tuesday 4am ET": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "eb653b7b-f625-4fb0-b03a-e24b04fe2e62",
+    "activeVersionId": "eb653b7b-f625-4fb0-b03a-e24b04fe2e62",
+    "versionCounter": 26,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-21T22:13:34.676Z",
+            "createdAt": "2026-03-21T22:13:34.676Z",
+            "role": "workflow:owner",
+            "workflowId": "5OgaWcGaPDQY6t0S",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-22T00:01:54.611Z",
+        "createdAt": "2026-03-22T00:01:54.611Z",
+        "versionId": "eb653b7b-f625-4fb0-b03a-e24b04fe2e62",
+        "workflowId": "5OgaWcGaPDQY6t0S",
+        "nodes": [
+            {
+                "name": "Weekly Tuesday 4am ET",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    0,
+                    0
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 8 * * 2"
+                            }
+                        ]
+                    }
+                },
+                "id": "bfc0b363-dc57-49b5-b285-4d4ed312da74"
+            },
+            {
+                "name": "Define Primary Assets",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    220,
+                    0
+                ],
+                "parameters": {
+                    "jsCode": "// Section XIV.A - Asset Chaining Rule\n// Define primary content assets and their derivative chains\n// Per bootstrap guide: one artifact -> 2-5 downstream assets\n\nconst primaryAssets = [\n  {\n    id: 'positioning-doc',\n    title: 'Category Positioning Document: Artifact Governance',\n    type: 'positioning',\n    audience: 'all',\n    chain: [\n      { type: 'linkedin_post', title: 'Why PR Review is the New Compliance', audience: 'DevOps/Platform leads', length: '200-300 words', persona: 'builder' },\n      { type: 'email_sequence', title: 'Artifact Governance cold outreach sequence (5-email)', audience: 'AppSec/Compliance leads', length: '80-140 words each', persona: 'buyer' },\n      { type: 'landing_page_copy', title: 'GuardSpine.ai hero section rewrite', audience: 'all personas', length: '150 words', persona: 'all' },\n      { type: 'twitter_thread', title: '10-tweet thread: Why DevOps missed the governance gap', audience: 'technical founders', length: '10 tweets', persona: 'builder' },\n      { type: 'sales_one_pager', title: 'GuardSpine one-pager for enterprise prospects', audience: 'CTO/VP Eng', length: '1 page', persona: 'buyer' }\n    ]\n  },\n  {\n    id: 'codeguard-blog',\n    title: 'Blog: Why PR Review is the New Compliance',\n    type: 'blog_post',\n    audience: 'DevOps/Platform leads',\n    chain: [\n      { type: 'linkedin_post', title: 'LinkedIn version (3 key points)', audience: 'DevOps', length: '200 words', persona: 'builder' },\n      { type: 'dev_to_post', title: 'Dev.to cross-post', audience: 'developers', length: 'same', persona: 'builder' },\n      { type: 'email_newsletter', title: 'Newsletter version with CTA', audience: 'subscribers', length: '300 words', persona: 'all' },\n      { type: 'lead_magnet', title: 'The Artifact Governance Checklist (PDF gate)', audience: 'all', length: '1 page checklist', persona: 'all' }\n    ]\n  },\n  {\n    id: 'sanjay-demo',\n    title: 'CodeGuard 10-Minute Demo Flow',\n    type: 'demo_script',\n    audience: 'prospect: Sanjay Nagaraj',\n    chain: [\n      { type: 'call_script', title: 'Discovery call opening (2 min)', audience: 'all enterprise prospects', length: '2 min script', persona: 'buyer' },\n      { type: 'objection_guide', title: 'Top 5 demo objections + rebuttals', audience: 'David', length: '1 page', persona: 'all' },\n      { type: 'pilot_proposal', title: 'GuardSpine pilot proposal template', audience: 'enterprise CTO', length: '2 pages', persona: 'buyer' },\n      { type: 'follow_up_sequence', title: 'Post-demo 3-email follow-up', audience: 'demo attendees', length: '80 words each', persona: 'buyer' }\n    ]\n  }\n];\n\n// Queue all derivative assets as Paperclip issues\nconst tasks = [];\nfor (const asset of primaryAssets) {\n  for (const derivative of asset.chain) {\n    tasks.push({\n      primary_id: asset.id,\n      primary_title: asset.title,\n      derivative_type: derivative.type,\n      title: `[CHAIN] ${derivative.title}`,\n      description: `Asset chain derivative from: ${asset.title}\\n\\nType: ${derivative.type}\\nAudience: ${derivative.audience}\\nPersona: ${derivative.persona}\\nLength: ${derivative.length}\\n\\nParent asset: ${asset.id}\\nChain rule: Bootstrap Guide \u00a7XIV.A`,\n      priority: 'medium',\n      lane: 'marketing'\n    });\n  }\n}\n\nreturn tasks.map(t => ({ json: t }));"
+                },
+                "id": "0c9577bc-84f6-42f1-835f-5eeb0cafaeac"
+            },
+            {
+                "name": "Create Paperclip Issues",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    440,
+                    0
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
+                    "sendHeaders": false,
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({ title: $json.title, description: $json.description, priority: $json.priority, status: 'todo' }) }}",
+                    "options": {
+                        "timeout": 10000
+                    },
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "onError": "continueRegularOutput",
+                "id": "9b86d9d5-17e5-4089-9094-1db9c7747e91",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "6Cliqjk7UlsZOGZJ",
+                        "name": "paperclip-auth"
+                    }
+                }
+            },
+            {
+                "name": "Summarize Chain",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    660,
+                    0
+                ],
+                "parameters": {
+                    "jsCode": "const allItems = $input.all();\nconst created = allItems.filter(i => !i.json.error && i.json.id);\nconst failed = allItems.filter(i => i.json.error || !i.json.id);\n\nreturn [{\n  json: {\n    total_derivatives: allItems.length,\n    created: created.length,\n    failed: failed.length,\n    summary: `Asset chain generated: ${created.length}/${allItems.length} derivative tasks queued`,\n    timestamp: new Date().toISOString()\n  }\n}];"
+                },
+                "id": "d7595eb8-305f-49b4-8ce2-cb9c1db356b4"
+            },
+            {
+                "name": "Seal Evidence",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    880,
+                    0
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "X-Evidence-Key",
+                                "value": "={{ $env.OPS_EVIDENCE_API_KEY || '' }}"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({ stream_key: 'content-chain-generator', execution_id: String($execution.id), workflow_name: $workflow.name, payload: $json, sealed_hash: 'sha256:chain-' + String($execution.id) }) }}"
+                },
+                "onError": "continueRegularOutput",
+                "id": "94f4bde3-0a28-4259-a51b-afd57a95a2f6"
+            }
+        ],
+        "connections": {
+            "Weekly Tuesday 4am ET": {
+                "main": [
+                    [
+                        {
+                            "node": "Define Primary Assets",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Define Primary Assets": {
+                "main": [
+                    [
+                        {
+                            "node": "Create Paperclip Issues",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Create Paperclip Issues": {
+                "main": [
+                    [
+                        {
+                            "node": "Summarize Chain",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Summarize Chain": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-22T00:01:54.675Z",
+                "id": 1523,
+                "workflowId": "5OgaWcGaPDQY6t0S",
+                "versionId": "eb653b7b-f625-4fb0-b03a-e24b04fe2e62",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-22T00:01:54.645Z",
+                "id": 1522,
+                "workflowId": "5OgaWcGaPDQY6t0S",
+                "versionId": "eb653b7b-f625-4fb0-b03a-e24b04fe2e62",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

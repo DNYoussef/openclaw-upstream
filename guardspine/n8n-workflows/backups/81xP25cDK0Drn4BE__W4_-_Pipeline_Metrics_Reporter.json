@@ -1,0 +1,541 @@
+{
+    "updatedAt": "2026-03-21T18:42:19.562Z",
+    "createdAt": "2026-03-20T17:30:00.796Z",
+    "id": "81xP25cDK0Drn4BE",
+    "name": "W4 - Pipeline Metrics Reporter",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 9 * * 1"
+                        }
+                    ]
+                }
+            },
+            "name": "Monday 9 AM ET",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                200,
+                300
+            ],
+            "id": "9a0ccea4-bb13-4521-a661-f9ffc07be1ff"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_outreach?weeks=4&limit=10"
+            },
+            "name": "Query Outreach KPIs",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                250
+            ],
+            "id": "06d22da3-8fd0-4a81-816d-abd15b2ba071"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10"
+            },
+            "name": "Query Automation KPIs",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                400
+            ],
+            "id": "432a0434-ba81-4942-be4c-fb83e2a64de0"
+        },
+        {
+            "parameters": {
+                "jsCode": "const outreach = $('Query Outreach KPIs').all().map(i => i.json);\nconst automation = $('Query Automation KPIs').all().map(i => i.json);\n\nconst latest = outreach[0] || {};\nconst prev = outreach[1] || {};\n\nconst report = [\n  '# Weekly Pipeline Report',\n  `Week of ${latest.week || 'N/A'}`,\n  '',\n  '## Outreach',\n  `- Drafts: ${latest.drafts || 0} (prev: ${prev.drafts || 0})`,\n  `- Sent: ${latest.sent || 0} (prev: ${prev.sent || 0})`,\n  `- Responses: ${latest.responses || 0} (prev: ${prev.responses || 0})`,\n  `- Response rate: ${(latest.response_rate * 100).toFixed(1)}%`,\n  `- Negative rate: ${(latest.negative_rate * 100).toFixed(1)}%`,\n  '',\n  '## Automation',\n].join('\\n');\n\nconst autoLatest = automation[0] || {};\nconst reportFull = report + [\n  `- Heartbeats: ${autoLatest.heartbeats || 0} (ok: ${autoLatest.heartbeats_ok || 0})`,\n  `- Success rate: ${((autoLatest.heartbeat_success_rate || 0) * 100).toFixed(1)}%`,\n  `- Override rate: ${((autoLatest.override_rate || 0) * 100).toFixed(1)}%`,\n].join('\\n');\n\nreturn [{json: {report: reportFull, week: latest.week}}];"
+            },
+            "name": "Format Report",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                640,
+                300
+            ],
+            "id": "9f4f9d63-4d39-4a83-8544-dbb428fd37b8"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"pipeline\", \"event_type\": \"weekly_report\", \"payload\": {\"report\": \"={{ $json.report }}\", \"week\": \"={{ $json.week }}\"}}"
+            },
+            "name": "Emit Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                860,
+                300
+            ],
+            "id": "897fb56d-e1da-43e6-a5dc-7c430579b949"
+        },
+        {
+            "parameters": {},
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                600
+            ],
+            "id": "4a3f9a80-789b-40aa-9811-14e740b22878"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W4 - Pipeline Metrics Reporter\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+            },
+            "name": "POST Error to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                600
+            ],
+            "id": "c7984ad9-517c-4685-aa74-6adaf5c7ac5b"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+            },
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1110,
+                392
+            ],
+            "onError": "continueRegularOutput",
+            "id": "348b7b43-fd83-44dd-8e0b-f1e80d8a6838"
+        },
+        {
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "onError": "continueRegularOutput",
+            "position": [
+                1360,
+                342
+            ],
+            "id": "9490985b-ab4a-4e63-b7d5-6a64c32dfe84"
+        }
+    ],
+    "connections": {
+        "Monday 9 AM ET": {
+            "main": [
+                [
+                    {
+                        "node": "Query Outreach KPIs",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Query Automation KPIs",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Outreach KPIs": {
+            "main": [
+                [
+                    {
+                        "node": "Format Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Automation KPIs": {
+            "main": [
+                [
+                    {
+                        "node": "Format Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Report": {
+            "main": [
+                [
+                    {
+                        "node": "Emit Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "POST Error to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Emit Telemetry": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "POST Error to Telemetry": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Monday 9 AM ET": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "ef1e6ed9-525c-474b-87fa-6672d6491fce",
+    "activeVersionId": "ef1e6ed9-525c-474b-87fa-6672d6491fce",
+    "versionCounter": 48,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-20T17:30:00.799Z",
+            "createdAt": "2026-03-20T17:30:00.799Z",
+            "role": "workflow:owner",
+            "workflowId": "81xP25cDK0Drn4BE",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-21T18:42:19.562Z",
+        "createdAt": "2026-03-21T18:42:19.562Z",
+        "versionId": "ef1e6ed9-525c-474b-87fa-6672d6491fce",
+        "workflowId": "81xP25cDK0Drn4BE",
+        "nodes": [
+            {
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 9 * * 1"
+                            }
+                        ]
+                    }
+                },
+                "name": "Monday 9 AM ET",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    200,
+                    300
+                ],
+                "id": "9a0ccea4-bb13-4521-a661-f9ffc07be1ff"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_outreach?weeks=4&limit=10"
+                },
+                "name": "Query Outreach KPIs",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    250
+                ],
+                "id": "06d22da3-8fd0-4a81-816d-abd15b2ba071"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10"
+                },
+                "name": "Query Automation KPIs",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    400
+                ],
+                "id": "432a0434-ba81-4942-be4c-fb83e2a64de0"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const outreach = $('Query Outreach KPIs').all().map(i => i.json);\nconst automation = $('Query Automation KPIs').all().map(i => i.json);\n\nconst latest = outreach[0] || {};\nconst prev = outreach[1] || {};\n\nconst report = [\n  '# Weekly Pipeline Report',\n  `Week of ${latest.week || 'N/A'}`,\n  '',\n  '## Outreach',\n  `- Drafts: ${latest.drafts || 0} (prev: ${prev.drafts || 0})`,\n  `- Sent: ${latest.sent || 0} (prev: ${prev.sent || 0})`,\n  `- Responses: ${latest.responses || 0} (prev: ${prev.responses || 0})`,\n  `- Response rate: ${(latest.response_rate * 100).toFixed(1)}%`,\n  `- Negative rate: ${(latest.negative_rate * 100).toFixed(1)}%`,\n  '',\n  '## Automation',\n].join('\\n');\n\nconst autoLatest = automation[0] || {};\nconst reportFull = report + [\n  `- Heartbeats: ${autoLatest.heartbeats || 0} (ok: ${autoLatest.heartbeats_ok || 0})`,\n  `- Success rate: ${((autoLatest.heartbeat_success_rate || 0) * 100).toFixed(1)}%`,\n  `- Override rate: ${((autoLatest.override_rate || 0) * 100).toFixed(1)}%`,\n].join('\\n');\n\nreturn [{json: {report: reportFull, week: latest.week}}];"
+                },
+                "name": "Format Report",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    640,
+                    300
+                ],
+                "id": "9f4f9d63-4d39-4a83-8544-dbb428fd37b8"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"pipeline\", \"event_type\": \"weekly_report\", \"payload\": {\"report\": \"={{ $json.report }}\", \"week\": \"={{ $json.week }}\"}}"
+                },
+                "name": "Emit Telemetry",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    860,
+                    300
+                ],
+                "id": "897fb56d-e1da-43e6-a5dc-7c430579b949"
+            },
+            {
+                "parameters": {},
+                "name": "Error Trigger",
+                "type": "n8n-nodes-base.errorTrigger",
+                "typeVersion": 1,
+                "position": [
+                    200,
+                    600
+                ],
+                "id": "4a3f9a80-789b-40aa-9811-14e740b22878"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W4 - Pipeline Metrics Reporter\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                },
+                "name": "POST Error to Telemetry",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    600
+                ],
+                "id": "c7984ad9-517c-4685-aa74-6adaf5c7ac5b"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+                },
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1110,
+                    392
+                ],
+                "onError": "continueRegularOutput",
+                "id": "348b7b43-fd83-44dd-8e0b-f1e80d8a6838"
+            },
+            {
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                },
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "onError": "continueRegularOutput",
+                "position": [
+                    1360,
+                    342
+                ],
+                "id": "9490985b-ab4a-4e63-b7d5-6a64c32dfe84"
+            }
+        ],
+        "connections": {
+            "Monday 9 AM ET": {
+                "main": [
+                    [
+                        {
+                            "node": "Query Outreach KPIs",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Query Automation KPIs",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Query Outreach KPIs": {
+                "main": [
+                    [
+                        {
+                            "node": "Format Report",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Query Automation KPIs": {
+                "main": [
+                    [
+                        {
+                            "node": "Format Report",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Format Report": {
+                "main": [
+                    [
+                        {
+                            "node": "Emit Telemetry",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Error Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "POST Error to Telemetry",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Emit Telemetry": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "POST Error to Telemetry": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-21T18:42:19.603Z",
+                "id": 1341,
+                "workflowId": "81xP25cDK0Drn4BE",
+                "versionId": "ef1e6ed9-525c-474b-87fa-6672d6491fce",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

@@ -1,0 +1,237 @@
+{
+    "updatedAt": "2026-03-27T19:59:18.420Z",
+    "createdAt": "2026-03-27T19:59:18.420Z",
+    "id": "0joE5wojUGMwuIrD",
+    "name": "W42 - Nightly PR Factory",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "triggerAtHour": 3,
+                            "triggerAtMinute": 15
+                        }
+                    ]
+                }
+            },
+            "id": "s1",
+            "name": "Nightly 3:15",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                240,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "return [{json:{date:new Date().toISOString().split(\"T\")[0],message:\"PR Factory triggered\"}}];"
+            },
+            "id": "c1",
+            "name": "Build Context",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "{\"service\":\"pr-factory\",\"event_type\":\"pr_factory_triggered\",\"payload\":{}}",
+                "options": {}
+            },
+            "id": "h1",
+            "name": "Log",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                680,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Nightly 3:15": {
+            "main": [
+                [
+                    {
+                        "node": "Build Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Context": {
+            "main": [
+                [
+                    {
+                        "node": "Log",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Nightly 3:15": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "e0155f52-3b40-4f56-b475-56805430cf9d",
+    "activeVersionId": "e0155f52-3b40-4f56-b475-56805430cf9d",
+    "versionCounter": 4,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-27T19:59:18.424Z",
+            "createdAt": "2026-03-27T19:59:18.424Z",
+            "role": "workflow:owner",
+            "workflowId": "0joE5wojUGMwuIrD",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-27T19:59:18.457Z",
+        "createdAt": "2026-03-27T19:59:18.457Z",
+        "versionId": "e0155f52-3b40-4f56-b475-56805430cf9d",
+        "workflowId": "0joE5wojUGMwuIrD",
+        "nodes": [
+            {
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "triggerAtHour": 3,
+                                "triggerAtMinute": 15
+                            }
+                        ]
+                    }
+                },
+                "id": "s1",
+                "name": "Nightly 3:15",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    240,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "jsCode": "return [{json:{date:new Date().toISOString().split(\"T\")[0],message:\"PR Factory triggered\"}}];"
+                },
+                "id": "c1",
+                "name": "Build Context",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    460,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "{\"service\":\"pr-factory\",\"event_type\":\"pr_factory_triggered\",\"payload\":{}}",
+                    "options": {}
+                },
+                "id": "h1",
+                "name": "Log",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    680,
+                    300
+                ]
+            }
+        ],
+        "connections": {
+            "Nightly 3:15": {
+                "main": [
+                    [
+                        {
+                            "node": "Build Context",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Build Context": {
+                "main": [
+                    [
+                        {
+                            "node": "Log",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-27T19:59:19.459Z",
+                "id": 1784,
+                "workflowId": "0joE5wojUGMwuIrD",
+                "versionId": "e0155f52-3b40-4f56-b475-56805430cf9d",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

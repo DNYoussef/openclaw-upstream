@@ -1,0 +1,225 @@
+{
+    "updatedAt": "2026-03-27T18:10:18.532Z",
+    "createdAt": "2026-03-27T18:10:18.532Z",
+    "id": "bU1xasSBfltTOwyZ",
+    "name": "W-Cost-Logger",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "log-cost",
+                "responseMode": "onReceived",
+                "options": {}
+            },
+            "id": "webhook-1",
+            "name": "Cost Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                240,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const body = $input.item.json.body || $input.item.json;\nconst usage = body.usage || {};\nconst model = (body.model || \"\").toLowerCase();\nconst rates = {\"haiku\": {in: 0.25, out: 1.25}, \"sonnet\": {in: 3.0, out: 15.0}, \"gpt-5.4-mini\": {in: 0.15, out: 0.60}, \"gpt-5.4\": {in: 2.50, out: 10.0}, \"gemini\": {in: 0.0, out: 0.0}};\nconst match = Object.entries(rates).find(([k]) => model.includes(k));\nconst r = match ? match[1] : {in: 0, out: 0};\nconst cost = (usage.prompt_tokens || 0)/1e6 * r.in + (usage.completion_tokens || 0)/1e6 * r.out;\nreturn [{json: {service: body.caller || \"n8n\", event_type: \"llm_call_complete\", payload: {model: body.model || \"unknown\", prompt_tokens: usage.prompt_tokens || 0, completion_tokens: usage.completion_tokens || 0, cost_usd: Math.round(cost * 1000000) / 1000000, caller: body.caller || \"unknown\"}}}];"
+            },
+            "id": "code-1",
+            "name": "Calculate Cost",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {}
+            },
+            "id": "http-1",
+            "name": "Post to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                680,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Cost Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Calculate Cost",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Calculate Cost": {
+            "main": [
+                [
+                    {
+                        "node": "Post to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "64bce31b-e610-48c7-bf0a-b285e6ba5cb8",
+    "activeVersionId": "64bce31b-e610-48c7-bf0a-b285e6ba5cb8",
+    "versionCounter": 5,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-27T18:10:18.534Z",
+            "createdAt": "2026-03-27T18:10:18.534Z",
+            "role": "workflow:owner",
+            "workflowId": "bU1xasSBfltTOwyZ",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-27T18:10:18.539Z",
+        "createdAt": "2026-03-27T18:10:18.539Z",
+        "versionId": "64bce31b-e610-48c7-bf0a-b285e6ba5cb8",
+        "workflowId": "bU1xasSBfltTOwyZ",
+        "nodes": [
+            {
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "log-cost",
+                    "responseMode": "onReceived",
+                    "options": {}
+                },
+                "id": "webhook-1",
+                "name": "Cost Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [
+                    240,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "jsCode": "const body = $input.item.json.body || $input.item.json;\nconst usage = body.usage || {};\nconst model = (body.model || \"\").toLowerCase();\nconst rates = {\"haiku\": {in: 0.25, out: 1.25}, \"sonnet\": {in: 3.0, out: 15.0}, \"gpt-5.4-mini\": {in: 0.15, out: 0.60}, \"gpt-5.4\": {in: 2.50, out: 10.0}, \"gemini\": {in: 0.0, out: 0.0}};\nconst match = Object.entries(rates).find(([k]) => model.includes(k));\nconst r = match ? match[1] : {in: 0, out: 0};\nconst cost = (usage.prompt_tokens || 0)/1e6 * r.in + (usage.completion_tokens || 0)/1e6 * r.out;\nreturn [{json: {service: body.caller || \"n8n\", event_type: \"llm_call_complete\", payload: {model: body.model || \"unknown\", prompt_tokens: usage.prompt_tokens || 0, completion_tokens: usage.completion_tokens || 0, cost_usd: Math.round(cost * 1000000) / 1000000, caller: body.caller || \"unknown\"}}}];"
+                },
+                "id": "code-1",
+                "name": "Calculate Cost",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    460,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {}
+                },
+                "id": "http-1",
+                "name": "Post to Telemetry",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    680,
+                    300
+                ]
+            }
+        ],
+        "connections": {
+            "Cost Webhook": {
+                "main": [
+                    [
+                        {
+                            "node": "Calculate Cost",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Calculate Cost": {
+                "main": [
+                    [
+                        {
+                            "node": "Post to Telemetry",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-27T18:10:32.627Z",
+                "id": 1781,
+                "workflowId": "bU1xasSBfltTOwyZ",
+                "versionId": "64bce31b-e610-48c7-bf0a-b285e6ba5cb8",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

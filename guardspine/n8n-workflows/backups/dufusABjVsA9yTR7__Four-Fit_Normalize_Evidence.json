@@ -1,0 +1,433 @@
+{
+    "updatedAt": "2026-03-28T02:59:00.240Z",
+    "createdAt": "2026-03-28T02:59:00.240Z",
+    "id": "dufusABjVsA9yTR7",
+    "name": "Four-Fit: Normalize Evidence",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Normalize Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                250,
+                300
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "four-fit/normalize",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "f069bee3-2e18-4622-8e95-d7b1ef487c70"
+        },
+        {
+            "name": "Identify Unstructured",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                500,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const input = $input.first()?.json?.body || {};\nconst evidenceIds = input.evidence_ids || [];\nconst evidenceItems = input.evidence || [];\n\n// Sources that require LLM interpretation\nconst unstructuredSources = ['email_reply', 'interview_transcript', 'community_thread', 'support_ticket', 'linkedin_message', 'call_notes'];\nconst structuredSources = ['outreach_pipeline', 'pilot_evidence', 'response_signals', 'metrics_export', 'analytics'];\n\nconst categorized = evidenceItems.map(ev => ({\n  ...ev,\n  needs_llm: unstructuredSources.includes(ev.source) || !ev.recommended_interpretation || ev.recommended_interpretation === 'Requires interpretation',\n  evidence_id: ev.id || ev.evidence_id || ('ev-' + Date.now() + '-' + Math.random().toString(36).substr(2,6))\n}));\n\nconst needsLLM = categorized.filter(e => e.needs_llm);\nconst canDeterministic = categorized.filter(e => !e.needs_llm);\n\nconsole.log('Normalize Evidence: ' + needsLLM.length + ' need LLM, ' + canDeterministic.length + ' can use rules');\n\n// Pass all items through with needs_llm flag\nreturn categorized.length > 0 \n  ? categorized.map(e => ({ json: e }))\n  : [{ json: { evidence_ids: evidenceIds, needs_llm: false, message: 'No evidence items provided', source: 'unknown', recommended_interpretation: '' } }];"
+            },
+            "id": "be3ae345-048c-4059-bf98-4acb1535b384"
+        },
+        {
+            "name": "Needs LLM",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                750,
+                300
+            ],
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.needs_llm }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "ed783a0b-24b6-4ae9-b26f-be7abcdeceaa"
+        },
+        {
+            "name": "LLM Interpretation",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1000,
+                150
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:11434/v1/chat/completions",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "json",
+                "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You normalize startup evidence into structured observations. Extract: fits_affected (array of MP/PC/CM/MM), direction (positive/negative/neutral), magnitude (0-1), confidence (0-1), recommended_interpretation (1 sentence). Return JSON with these fields.\"},{\"role\":\"user\",\"content\":\"Normalize this evidence for GuardSpine GTM analysis:\\nSource: {{ $json.source }}\\nContent: {{ $json.quote_or_payload || $json.raw_content || JSON.stringify($json) }}\\n\\nReturn JSON: {\\\"fits_affected\\\":[],\\\"direction\\\":\\\"neutral\\\",\\\"magnitude\\\":0.5,\\\"confidence\\\":0.5,\\\"recommended_interpretation\\\":\\\"string\\\"}\"}],\"temperature\":0.1}",
+                "options": {}
+            },
+            "id": "16c7e437-d637-4871-a606-1e3421a62de7"
+        },
+        {
+            "name": "Apply Deterministic Rules",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1000,
+                450
+            ],
+            "parameters": {
+                "jsCode": "// Apply deterministic normalization rules for structured sources\nconst item = $input.first().json;\n\nconst rules = {\n  outreach_pipeline: { fits: ['MP', 'PC'], direction: item.magnitude > 0.5 ? 'positive' : 'neutral' },\n  pilot_evidence: { fits: ['PC', 'CM'], direction: 'positive' },\n  response_signals: { fits: ['MP', 'PC', 'CM'], direction: item.magnitude > 0.3 ? 'positive' : 'negative' },\n  metrics_export: { fits: ['CM', 'MM'], direction: item.magnitude > 0.5 ? 'positive' : 'negative' },\n  analytics: { fits: ['MM'], direction: item.magnitude > 0.5 ? 'positive' : 'neutral' }\n};\n\nconst rule = rules[item.source] || { fits: ['MP'], direction: 'neutral' };\n\nreturn [{ json: {\n  ...item,\n  fits_affected: item.fits_affected?.length > 0 ? item.fits_affected : rule.fits,\n  direction: item.direction !== 'neutral' ? item.direction : rule.direction,\n  magnitude: item.magnitude || 0.5,\n  confidence: item.confidence || 0.7,\n  recommended_interpretation: item.recommended_interpretation || 'Deterministic rule applied for ' + item.source,\n  normalization_method: 'deterministic'\n} }];"
+            },
+            "id": "bb93f78a-67cc-432b-9351-8c231d02fa65"
+        },
+        {
+            "name": "Finalize Normalized Events",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1250,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const data = item.json;\n  let normalized = { ...data };\n\n  // If this came from LLM, parse the LLM response\n  if (data.choices?.[0]?.message?.content) {\n    try {\n      const llmResult = JSON.parse(data.choices[0].message.content);\n      normalized = {\n        ...data,\n        fits_affected: llmResult.fits_affected || data.fits_affected || [],\n        direction: llmResult.direction || data.direction || 'neutral',\n        magnitude: llmResult.magnitude !== undefined ? llmResult.magnitude : (data.magnitude || 0.5),\n        confidence: llmResult.confidence !== undefined ? llmResult.confidence : (data.confidence || 0.5),\n        recommended_interpretation: llmResult.recommended_interpretation || data.recommended_interpretation || '',\n        normalization_method: 'llm'\n      };\n    } catch(e) {\n      normalized.normalization_method = 'llm_parse_error';\n    }\n  }\n\n  output.push({ json: {\n    evidence_id: normalized.evidence_id,\n    timestamp: normalized.timestamp || new Date().toISOString(),\n    source: normalized.source,\n    source_reliability: normalized.source_reliability || 0.7,\n    fits_affected: normalized.fits_affected || [],\n    metric_or_claim: normalized.metric_or_claim || 'signal',\n    direction: normalized.direction || 'neutral',\n    magnitude: normalized.magnitude || 0.5,\n    confidence: normalized.confidence || 0.5,\n    linked_entity: normalized.linked_entity || null,\n    quote_or_payload: normalized.quote_or_payload || normalized.raw_content || null,\n    recommended_interpretation: normalized.recommended_interpretation || '',\n    normalization_method: normalized.normalization_method || 'unknown',\n    normalized_at: new Date().toISOString(),\n    ready_for_db: true\n  } });\n}\n\nreturn output.length > 0 ? output : [{ json: { message: 'No events normalized', count: 0 } }];"
+            },
+            "id": "5797f62e-0347-4c08-80ef-c0ba7cd3035a"
+        }
+    ],
+    "connections": {
+        "Normalize Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Identify Unstructured",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Identify Unstructured": {
+            "main": [
+                [
+                    {
+                        "node": "Needs LLM",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Needs LLM": {
+            "main": [
+                [
+                    {
+                        "node": "LLM Interpretation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Apply Deterministic Rules",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "LLM Interpretation": {
+            "main": [
+                [
+                    {
+                        "node": "Finalize Normalized Events",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Apply Deterministic Rules": {
+            "main": [
+                [
+                    {
+                        "node": "Finalize Normalized Events",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "31a6b5c1-0595-4884-8ffe-5a086cb38c1d",
+    "activeVersionId": "31a6b5c1-0595-4884-8ffe-5a086cb38c1d",
+    "versionCounter": 5,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-28T02:59:00.242Z",
+            "createdAt": "2026-03-28T02:59:00.242Z",
+            "role": "workflow:owner",
+            "workflowId": "dufusABjVsA9yTR7",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-28T02:59:00.247Z",
+        "createdAt": "2026-03-28T02:59:00.247Z",
+        "versionId": "31a6b5c1-0595-4884-8ffe-5a086cb38c1d",
+        "workflowId": "dufusABjVsA9yTR7",
+        "nodes": [
+            {
+                "name": "Normalize Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [
+                    250,
+                    300
+                ],
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "four-fit/normalize",
+                    "responseMode": "responseNode",
+                    "options": {}
+                },
+                "id": "f069bee3-2e18-4622-8e95-d7b1ef487c70"
+            },
+            {
+                "name": "Identify Unstructured",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    500,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const input = $input.first()?.json?.body || {};\nconst evidenceIds = input.evidence_ids || [];\nconst evidenceItems = input.evidence || [];\n\n// Sources that require LLM interpretation\nconst unstructuredSources = ['email_reply', 'interview_transcript', 'community_thread', 'support_ticket', 'linkedin_message', 'call_notes'];\nconst structuredSources = ['outreach_pipeline', 'pilot_evidence', 'response_signals', 'metrics_export', 'analytics'];\n\nconst categorized = evidenceItems.map(ev => ({\n  ...ev,\n  needs_llm: unstructuredSources.includes(ev.source) || !ev.recommended_interpretation || ev.recommended_interpretation === 'Requires interpretation',\n  evidence_id: ev.id || ev.evidence_id || ('ev-' + Date.now() + '-' + Math.random().toString(36).substr(2,6))\n}));\n\nconst needsLLM = categorized.filter(e => e.needs_llm);\nconst canDeterministic = categorized.filter(e => !e.needs_llm);\n\nconsole.log('Normalize Evidence: ' + needsLLM.length + ' need LLM, ' + canDeterministic.length + ' can use rules');\n\n// Pass all items through with needs_llm flag\nreturn categorized.length > 0 \n  ? categorized.map(e => ({ json: e }))\n  : [{ json: { evidence_ids: evidenceIds, needs_llm: false, message: 'No evidence items provided', source: 'unknown', recommended_interpretation: '' } }];"
+                },
+                "id": "be3ae345-048c-4059-bf98-4acb1535b384"
+            },
+            {
+                "name": "Needs LLM",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    750,
+                    300
+                ],
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": "",
+                            "typeValidation": "strict"
+                        },
+                        "conditions": [
+                            {
+                                "leftValue": "={{ $json.needs_llm }}",
+                                "rightValue": true,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "true"
+                                }
+                            }
+                        ],
+                        "combinator": "and"
+                    }
+                },
+                "id": "ed783a0b-24b6-4ae9-b26f-be7abcdeceaa"
+            },
+            {
+                "name": "LLM Interpretation",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1000,
+                    150
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://localhost:11434/v1/chat/completions",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "contentType": "json",
+                    "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You normalize startup evidence into structured observations. Extract: fits_affected (array of MP/PC/CM/MM), direction (positive/negative/neutral), magnitude (0-1), confidence (0-1), recommended_interpretation (1 sentence). Return JSON with these fields.\"},{\"role\":\"user\",\"content\":\"Normalize this evidence for GuardSpine GTM analysis:\\nSource: {{ $json.source }}\\nContent: {{ $json.quote_or_payload || $json.raw_content || JSON.stringify($json) }}\\n\\nReturn JSON: {\\\"fits_affected\\\":[],\\\"direction\\\":\\\"neutral\\\",\\\"magnitude\\\":0.5,\\\"confidence\\\":0.5,\\\"recommended_interpretation\\\":\\\"string\\\"}\"}],\"temperature\":0.1}",
+                    "options": {}
+                },
+                "id": "16c7e437-d637-4871-a606-1e3421a62de7"
+            },
+            {
+                "name": "Apply Deterministic Rules",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1000,
+                    450
+                ],
+                "parameters": {
+                    "jsCode": "// Apply deterministic normalization rules for structured sources\nconst item = $input.first().json;\n\nconst rules = {\n  outreach_pipeline: { fits: ['MP', 'PC'], direction: item.magnitude > 0.5 ? 'positive' : 'neutral' },\n  pilot_evidence: { fits: ['PC', 'CM'], direction: 'positive' },\n  response_signals: { fits: ['MP', 'PC', 'CM'], direction: item.magnitude > 0.3 ? 'positive' : 'negative' },\n  metrics_export: { fits: ['CM', 'MM'], direction: item.magnitude > 0.5 ? 'positive' : 'negative' },\n  analytics: { fits: ['MM'], direction: item.magnitude > 0.5 ? 'positive' : 'neutral' }\n};\n\nconst rule = rules[item.source] || { fits: ['MP'], direction: 'neutral' };\n\nreturn [{ json: {\n  ...item,\n  fits_affected: item.fits_affected?.length > 0 ? item.fits_affected : rule.fits,\n  direction: item.direction !== 'neutral' ? item.direction : rule.direction,\n  magnitude: item.magnitude || 0.5,\n  confidence: item.confidence || 0.7,\n  recommended_interpretation: item.recommended_interpretation || 'Deterministic rule applied for ' + item.source,\n  normalization_method: 'deterministic'\n} }];"
+                },
+                "id": "bb93f78a-67cc-432b-9351-8c231d02fa65"
+            },
+            {
+                "name": "Finalize Normalized Events",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1250,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const data = item.json;\n  let normalized = { ...data };\n\n  // If this came from LLM, parse the LLM response\n  if (data.choices?.[0]?.message?.content) {\n    try {\n      const llmResult = JSON.parse(data.choices[0].message.content);\n      normalized = {\n        ...data,\n        fits_affected: llmResult.fits_affected || data.fits_affected || [],\n        direction: llmResult.direction || data.direction || 'neutral',\n        magnitude: llmResult.magnitude !== undefined ? llmResult.magnitude : (data.magnitude || 0.5),\n        confidence: llmResult.confidence !== undefined ? llmResult.confidence : (data.confidence || 0.5),\n        recommended_interpretation: llmResult.recommended_interpretation || data.recommended_interpretation || '',\n        normalization_method: 'llm'\n      };\n    } catch(e) {\n      normalized.normalization_method = 'llm_parse_error';\n    }\n  }\n\n  output.push({ json: {\n    evidence_id: normalized.evidence_id,\n    timestamp: normalized.timestamp || new Date().toISOString(),\n    source: normalized.source,\n    source_reliability: normalized.source_reliability || 0.7,\n    fits_affected: normalized.fits_affected || [],\n    metric_or_claim: normalized.metric_or_claim || 'signal',\n    direction: normalized.direction || 'neutral',\n    magnitude: normalized.magnitude || 0.5,\n    confidence: normalized.confidence || 0.5,\n    linked_entity: normalized.linked_entity || null,\n    quote_or_payload: normalized.quote_or_payload || normalized.raw_content || null,\n    recommended_interpretation: normalized.recommended_interpretation || '',\n    normalization_method: normalized.normalization_method || 'unknown',\n    normalized_at: new Date().toISOString(),\n    ready_for_db: true\n  } });\n}\n\nreturn output.length > 0 ? output : [{ json: { message: 'No events normalized', count: 0 } }];"
+                },
+                "id": "5797f62e-0347-4c08-80ef-c0ba7cd3035a"
+            }
+        ],
+        "connections": {
+            "Normalize Webhook": {
+                "main": [
+                    [
+                        {
+                            "node": "Identify Unstructured",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Identify Unstructured": {
+                "main": [
+                    [
+                        {
+                            "node": "Needs LLM",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Needs LLM": {
+                "main": [
+                    [
+                        {
+                            "node": "LLM Interpretation",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Apply Deterministic Rules",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "LLM Interpretation": {
+                "main": [
+                    [
+                        {
+                            "node": "Finalize Normalized Events",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Apply Deterministic Rules": {
+                "main": [
+                    [
+                        {
+                            "node": "Finalize Normalized Events",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-28T13:14:38.443Z",
+                "id": 1801,
+                "workflowId": "dufusABjVsA9yTR7",
+                "versionId": "31a6b5c1-0595-4884-8ffe-5a086cb38c1d",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-28T13:14:45.212Z",
+                "id": 1803,
+                "workflowId": "dufusABjVsA9yTR7",
+                "versionId": "31a6b5c1-0595-4884-8ffe-5a086cb38c1d",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-28T13:14:45.197Z",
+                "id": 1802,
+                "workflowId": "dufusABjVsA9yTR7",
+                "versionId": "31a6b5c1-0595-4884-8ffe-5a086cb38c1d",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

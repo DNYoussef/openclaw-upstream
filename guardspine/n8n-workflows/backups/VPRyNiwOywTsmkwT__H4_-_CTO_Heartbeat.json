@@ -1,0 +1,727 @@
+{
+    "updatedAt": "2026-03-23T15:53:26.108Z",
+    "createdAt": "2026-03-21T14:09:24.089Z",
+    "id": "VPRyNiwOywTsmkwT",
+    "name": "H4 - CTO Heartbeat",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 8,12 * * *"
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                300
+            ],
+            "id": "c9ea2c7f-e6c8-4a16-84bb-0c8fa0f59d3c"
+        },
+        {
+            "name": "Fetch Open Issues",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                480,
+                300
+            ],
+            "id": "fetch-open-612a081a",
+            "parameters": {
+                "method": "GET",
+                "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues?limit=100",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 15000
+                }
+            }
+        },
+        {
+            "name": "Analyze Heartbeat",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                730,
+                300
+            ],
+            "id": "analyze-99ec65af",
+            "parameters": {
+                "jsCode": "const rawIssues = $json; const issues = Array.isArray(rawIssues) ? rawIssues : (Array.isArray(rawIssues.items) ? rawIssues.items : (Array.isArray(rawIssues.data) ? rawIssues.data : []));\nconst title='[Heartbeat] CTO code quality review and infrastructure check';\nconst openMatch = issues.filter(i => ['todo','backlog','in_progress'].includes(i.status) && i.title === title);\nconst openHeartbeats = issues.filter(i => ['todo','backlog','in_progress'].includes(i.status) && String(i.title||'').includes('[Heartbeat]'));\nconst backlogCount = openHeartbeats.length; const priority = backlogCount >= 8 ? 'high' : 'medium';\nconst shouldCreate = openMatch.length === 0;\nconst summary = { openHeartbeatBacklog: backlogCount, duplicateOpenTasks: openMatch.length };\nconst description = ['Automated CTO heartbeat summary.','','Open heartbeat backlog: '+backlogCount,'Existing CTO heartbeat tasks: '+openMatch.length,'Priority rationale: '+priority].join('\\n');\nreturn [{json:{shouldCreate, priority, dedupReason: openMatch.length ? 'existing_open_heartbeat' : null, summary, taskPayload:{title, description, status:'todo', priority}}}];"
+            }
+        },
+        {
+            "name": "Should Create Task?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                980,
+                300
+            ],
+            "id": "should-create-af3a00af",
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": ""
+                    },
+                    "conditions": [
+                        {
+                            "id": "should-create",
+                            "leftValue": "={{ $json.shouldCreate }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Create Task",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1210,
+                220
+            ],
+            "id": "create-task-9a407ea8",
+            "parameters": {
+                "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "={{ JSON.stringify($json.taskPayload) }}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 15000
+                }
+            }
+        },
+        {
+            "name": "Task Created?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                1210,
+                300
+            ],
+            "id": "task-created-21408c28",
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": ""
+                    },
+                    "conditions": [
+                        {
+                            "id": "task-created-ok",
+                            "leftValue": "={{ $json.id || $json.issue?.id || $json.data?.id || \"\" }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "string",
+                                "operation": "notEmpty",
+                                "singleValue": true
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1460,
+                220
+            ],
+            "id": "prep-evidence-22b8c533",
+            "onError": "continueRegularOutput",
+            "parameters": {
+                "jsCode": "const summary = $(\"Analyze Heartbeat\").first().json;\nconst current = $json || {};\nconst taskId = current.id || current.issue?.id || current.data?.id || null;\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: taskId ? 'completed' : (summary.shouldCreate === false ? 'skipped' : 'failed'),\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  heartbeat_summary: summary.summary || null,\n  priority_selected: summary.priority || null,\n  dedup_reason: summary.dedupReason || null,\n  task_payload: summary.taskPayload || null,\n  task_id: taskId,\n  task_response_excerpt: taskId ? { id: taskId, title: current.title || current.issue?.title || null, status: current.status || current.issue?.status || null } : { error: current.error || current.message || 'task_not_created' },\n  metadata: { node_count: $workflow.nodes?.length || 0, analysis_node: 'Analyze Heartbeat' }\n}}];"
+            }
+        },
+        {
+            "name": "Task Failure",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1460,
+                380
+            ],
+            "id": "fail-91762925",
+            "parameters": {
+                "jsCode": "return [{ json: { error: \"paperclip_task_creation_failed\", response: $json } }];"
+            }
+        },
+        {
+            "name": "Skip Task",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1210,
+                420
+            ],
+            "id": "skip-9edc8e5a",
+            "parameters": {
+                "jsCode": "return [{ json: { skipped: true, reason: $json.dedupReason || \"no_new_action_required\" } }];"
+            }
+        },
+        {
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "onError": "continueRegularOutput",
+            "position": [
+                1700,
+                220
+            ],
+            "id": "seal-35f34874",
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Schedule": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Open Issues",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Open Issues": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze Heartbeat",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze Heartbeat": {
+            "main": [
+                [
+                    {
+                        "node": "Should Create Task?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Should Create Task?": {
+            "main": [
+                [
+                    {
+                        "node": "Create Task",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Skip Task",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Task": {
+            "main": [
+                [
+                    {
+                        "node": "Task Created?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Task Created?": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Task Failure",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Task Failure": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Skip Task": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Schedule": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "8c0492dd-5f57-4809-b1bc-4dac94eeb733",
+    "activeVersionId": "8c0492dd-5f57-4809-b1bc-4dac94eeb733",
+    "versionCounter": 48,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-21T14:09:24.091Z",
+            "createdAt": "2026-03-21T14:09:24.091Z",
+            "role": "workflow:owner",
+            "workflowId": "VPRyNiwOywTsmkwT",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-23T15:53:26.109Z",
+        "createdAt": "2026-03-23T15:53:26.109Z",
+        "versionId": "8c0492dd-5f57-4809-b1bc-4dac94eeb733",
+        "workflowId": "VPRyNiwOywTsmkwT",
+        "nodes": [
+            {
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 8,12 * * *"
+                            }
+                        ]
+                    }
+                },
+                "name": "Schedule",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    250,
+                    300
+                ],
+                "id": "c9ea2c7f-e6c8-4a16-84bb-0c8fa0f59d3c"
+            },
+            {
+                "name": "Fetch Open Issues",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    480,
+                    300
+                ],
+                "id": "fetch-open-612a081a",
+                "parameters": {
+                    "method": "GET",
+                    "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues?limit=100",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 15000
+                    }
+                }
+            },
+            {
+                "name": "Analyze Heartbeat",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    730,
+                    300
+                ],
+                "id": "analyze-99ec65af",
+                "parameters": {
+                    "jsCode": "const rawIssues = $json; const issues = Array.isArray(rawIssues) ? rawIssues : (Array.isArray(rawIssues.items) ? rawIssues.items : (Array.isArray(rawIssues.data) ? rawIssues.data : []));\nconst title='[Heartbeat] CTO code quality review and infrastructure check';\nconst openMatch = issues.filter(i => ['todo','backlog','in_progress'].includes(i.status) && i.title === title);\nconst openHeartbeats = issues.filter(i => ['todo','backlog','in_progress'].includes(i.status) && String(i.title||'').includes('[Heartbeat]'));\nconst backlogCount = openHeartbeats.length; const priority = backlogCount >= 8 ? 'high' : 'medium';\nconst shouldCreate = openMatch.length === 0;\nconst summary = { openHeartbeatBacklog: backlogCount, duplicateOpenTasks: openMatch.length };\nconst description = ['Automated CTO heartbeat summary.','','Open heartbeat backlog: '+backlogCount,'Existing CTO heartbeat tasks: '+openMatch.length,'Priority rationale: '+priority].join('\\n');\nreturn [{json:{shouldCreate, priority, dedupReason: openMatch.length ? 'existing_open_heartbeat' : null, summary, taskPayload:{title, description, status:'todo', priority}}}];"
+                }
+            },
+            {
+                "name": "Should Create Task?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2.2,
+                "position": [
+                    980,
+                    300
+                ],
+                "id": "should-create-af3a00af",
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": ""
+                        },
+                        "conditions": [
+                            {
+                                "id": "should-create",
+                                "leftValue": "={{ $json.shouldCreate }}",
+                                "rightValue": true,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "true",
+                                    "singleValue": true
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "name": "Create Task",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1210,
+                    220
+                ],
+                "id": "create-task-9a407ea8",
+                "parameters": {
+                    "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "={{ JSON.stringify($json.taskPayload) }}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 15000
+                    }
+                }
+            },
+            {
+                "name": "Task Created?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2.2,
+                "position": [
+                    1210,
+                    300
+                ],
+                "id": "task-created-21408c28",
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": ""
+                        },
+                        "conditions": [
+                            {
+                                "id": "task-created-ok",
+                                "leftValue": "={{ $json.id || $json.issue?.id || $json.data?.id || \"\" }}",
+                                "rightValue": "",
+                                "operator": {
+                                    "type": "string",
+                                    "operation": "notEmpty",
+                                    "singleValue": true
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1460,
+                    220
+                ],
+                "id": "prep-evidence-22b8c533",
+                "onError": "continueRegularOutput",
+                "parameters": {
+                    "jsCode": "const summary = $(\"Analyze Heartbeat\").first().json;\nconst current = $json || {};\nconst taskId = current.id || current.issue?.id || current.data?.id || null;\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: taskId ? 'completed' : (summary.shouldCreate === false ? 'skipped' : 'failed'),\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  heartbeat_summary: summary.summary || null,\n  priority_selected: summary.priority || null,\n  dedup_reason: summary.dedupReason || null,\n  task_payload: summary.taskPayload || null,\n  task_id: taskId,\n  task_response_excerpt: taskId ? { id: taskId, title: current.title || current.issue?.title || null, status: current.status || current.issue?.status || null } : { error: current.error || current.message || 'task_not_created' },\n  metadata: { node_count: $workflow.nodes?.length || 0, analysis_node: 'Analyze Heartbeat' }\n}}];"
+                }
+            },
+            {
+                "name": "Task Failure",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1460,
+                    380
+                ],
+                "id": "fail-91762925",
+                "parameters": {
+                    "jsCode": "return [{ json: { error: \"paperclip_task_creation_failed\", response: $json } }];"
+                }
+            },
+            {
+                "name": "Skip Task",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1210,
+                    420
+                ],
+                "id": "skip-9edc8e5a",
+                "parameters": {
+                    "jsCode": "return [{ json: { skipped: true, reason: $json.dedupReason || \"no_new_action_required\" } }];"
+                }
+            },
+            {
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "onError": "continueRegularOutput",
+                "position": [
+                    1700,
+                    220
+                ],
+                "id": "seal-35f34874",
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                }
+            }
+        ],
+        "connections": {
+            "Schedule": {
+                "main": [
+                    [
+                        {
+                            "node": "Fetch Open Issues",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Open Issues": {
+                "main": [
+                    [
+                        {
+                            "node": "Analyze Heartbeat",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Analyze Heartbeat": {
+                "main": [
+                    [
+                        {
+                            "node": "Should Create Task?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Should Create Task?": {
+                "main": [
+                    [
+                        {
+                            "node": "Create Task",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Skip Task",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Create Task": {
+                "main": [
+                    [
+                        {
+                            "node": "Task Created?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Task Created?": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Task Failure",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Task Failure": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Skip Task": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-23T15:53:26.144Z",
+                "id": 1692,
+                "workflowId": "VPRyNiwOywTsmkwT",
+                "versionId": "8c0492dd-5f57-4809-b1bc-4dac94eeb733",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-23T15:53:26.130Z",
+                "id": 1691,
+                "workflowId": "VPRyNiwOywTsmkwT",
+                "versionId": "8c0492dd-5f57-4809-b1bc-4dac94eeb733",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

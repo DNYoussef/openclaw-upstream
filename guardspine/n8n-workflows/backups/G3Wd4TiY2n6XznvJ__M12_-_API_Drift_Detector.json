@@ -1,0 +1,339 @@
+{
+    "updatedAt": "2026-03-21T18:42:20.999Z",
+    "createdAt": "2026-03-21T06:14:52.924Z",
+    "id": "G3Wd4TiY2n6XznvJ",
+    "name": "M12 - API Drift Detector",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "30 8 * * *"
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                300
+            ],
+            "id": "e5c36a8d-ad5d-4b5a-80c5-85db8ab54dee"
+        },
+        {
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/health",
+                "method": "GET",
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "name": "Execute",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                480,
+                300
+            ],
+            "id": "345826fb-ff07-4f13-a056-70a88eda78f5"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M12 - API Drift Detector\"}}"
+            },
+            "name": "Log",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                710,
+                300
+            ],
+            "id": "5fac1cd1-e31e-417c-9bde-8581a9664a03"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+            },
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                960,
+                300
+            ],
+            "onError": "continueRegularOutput",
+            "id": "c2ba8560-f145-4376-99c8-fa42ac0a81b6"
+        },
+        {
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "onError": "continueRegularOutput",
+            "position": [
+                1210,
+                250
+            ],
+            "id": "be3d5c51-d99f-465f-810d-b08bb9dc37e6"
+        }
+    ],
+    "connections": {
+        "Schedule": {
+            "main": [
+                [
+                    {
+                        "node": "Execute",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Execute": {
+            "main": [
+                [
+                    {
+                        "node": "Log",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Schedule": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "137eae0c-d68e-4c75-96f1-2c0462985e64",
+    "activeVersionId": "137eae0c-d68e-4c75-96f1-2c0462985e64",
+    "versionCounter": 46,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-21T06:14:52.925Z",
+            "createdAt": "2026-03-21T06:14:52.925Z",
+            "role": "workflow:owner",
+            "workflowId": "G3Wd4TiY2n6XznvJ",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-21T18:42:20.999Z",
+        "createdAt": "2026-03-21T18:42:20.999Z",
+        "versionId": "137eae0c-d68e-4c75-96f1-2c0462985e64",
+        "workflowId": "G3Wd4TiY2n6XznvJ",
+        "nodes": [
+            {
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "30 8 * * *"
+                            }
+                        ]
+                    }
+                },
+                "name": "Schedule",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    250,
+                    300
+                ],
+                "id": "e5c36a8d-ad5d-4b5a-80c5-85db8ab54dee"
+            },
+            {
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/health",
+                    "method": "GET",
+                    "options": {
+                        "timeout": 30000
+                    }
+                },
+                "name": "Execute",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    480,
+                    300
+                ],
+                "id": "345826fb-ff07-4f13-a056-70a88eda78f5"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M12 - API Drift Detector\"}}"
+                },
+                "name": "Log",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    710,
+                    300
+                ],
+                "id": "5fac1cd1-e31e-417c-9bde-8581a9664a03"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+                },
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    960,
+                    300
+                ],
+                "onError": "continueRegularOutput",
+                "id": "c2ba8560-f145-4376-99c8-fa42ac0a81b6"
+            },
+            {
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                },
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "onError": "continueRegularOutput",
+                "position": [
+                    1210,
+                    250
+                ],
+                "id": "be3d5c51-d99f-465f-810d-b08bb9dc37e6"
+            }
+        ],
+        "connections": {
+            "Schedule": {
+                "main": [
+                    [
+                        {
+                            "node": "Execute",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Execute": {
+                "main": [
+                    [
+                        {
+                            "node": "Log",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-21T18:42:21.049Z",
+                "id": 1357,
+                "workflowId": "G3Wd4TiY2n6XznvJ",
+                "versionId": "137eae0c-d68e-4c75-96f1-2c0462985e64",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

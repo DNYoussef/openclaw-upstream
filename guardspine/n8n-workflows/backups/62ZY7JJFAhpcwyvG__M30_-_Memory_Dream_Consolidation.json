@@ -1,0 +1,511 @@
+{
+    "updatedAt": "2026-03-24T15:24:58.240Z",
+    "createdAt": "2026-03-21T06:15:14.127Z",
+    "id": "62ZY7JJFAhpcwyvG",
+    "name": "M30 - Memory Dream Consolidation",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "HTTP Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                250,
+                300
+            ],
+            "id": "94e185bd-e8d7-43e2-91fe-e3d8888a71b7",
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "m30-memory-dream",
+                "responseMode": "lastNode",
+                "options": {}
+            }
+        },
+        {
+            "name": "Check Dream Conditions",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                480,
+                300
+            ],
+            "id": "dream-conditions-check",
+            "parameters": {
+                "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\nconst META_FILE = '/app/.openclaw/memory/dream-meta.json';\nconst SESSIONS_DIR = '/app/.openclaw/agents/main/sessions';\n\nlet meta = { last_run: null };\ntry { meta = JSON.parse(fs.readFileSync(META_FILE, 'utf8')); } catch {}\n\nlet hoursSince = Infinity;\nif (meta.last_run) hoursSince = (Date.now() - new Date(meta.last_run).getTime()) / 3600000;\nconst timeOk = hoursSince >= 24;\n\nconst lastRunTs = meta.last_run ? new Date(meta.last_run).getTime() : 0;\nlet newSessions = 0;\ntry {\n  newSessions = fs.readdirSync(SESSIONS_DIR)\n    .filter(f => f.endsWith('.jsonl'))\n    .filter(f => { try { return fs.statSync(path.join(SESSIONS_DIR, f)).mtimeMs > lastRunTs; } catch { return false; } }).length;\n} catch {}\nconst sessionsOk = newSessions > 3;\n\nlet activeSession = false;\ntry {\n  const sessJson = JSON.parse(fs.readFileSync(path.join(SESSIONS_DIR, 'sessions.json'), 'utf8'));\n  for (const [, sess] of Object.entries(sessJson)) {\n    if (Date.now() - (sess.updatedAt || 0) < 60000) { activeSession = true; break; }\n  }\n} catch {}\n\nconst shouldRun = timeOk && sessionsOk && !activeSession;\nreturn [{ json: { shouldRun, timeOk, sessionsOk, activeSession, hoursSince: Math.round(hoursSince * 10) / 10, newSessions, lastRun: meta.last_run, skipReason: !timeOk ? 'Not enough time since last run' : !sessionsOk ? 'Need >3 new sessions' : activeSession ? 'Active session detected' : null } }];\n"
+            }
+        },
+        {
+            "name": "Should Run",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                720,
+                300
+            ],
+            "id": "dream-should-run",
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.shouldRun }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            }
+        },
+        {
+            "name": "Run Dream",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                960,
+                180
+            ],
+            "id": "dream-run-command",
+            "parameters": {
+                "jsCode": "\nconst { execSync } = require('child_process');\nlet stdout = '';\nlet exitCode = -1;\ntry {\n  stdout = execSync('timeout 600 node /app/.openclaw/extensions/dream/dream.js 2>&1', {\n    timeout: 610000,\n    maxBuffer: 1024 * 1024\n  }).toString();\n  exitCode = 0;\n} catch (e) {\n  stdout = (e.stdout || '') + (e.stderr || '') + e.message;\n  exitCode = e.status || 1;\n}\nreturn [{ json: { stdout, exitCode } }];\n"
+            }
+        },
+        {
+            "name": "Parse Dream Result",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1200,
+                180
+            ],
+            "id": "dream-parse-result",
+            "parameters": {
+                "jsCode": "\nconst stdout = $input.first().json.stdout || '';\nconst exitCode = $input.first().json.exitCode;\nconst success = exitCode === 0;\nlet result = {};\nconst lines = stdout.split('\\n').reverse();\nfor (const line of lines) {\n  try {\n    const p = JSON.parse(line.trim());\n    if (p && typeof p === 'object' && !Array.isArray(p)) { result = p; break; }\n  } catch {}\n}\nreturn [{ json: { success, exitCode, ...result, stdout_tail: stdout.split('\\n').slice(-8).join('\\n') } }];\n"
+            }
+        },
+        {
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1450,
+                280
+            ],
+            "id": "9f5091b0-0d01-48c8-a4e0-a28e3606b4d7",
+            "onError": "continueRegularOutput",
+            "parameters": {
+                "jsCode": "\nconst dream = $input.first().json || {};\nconst items = $input.all();\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: dream.success ? 'completed' : (dream.skipped ? 'skipped' : 'failed'),\n  dream_result: { last_run: dream.last_run, sessions_processed: dream.sessions_processed, chunks_added: dream.chunks_added, skipped: dream.skipped, skip_reason: dream.skip_reason, error: dream.error },\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  metadata: { node_count: $workflow.nodes?.length || 0, job: 'M30-Dream' }\n}}];\n"
+            }
+        },
+        {
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "onError": "continueRegularOutput",
+            "position": [
+                1700,
+                280
+            ],
+            "id": "0ede3b2a-b7c2-4e42-8491-0cc9941835d0",
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            }
+        },
+        {
+            "name": "Log Skip",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                960,
+                420
+            ],
+            "id": "dream-log-skip",
+            "parameters": {
+                "jsCode": "\nconst input = $input.first().json;\nreturn [{ json: { workflow_name: $workflow.name, execution_id: String($execution.id), status: 'skipped', skip_reason: input.skipReason, hours_since: input.hoursSince, new_sessions: input.newSessions, finished_at: new Date().toISOString(), service_identity: 'n8n-workflows', metadata: { job: 'M30-Dream' } } }];\n"
+            }
+        }
+    ],
+    "connections": {
+        "Check Dream Conditions": {
+            "main": [
+                [
+                    {
+                        "node": "Should Run",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Should Run": {
+            "main": [
+                [
+                    {
+                        "node": "Run Dream",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Log Skip",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Run Dream": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Dream Result",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Dream Result": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Skip": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "HTTP Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Check Dream Conditions",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {},
+    "meta": null,
+    "pinData": null,
+    "versionId": "2d9efa12-ff37-4979-936e-6e479ba939d8",
+    "activeVersionId": "2d9efa12-ff37-4979-936e-6e479ba939d8",
+    "versionCounter": 60,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-21T06:15:14.128Z",
+            "createdAt": "2026-03-21T06:15:14.128Z",
+            "role": "workflow:owner",
+            "workflowId": "62ZY7JJFAhpcwyvG",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-24T15:24:58.241Z",
+        "createdAt": "2026-03-24T15:24:58.241Z",
+        "versionId": "2d9efa12-ff37-4979-936e-6e479ba939d8",
+        "workflowId": "62ZY7JJFAhpcwyvG",
+        "nodes": [
+            {
+                "name": "HTTP Trigger",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [
+                    250,
+                    300
+                ],
+                "id": "94e185bd-e8d7-43e2-91fe-e3d8888a71b7",
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "m30-memory-dream",
+                    "responseMode": "lastNode",
+                    "options": {}
+                }
+            },
+            {
+                "name": "Check Dream Conditions",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    480,
+                    300
+                ],
+                "id": "dream-conditions-check",
+                "parameters": {
+                    "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\nconst META_FILE = '/app/.openclaw/memory/dream-meta.json';\nconst SESSIONS_DIR = '/app/.openclaw/agents/main/sessions';\n\nlet meta = { last_run: null };\ntry { meta = JSON.parse(fs.readFileSync(META_FILE, 'utf8')); } catch {}\n\nlet hoursSince = Infinity;\nif (meta.last_run) hoursSince = (Date.now() - new Date(meta.last_run).getTime()) / 3600000;\nconst timeOk = hoursSince >= 24;\n\nconst lastRunTs = meta.last_run ? new Date(meta.last_run).getTime() : 0;\nlet newSessions = 0;\ntry {\n  newSessions = fs.readdirSync(SESSIONS_DIR)\n    .filter(f => f.endsWith('.jsonl'))\n    .filter(f => { try { return fs.statSync(path.join(SESSIONS_DIR, f)).mtimeMs > lastRunTs; } catch { return false; } }).length;\n} catch {}\nconst sessionsOk = newSessions > 3;\n\nlet activeSession = false;\ntry {\n  const sessJson = JSON.parse(fs.readFileSync(path.join(SESSIONS_DIR, 'sessions.json'), 'utf8'));\n  for (const [, sess] of Object.entries(sessJson)) {\n    if (Date.now() - (sess.updatedAt || 0) < 60000) { activeSession = true; break; }\n  }\n} catch {}\n\nconst shouldRun = timeOk && sessionsOk && !activeSession;\nreturn [{ json: { shouldRun, timeOk, sessionsOk, activeSession, hoursSince: Math.round(hoursSince * 10) / 10, newSessions, lastRun: meta.last_run, skipReason: !timeOk ? 'Not enough time since last run' : !sessionsOk ? 'Need >3 new sessions' : activeSession ? 'Active session detected' : null } }];\n"
+                }
+            },
+            {
+                "name": "Should Run",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    720,
+                    300
+                ],
+                "id": "dream-should-run",
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": "",
+                            "typeValidation": "strict"
+                        },
+                        "conditions": [
+                            {
+                                "leftValue": "={{ $json.shouldRun }}",
+                                "rightValue": true,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "equals"
+                                }
+                            }
+                        ],
+                        "combinator": "and"
+                    }
+                }
+            },
+            {
+                "name": "Run Dream",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    960,
+                    180
+                ],
+                "id": "dream-run-command",
+                "parameters": {
+                    "jsCode": "\nconst { execSync } = require('child_process');\nlet stdout = '';\nlet exitCode = -1;\ntry {\n  stdout = execSync('timeout 600 node /app/.openclaw/extensions/dream/dream.js 2>&1', {\n    timeout: 610000,\n    maxBuffer: 1024 * 1024\n  }).toString();\n  exitCode = 0;\n} catch (e) {\n  stdout = (e.stdout || '') + (e.stderr || '') + e.message;\n  exitCode = e.status || 1;\n}\nreturn [{ json: { stdout, exitCode } }];\n"
+                }
+            },
+            {
+                "name": "Parse Dream Result",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1200,
+                    180
+                ],
+                "id": "dream-parse-result",
+                "parameters": {
+                    "jsCode": "\nconst stdout = $input.first().json.stdout || '';\nconst exitCode = $input.first().json.exitCode;\nconst success = exitCode === 0;\nlet result = {};\nconst lines = stdout.split('\\n').reverse();\nfor (const line of lines) {\n  try {\n    const p = JSON.parse(line.trim());\n    if (p && typeof p === 'object' && !Array.isArray(p)) { result = p; break; }\n  } catch {}\n}\nreturn [{ json: { success, exitCode, ...result, stdout_tail: stdout.split('\\n').slice(-8).join('\\n') } }];\n"
+                }
+            },
+            {
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1450,
+                    280
+                ],
+                "id": "9f5091b0-0d01-48c8-a4e0-a28e3606b4d7",
+                "onError": "continueRegularOutput",
+                "parameters": {
+                    "jsCode": "\nconst dream = $input.first().json || {};\nconst items = $input.all();\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: dream.success ? 'completed' : (dream.skipped ? 'skipped' : 'failed'),\n  dream_result: { last_run: dream.last_run, sessions_processed: dream.sessions_processed, chunks_added: dream.chunks_added, skipped: dream.skipped, skip_reason: dream.skip_reason, error: dream.error },\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  metadata: { node_count: $workflow.nodes?.length || 0, job: 'M30-Dream' }\n}}];\n"
+                }
+            },
+            {
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "onError": "continueRegularOutput",
+                "position": [
+                    1700,
+                    280
+                ],
+                "id": "0ede3b2a-b7c2-4e42-8491-0cc9941835d0",
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                }
+            },
+            {
+                "name": "Log Skip",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    960,
+                    420
+                ],
+                "id": "dream-log-skip",
+                "parameters": {
+                    "jsCode": "\nconst input = $input.first().json;\nreturn [{ json: { workflow_name: $workflow.name, execution_id: String($execution.id), status: 'skipped', skip_reason: input.skipReason, hours_since: input.hoursSince, new_sessions: input.newSessions, finished_at: new Date().toISOString(), service_identity: 'n8n-workflows', metadata: { job: 'M30-Dream' } } }];\n"
+                }
+            }
+        ],
+        "connections": {
+            "Check Dream Conditions": {
+                "main": [
+                    [
+                        {
+                            "node": "Should Run",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Should Run": {
+                "main": [
+                    [
+                        {
+                            "node": "Run Dream",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Log Skip",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Run Dream": {
+                "main": [
+                    [
+                        {
+                            "node": "Parse Dream Result",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Parse Dream Result": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log Skip": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "HTTP Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "Check Dream Conditions",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-24T15:24:58.306Z",
+                "id": 1768,
+                "workflowId": "62ZY7JJFAhpcwyvG",
+                "versionId": "2d9efa12-ff37-4979-936e-6e479ba939d8",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-24T15:24:58.272Z",
+                "id": 1767,
+                "workflowId": "62ZY7JJFAhpcwyvG",
+                "versionId": "2d9efa12-ff37-4979-936e-6e479ba939d8",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

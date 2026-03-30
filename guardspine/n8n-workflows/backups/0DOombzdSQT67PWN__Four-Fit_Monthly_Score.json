@@ -1,0 +1,745 @@
+{
+    "updatedAt": "2026-03-28T13:15:49.835Z",
+    "createdAt": "2026-03-28T02:58:44.147Z",
+    "id": "0DOombzdSQT67PWN",
+    "name": "Four-Fit: Monthly Score",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                200
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "months",
+                            "monthsInterval": 1,
+                            "triggerAtDayOfMonth": 1,
+                            "triggerAtHour": 8,
+                            "triggerAtMinute": 0
+                        }
+                    ]
+                }
+            },
+            "id": "5d7fc8df-544a-46a1-a9d1-fad120702e11"
+        },
+        {
+            "name": "Manual Score Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                250,
+                400
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "four-fit/score",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "7aef98d7-e260-4085-b2f0-4774cea7e9b4"
+        },
+        {
+            "name": "Build Scoring Context",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                500,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const now = new Date();\nconst thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();\n\nconst scoringContext = {\n  scoring_period: { start: thirtyDaysAgo, end: now.toISOString() },\n  fits: {\n    MP: {\n      name: 'Market-Problem Fit',\n      rubric_questions: [\n        'Do target customers spontaneously describe the problem without prompting?',\n        'Is the problem ranked top 3 priority by >50% of ICP interviews?',\n        'Are customers paying for workarounds or inferior solutions?',\n        'Does the problem recur frequently (weekly/monthly)?',\n        'Do customers express urgency about solving this now?'\n      ],\n      recent_evidence: [],\n      weights: [0.25, 0.25, 0.2, 0.15, 0.15]\n    },\n    PC: {\n      name: 'Problem-Channel Fit',\n      rubric_questions: [\n        'Are target customers reachable via identified channels at acceptable CAC?',\n        'Do channel conversion rates meet benchmarks for the category?',\n        'Is the channel scalable to 10x current volume without degrading?',\n        'Do channel-acquired customers have LTV matching ICP definition?',\n        'Is channel dependence diversified (no single channel >60%)?'\n      ],\n      recent_evidence: [],\n      weights: [0.25, 0.2, 0.2, 0.2, 0.15]\n    },\n    CM: {\n      name: 'Channel-Model Fit',\n      rubric_questions: [\n        'Does ACV support the cost of the primary acquisition channel?',\n        'Is payback period <12 months on primary channel?',\n        'Does sales motion match channel expectations (PLG vs high-touch)?',\n        'Is gross margin sufficient to fund channel at scale (>60%)?',\n        'Do channel economics improve with volume?'\n      ],\n      recent_evidence: [],\n      weights: [0.3, 0.25, 0.2, 0.15, 0.1]\n    },\n    MM: {\n      name: 'Model-Market Fit',\n      rubric_questions: [\n        'Is TAM >$100M and SAM addressable within 3 years?',\n        'Does pricing model align with how the market buys?',\n        'Is NRR >100% indicating expansion within accounts?',\n        'Do market dynamics favor the model?',\n        'Is competitive moat strengthening over time?'\n      ],\n      recent_evidence: [],\n      weights: [0.2, 0.25, 0.25, 0.15, 0.15]\n    }\n  },\n  trigger_source: $input.first()?.json?.body?.trigger || 'schedule'\n};\n\nreturn [{ json: scoringContext }];"
+            },
+            "id": "973f082c-d908-4038-a6ce-437b83389c98"
+        },
+        {
+            "name": "Score MP Fit",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                750,
+                150
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:11434/v1/chat/completions",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "json",
+                "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a Four-Fit scoring analyst. Score Market-Problem Fit 0-10. Return JSON: {\\\"fit\\\":\\\"MP\\\",\\\"score\\\":0,\\\"confidence\\\":0.5,\\\"trend\\\":\\\"stable\\\",\\\"rationale\\\":\\\"string\\\",\\\"gaps\\\":[]}\"},{\"role\":\"user\",\"content\":\"Score MP Fit for GuardSpine. Rubric: {{ JSON.stringify($json.fits.MP.rubric_questions) }}. Evidence: {{ JSON.stringify($json.fits.MP.recent_evidence) }}. Return only valid JSON.\"}],\"temperature\":0.2}",
+                "options": {}
+            },
+            "id": "e6e1572b-b48d-404e-8e6f-5c0cd3d3aa36"
+        },
+        {
+            "name": "Score PC Fit",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                750,
+                320
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:11434/v1/chat/completions",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "json",
+                "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a Four-Fit scoring analyst. Score Problem-Channel Fit 0-10. Return JSON: {\\\"fit\\\":\\\"PC\\\",\\\"score\\\":0,\\\"confidence\\\":0.5,\\\"trend\\\":\\\"stable\\\",\\\"rationale\\\":\\\"string\\\",\\\"gaps\\\":[]}\"},{\"role\":\"user\",\"content\":\"Score PC Fit for GuardSpine. Rubric: {{ JSON.stringify($('Build Scoring Context').first().json.fits.PC.rubric_questions) }}. Return only valid JSON.\"}],\"temperature\":0.2}",
+                "options": {}
+            },
+            "id": "f595e6d5-6597-4769-9cec-1de2a432204e"
+        },
+        {
+            "name": "Score CM Fit",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                750,
+                490
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:11434/v1/chat/completions",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "json",
+                "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a Four-Fit scoring analyst. Score Channel-Model Fit 0-10. Return JSON: {\\\"fit\\\":\\\"CM\\\",\\\"score\\\":0,\\\"confidence\\\":0.5,\\\"trend\\\":\\\"stable\\\",\\\"rationale\\\":\\\"string\\\",\\\"gaps\\\":[]}\"},{\"role\":\"user\",\"content\":\"Score CM Fit for GuardSpine. Rubric: {{ JSON.stringify($('Build Scoring Context').first().json.fits.CM.rubric_questions) }}. Return only valid JSON.\"}],\"temperature\":0.2}",
+                "options": {}
+            },
+            "id": "fdc0ed45-0ad3-4271-9dc9-29dac0f3749e"
+        },
+        {
+            "name": "Score MM Fit",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                750,
+                660
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:11434/v1/chat/completions",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "json",
+                "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a Four-Fit scoring analyst. Score Model-Market Fit 0-10. Return JSON: {\\\"fit\\\":\\\"MM\\\",\\\"score\\\":0,\\\"confidence\\\":0.5,\\\"trend\\\":\\\"stable\\\",\\\"rationale\\\":\\\"string\\\",\\\"gaps\\\":[]}\"},{\"role\":\"user\",\"content\":\"Score MM Fit for GuardSpine. Rubric: {{ JSON.stringify($('Build Scoring Context').first().json.fits.MM.rubric_questions) }}. Return only valid JSON.\"}],\"temperature\":0.2}",
+                "options": {}
+            },
+            "id": "c3a08ea3-f197-4ccf-a24f-16ab3a89f033"
+        },
+        {
+            "name": "Combine Fit Scores",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1000,
+                400
+            ],
+            "parameters": {
+                "jsCode": "const allItems = $input.all();\nconst fitMap = {};\n\nfor (const item of allItems) {\n  try {\n    const data = item.json;\n    const content = data.choices?.[0]?.message?.content || '{}';\n    const parsed = typeof content === 'string' ? JSON.parse(content) : content;\n    if (parsed.fit) fitMap[parsed.fit] = parsed;\n  } catch(e) {}\n}\n\nconst now = new Date();\nconst fitScores = Object.values(fitMap);\nconst overallScore = fitScores.length > 0 ? fitScores.reduce((s, f) => s + (f.score || 5), 0) / fitScores.length : 5;\n\nconst scorecard = {\n  scored_at: now.toISOString(),\n  period_label: now.toLocaleString('default', { month: 'long' }) + ' ' + now.getFullYear(),\n  overall_score: Math.round(overallScore * 10) / 10,\n  fits: {\n    MP: fitMap.MP || { score: null, confidence: 0, trend: 'unknown', rationale: 'Not scored', gaps: [] },\n    PC: fitMap.PC || { score: null, confidence: 0, trend: 'unknown', rationale: 'Not scored', gaps: [] },\n    CM: fitMap.CM || { score: null, confidence: 0, trend: 'unknown', rationale: 'Not scored', gaps: [] },\n    MM: fitMap.MM || { score: null, confidence: 0, trend: 'unknown', rationale: 'Not scored', gaps: [] }\n  },\n  weakest_fit: Object.entries(fitMap).sort((a,b) => (a[1].score||10)-(b[1].score||10))[0]?.[0] || 'unknown',\n  recommended_focus: 'Address weakest fit before scaling channels'\n};\n\nreturn [{ json: scorecard }];"
+            },
+            "id": "b41d77d6-5a24-4e0b-8119-1b50bba49998"
+        },
+        {
+            "name": "Store Scores",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1250,
+                300
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:5678/webhook/outreach-pipeline",
+                "sendBody": true,
+                "contentType": "json",
+                "body": "={\"action\":\"store_fit_scores\",\"scorecard\":{{ JSON.stringify($json) }}}",
+                "options": {}
+            },
+            "id": "373d393b-4f1e-45dc-a169-b4b26182f976"
+        },
+        {
+            "name": "Post Scorecard Slack",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1250,
+                500
+            ],
+            "id": "e478c263-d1a7-4635-a4a3-4da1c8f71c1e",
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "contentType": "json",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "channel",
+                            "value": "D0AMT6KMGNP"
+                        },
+                        {
+                            "name": "text",
+                            "value": "=\ud83d\udcca *Four-Fit Monthly Scorecard \u2014 {{ $json.period_label }}*\n\nOverall: *{{ $json.overall_score }}/10*\n\n*MP (Market-Problem):* {{ $json.fits.MP.score }}/10 \u2014 {{ $json.fits.MP.trend }} \u2014 {{ $json.fits.MP.rationale }}\n*PC (Problem-Channel):* {{ $json.fits.PC.score }}/10 \u2014 {{ $json.fits.PC.trend }} \u2014 {{ $json.fits.PC.rationale }}\n*CM (Channel-Model):* {{ $json.fits.CM.score }}/10 \u2014 {{ $json.fits.CM.trend }} \u2014 {{ $json.fits.CM.rationale }}\n*MM (Model-Market):* {{ $json.fits.MM.score }}/10 \u2014 {{ $json.fits.MM.trend }} \u2014 {{ $json.fits.MM.rationale }}\n\n\u26a0\ufe0f *Weakest Fit:* {{ $json.weakest_fit }}\n\ud83d\udca1 *Focus:* {{ $json.recommended_focus }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Build Scoring Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Manual Score Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Build Scoring Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Scoring Context": {
+            "main": [
+                [
+                    {
+                        "node": "Score MP Fit",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Score PC Fit",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Score CM Fit",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Score MM Fit",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Score MP Fit": {
+            "main": [
+                [
+                    {
+                        "node": "Combine Fit Scores",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Score PC Fit": {
+            "main": [
+                [
+                    {
+                        "node": "Combine Fit Scores",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Score CM Fit": {
+            "main": [
+                [
+                    {
+                        "node": "Combine Fit Scores",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Score MM Fit": {
+            "main": [
+                [
+                    {
+                        "node": "Combine Fit Scores",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Combine Fit Scores": {
+            "main": [
+                [
+                    {
+                        "node": "Store Scores",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Post Scorecard Slack",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Schedule Trigger": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "97312312-aa42-4920-8fdf-0559a2dfe081",
+    "activeVersionId": "97312312-aa42-4920-8fdf-0559a2dfe081",
+    "versionCounter": 5,
+    "triggerCount": 2,
+    "shared": [
+        {
+            "updatedAt": "2026-03-28T02:58:44.148Z",
+            "createdAt": "2026-03-28T02:58:44.148Z",
+            "role": "workflow:owner",
+            "workflowId": "0DOombzdSQT67PWN",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-28T13:15:49.837Z",
+        "createdAt": "2026-03-28T13:15:49.837Z",
+        "versionId": "97312312-aa42-4920-8fdf-0559a2dfe081",
+        "workflowId": "0DOombzdSQT67PWN",
+        "nodes": [
+            {
+                "name": "Schedule Trigger",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    250,
+                    200
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "months",
+                                "monthsInterval": 1,
+                                "triggerAtDayOfMonth": 1,
+                                "triggerAtHour": 8,
+                                "triggerAtMinute": 0
+                            }
+                        ]
+                    }
+                },
+                "id": "5d7fc8df-544a-46a1-a9d1-fad120702e11"
+            },
+            {
+                "name": "Manual Score Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [
+                    250,
+                    400
+                ],
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "four-fit/score",
+                    "responseMode": "responseNode",
+                    "options": {}
+                },
+                "id": "7aef98d7-e260-4085-b2f0-4774cea7e9b4"
+            },
+            {
+                "name": "Build Scoring Context",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    500,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const now = new Date();\nconst thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();\n\nconst scoringContext = {\n  scoring_period: { start: thirtyDaysAgo, end: now.toISOString() },\n  fits: {\n    MP: {\n      name: 'Market-Problem Fit',\n      rubric_questions: [\n        'Do target customers spontaneously describe the problem without prompting?',\n        'Is the problem ranked top 3 priority by >50% of ICP interviews?',\n        'Are customers paying for workarounds or inferior solutions?',\n        'Does the problem recur frequently (weekly/monthly)?',\n        'Do customers express urgency about solving this now?'\n      ],\n      recent_evidence: [],\n      weights: [0.25, 0.25, 0.2, 0.15, 0.15]\n    },\n    PC: {\n      name: 'Problem-Channel Fit',\n      rubric_questions: [\n        'Are target customers reachable via identified channels at acceptable CAC?',\n        'Do channel conversion rates meet benchmarks for the category?',\n        'Is the channel scalable to 10x current volume without degrading?',\n        'Do channel-acquired customers have LTV matching ICP definition?',\n        'Is channel dependence diversified (no single channel >60%)?'\n      ],\n      recent_evidence: [],\n      weights: [0.25, 0.2, 0.2, 0.2, 0.15]\n    },\n    CM: {\n      name: 'Channel-Model Fit',\n      rubric_questions: [\n        'Does ACV support the cost of the primary acquisition channel?',\n        'Is payback period <12 months on primary channel?',\n        'Does sales motion match channel expectations (PLG vs high-touch)?',\n        'Is gross margin sufficient to fund channel at scale (>60%)?',\n        'Do channel economics improve with volume?'\n      ],\n      recent_evidence: [],\n      weights: [0.3, 0.25, 0.2, 0.15, 0.1]\n    },\n    MM: {\n      name: 'Model-Market Fit',\n      rubric_questions: [\n        'Is TAM >$100M and SAM addressable within 3 years?',\n        'Does pricing model align with how the market buys?',\n        'Is NRR >100% indicating expansion within accounts?',\n        'Do market dynamics favor the model?',\n        'Is competitive moat strengthening over time?'\n      ],\n      recent_evidence: [],\n      weights: [0.2, 0.25, 0.25, 0.15, 0.15]\n    }\n  },\n  trigger_source: $input.first()?.json?.body?.trigger || 'schedule'\n};\n\nreturn [{ json: scoringContext }];"
+                },
+                "id": "973f082c-d908-4038-a6ce-437b83389c98"
+            },
+            {
+                "name": "Score MP Fit",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    750,
+                    150
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://localhost:11434/v1/chat/completions",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "contentType": "json",
+                    "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a Four-Fit scoring analyst. Score Market-Problem Fit 0-10. Return JSON: {\\\"fit\\\":\\\"MP\\\",\\\"score\\\":0,\\\"confidence\\\":0.5,\\\"trend\\\":\\\"stable\\\",\\\"rationale\\\":\\\"string\\\",\\\"gaps\\\":[]}\"},{\"role\":\"user\",\"content\":\"Score MP Fit for GuardSpine. Rubric: {{ JSON.stringify($json.fits.MP.rubric_questions) }}. Evidence: {{ JSON.stringify($json.fits.MP.recent_evidence) }}. Return only valid JSON.\"}],\"temperature\":0.2}",
+                    "options": {}
+                },
+                "id": "e6e1572b-b48d-404e-8e6f-5c0cd3d3aa36"
+            },
+            {
+                "name": "Score PC Fit",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    750,
+                    320
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://localhost:11434/v1/chat/completions",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "contentType": "json",
+                    "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a Four-Fit scoring analyst. Score Problem-Channel Fit 0-10. Return JSON: {\\\"fit\\\":\\\"PC\\\",\\\"score\\\":0,\\\"confidence\\\":0.5,\\\"trend\\\":\\\"stable\\\",\\\"rationale\\\":\\\"string\\\",\\\"gaps\\\":[]}\"},{\"role\":\"user\",\"content\":\"Score PC Fit for GuardSpine. Rubric: {{ JSON.stringify($('Build Scoring Context').first().json.fits.PC.rubric_questions) }}. Return only valid JSON.\"}],\"temperature\":0.2}",
+                    "options": {}
+                },
+                "id": "f595e6d5-6597-4769-9cec-1de2a432204e"
+            },
+            {
+                "name": "Score CM Fit",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    750,
+                    490
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://localhost:11434/v1/chat/completions",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "contentType": "json",
+                    "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a Four-Fit scoring analyst. Score Channel-Model Fit 0-10. Return JSON: {\\\"fit\\\":\\\"CM\\\",\\\"score\\\":0,\\\"confidence\\\":0.5,\\\"trend\\\":\\\"stable\\\",\\\"rationale\\\":\\\"string\\\",\\\"gaps\\\":[]}\"},{\"role\":\"user\",\"content\":\"Score CM Fit for GuardSpine. Rubric: {{ JSON.stringify($('Build Scoring Context').first().json.fits.CM.rubric_questions) }}. Return only valid JSON.\"}],\"temperature\":0.2}",
+                    "options": {}
+                },
+                "id": "fdc0ed45-0ad3-4271-9dc9-29dac0f3749e"
+            },
+            {
+                "name": "Score MM Fit",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    750,
+                    660
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://localhost:11434/v1/chat/completions",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "contentType": "json",
+                    "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a Four-Fit scoring analyst. Score Model-Market Fit 0-10. Return JSON: {\\\"fit\\\":\\\"MM\\\",\\\"score\\\":0,\\\"confidence\\\":0.5,\\\"trend\\\":\\\"stable\\\",\\\"rationale\\\":\\\"string\\\",\\\"gaps\\\":[]}\"},{\"role\":\"user\",\"content\":\"Score MM Fit for GuardSpine. Rubric: {{ JSON.stringify($('Build Scoring Context').first().json.fits.MM.rubric_questions) }}. Return only valid JSON.\"}],\"temperature\":0.2}",
+                    "options": {}
+                },
+                "id": "c3a08ea3-f197-4ccf-a24f-16ab3a89f033"
+            },
+            {
+                "name": "Combine Fit Scores",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1000,
+                    400
+                ],
+                "parameters": {
+                    "jsCode": "const allItems = $input.all();\nconst fitMap = {};\n\nfor (const item of allItems) {\n  try {\n    const data = item.json;\n    const content = data.choices?.[0]?.message?.content || '{}';\n    const parsed = typeof content === 'string' ? JSON.parse(content) : content;\n    if (parsed.fit) fitMap[parsed.fit] = parsed;\n  } catch(e) {}\n}\n\nconst now = new Date();\nconst fitScores = Object.values(fitMap);\nconst overallScore = fitScores.length > 0 ? fitScores.reduce((s, f) => s + (f.score || 5), 0) / fitScores.length : 5;\n\nconst scorecard = {\n  scored_at: now.toISOString(),\n  period_label: now.toLocaleString('default', { month: 'long' }) + ' ' + now.getFullYear(),\n  overall_score: Math.round(overallScore * 10) / 10,\n  fits: {\n    MP: fitMap.MP || { score: null, confidence: 0, trend: 'unknown', rationale: 'Not scored', gaps: [] },\n    PC: fitMap.PC || { score: null, confidence: 0, trend: 'unknown', rationale: 'Not scored', gaps: [] },\n    CM: fitMap.CM || { score: null, confidence: 0, trend: 'unknown', rationale: 'Not scored', gaps: [] },\n    MM: fitMap.MM || { score: null, confidence: 0, trend: 'unknown', rationale: 'Not scored', gaps: [] }\n  },\n  weakest_fit: Object.entries(fitMap).sort((a,b) => (a[1].score||10)-(b[1].score||10))[0]?.[0] || 'unknown',\n  recommended_focus: 'Address weakest fit before scaling channels'\n};\n\nreturn [{ json: scorecard }];"
+                },
+                "id": "b41d77d6-5a24-4e0b-8119-1b50bba49998"
+            },
+            {
+                "name": "Store Scores",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1250,
+                    300
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://localhost:5678/webhook/outreach-pipeline",
+                    "sendBody": true,
+                    "contentType": "json",
+                    "body": "={\"action\":\"store_fit_scores\",\"scorecard\":{{ JSON.stringify($json) }}}",
+                    "options": {}
+                },
+                "id": "373d393b-4f1e-45dc-a169-b4b26182f976"
+            },
+            {
+                "name": "Post Scorecard Slack",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1250,
+                    500
+                ],
+                "id": "e478c263-d1a7-4635-a4a3-4da1c8f71c1e",
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth",
+                    "sendBody": true,
+                    "contentType": "json",
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "channel",
+                                "value": "D0AMT6KMGNP"
+                            },
+                            {
+                                "name": "text",
+                                "value": "=\ud83d\udcca *Four-Fit Monthly Scorecard \u2014 {{ $json.period_label }}*\n\nOverall: *{{ $json.overall_score }}/10*\n\n*MP (Market-Problem):* {{ $json.fits.MP.score }}/10 \u2014 {{ $json.fits.MP.trend }} \u2014 {{ $json.fits.MP.rationale }}\n*PC (Problem-Channel):* {{ $json.fits.PC.score }}/10 \u2014 {{ $json.fits.PC.trend }} \u2014 {{ $json.fits.PC.rationale }}\n*CM (Channel-Model):* {{ $json.fits.CM.score }}/10 \u2014 {{ $json.fits.CM.trend }} \u2014 {{ $json.fits.CM.rationale }}\n*MM (Model-Market):* {{ $json.fits.MM.score }}/10 \u2014 {{ $json.fits.MM.trend }} \u2014 {{ $json.fits.MM.rationale }}\n\n\u26a0\ufe0f *Weakest Fit:* {{ $json.weakest_fit }}\n\ud83d\udca1 *Focus:* {{ $json.recommended_focus }}"
+                            }
+                        ]
+                    },
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                }
+            }
+        ],
+        "connections": {
+            "Schedule Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "Build Scoring Context",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Manual Score Webhook": {
+                "main": [
+                    [
+                        {
+                            "node": "Build Scoring Context",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Build Scoring Context": {
+                "main": [
+                    [
+                        {
+                            "node": "Score MP Fit",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Score PC Fit",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Score CM Fit",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Score MM Fit",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Score MP Fit": {
+                "main": [
+                    [
+                        {
+                            "node": "Combine Fit Scores",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Score PC Fit": {
+                "main": [
+                    [
+                        {
+                            "node": "Combine Fit Scores",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Score CM Fit": {
+                "main": [
+                    [
+                        {
+                            "node": "Combine Fit Scores",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Score MM Fit": {
+                "main": [
+                    [
+                        {
+                            "node": "Combine Fit Scores",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Combine Fit Scores": {
+                "main": [
+                    [
+                        {
+                            "node": "Store Scores",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Post Scorecard Slack",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-28T13:15:49.961Z",
+                "id": 1804,
+                "workflowId": "0DOombzdSQT67PWN",
+                "versionId": "97312312-aa42-4920-8fdf-0559a2dfe081",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

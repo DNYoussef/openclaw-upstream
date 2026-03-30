@@ -1,0 +1,204 @@
+{
+    "updatedAt": "2026-03-27T11:52:48.239Z",
+    "createdAt": "2026-03-27T11:52:48.239Z",
+    "id": "YvuxWrYxYSIjDeHq",
+    "name": "W5 - Content Scheduling Pipeline",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 4
+                        }
+                    ]
+                }
+            },
+            "id": "content-trigger",
+            "name": "Every 4 Hours",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                200,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://paperclip.railway.internal:3100/api/companies/guardspine/issues",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "assigneeAgentId",
+                            "value": "content-scheduling-agent"
+                        },
+                        {
+                            "name": "status",
+                            "value": "backlog"
+                        }
+                    ]
+                }
+            },
+            "id": "fetch-content-issues",
+            "name": "Fetch Content Backlog",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                300
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "paperclip-auth",
+                    "name": "Paperclip API Key"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const issues = $input.all();\nconst items = [];\n\nconst templates = {\n  hot_take: '{topic}. Most teams handle this wrong. Here\\'s why: {angle}. The fix isn\\'t more tools. It\\'s evidence. Open source: github.com/DNYoussef/codeguard-action',\n  case_study: 'We ran {tool} on {repo}. {finding}. Evidence bundle: {link}. Try it: github.com/DNYoussef/codeguard-action',\n  byok_deep_dive: '{topic}. Your keys never leave your infra. That\\'s not a feature -- it\\'s architecture. Here\\'s how: {angle}',\n  regulatory: '{regulation} requires {requirement}. Most teams solve this with a checkbox. That won\\'t survive audit. github.com/DNYoussef/codeguard-action'\n};\n\nfor (const item of issues) {\n  const issue = item.json;\n  let desc;\n  try { desc = JSON.parse(issue.description || '{}'); } catch { desc = {}; }\n  const contentType = desc.content_type || 'linkedin_post';\n  const topic = desc.topic || issue.title || 'Code governance';\n  const angle = desc.angle || 'hot_take';\n  const tool = desc.tool || 'codeguard-action';\n  const repo = desc.repo || 'a production repo';\n  const finding = desc.finding || 'Caught a risky change before merge';\n  const link = desc.link || 'github.com/DNYoussef/codeguard-action';\n  const regulation = desc.regulation || 'SOC 2';\n  const requirement = desc.requirement || 'evidence of code review';\n\n  const templateKey = (angle in templates) ? angle : 'hot_take';\n  const template = templates[templateKey];\n  const draft = template\n    .replace('{topic}', topic)\n    .replace('{angle}', angle !== templateKey ? angle : 'proportional governance')\n    .replace('{tool}', tool)\n    .replace('{repo}', repo)\n    .replace('{finding}', finding)\n    .replace('{link}', link)\n    .replace('{regulation}', regulation)\n    .replace('{requirement}', requirement);\n\n  items.push({json: {\n    issue_id: issue.id,\n    title: issue.title,\n    content_type: contentType,\n    topic,\n    angle: templateKey,\n    draft\n  }});\n}\nreturn items;"
+            },
+            "id": "parse-content",
+            "name": "Generate Draft from Template",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                640,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"content\", \"event_type\": \"content_draft\", \"payload\": {\"issue_id\": \"={{ $json.issue_id }}\", \"content_type\": \"={{ $json.content_type }}\", \"angle\": \"={{ $json.angle }}\", \"draft_length\": \"={{ $json.draft.length }}\", \"source\": \"n8n_template\"}}"
+            },
+            "id": "log-template-draft",
+            "name": "Log Template Draft",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                860,
+                300
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "error-trigger",
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W5 - Content Scheduling Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+            },
+            "id": "post-error-telemetry",
+            "name": "POST Error to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                600
+            ]
+        }
+    ],
+    "connections": {
+        "Every 4 Hours": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Content Backlog",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Content Backlog": {
+            "main": [
+                [
+                    {
+                        "node": "Generate Draft from Template",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate Draft from Template": {
+            "main": [
+                [
+                    {
+                        "node": "Log Template Draft",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "POST Error to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "4dfcdf9f-b6f8-456d-a7da-b4b56dce9c53",
+    "activeVersionId": null,
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "shared": [
+        {
+            "updatedAt": "2026-03-27T11:52:48.240Z",
+            "createdAt": "2026-03-27T11:52:48.240Z",
+            "role": "workflow:owner",
+            "workflowId": "YvuxWrYxYSIjDeHq",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": null
+}

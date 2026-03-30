@@ -1,0 +1,627 @@
+{
+    "updatedAt": "2026-03-21T18:42:19.981Z",
+    "createdAt": "2026-03-20T17:29:56.934Z",
+    "id": "9UULScI3utUiRiZs",
+    "name": "W19 - Agent Output Quality",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 4 * * *"
+                        }
+                    ]
+                }
+            },
+            "name": "Daily 4 AM UTC",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                200,
+                300
+            ],
+            "id": "5a64efae-8ebf-45e5-90a8-3fa19a618629"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/query",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"24 hours\"}}"
+            },
+            "name": "Fetch Agent Heartbeats",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                300
+            ],
+            "id": "4494e5b5-906a-4288-9e6d-8b187ddbabe0"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $('Fetch Agent Heartbeats').all().map(i => i.json);\n\n// Known agents that should be running\nconst EXPECTED_AGENTS = [\n  'content-scheduler',\n  'outreach-sequencer',\n  'health-monitor',\n  'pipeline-metrics',\n  'partner-scanner',\n  'performance-tracker'\n];\n\n// Aggregate heartbeats by agent\nconst agentStats = {};\nfor (const hb of items) {\n  const name = hb.name || hb.agent_name || 'unknown';\n  if (!agentStats[name]) {\n    agentStats[name] = { succeeded: 0, failed: 0, total: 0 };\n  }\n  const status = (hb.status || '').toLowerCase();\n  const count = parseInt(hb.cnt || hb.count || hb.total || 1);\n  if (status === 'succeeded' || status === 'success' || status === 'ok') {\n    agentStats[name].succeeded += count;\n  } else if (status === 'failed' || status === 'failure' || status === 'error') {\n    agentStats[name].failed += count;\n  }\n  agentStats[name].total += count;\n}\n\nconst agentsDegraded = [];\nconst agentsOffline = [];\nconst agentsChecked = Object.keys(agentStats).length;\n\n// Check success rates\nfor (const [name, stats] of Object.entries(agentStats)) {\n  if (stats.total > 0) {\n    const successRate = stats.succeeded / stats.total;\n    if (successRate < 0.8) {\n      agentsDegraded.push({\n        agent: name,\n        success_rate: Math.round(successRate * 100),\n        succeeded: stats.succeeded,\n        failed: stats.failed,\n        total: stats.total\n      });\n    }\n  }\n}\n\n// Check for offline agents (expected but no heartbeats)\nconst activeAgentNames = Object.keys(agentStats).map(n => n.toLowerCase());\nfor (const expected of EXPECTED_AGENTS) {\n  const found = activeAgentNames.some(a => a.includes(expected.toLowerCase()));\n  if (!found) {\n    agentsOffline.push({\n      agent: expected,\n      reason: 'No heartbeats in last 24 hours'\n    });\n  }\n}\n\nconst hasIssues = agentsDegraded.length > 0 || agentsOffline.length > 0;\n\nreturn [{\n  json: {\n    agents_checked: agentsChecked,\n    agents_degraded: agentsDegraded,\n    agents_offline: agentsOffline,\n    degraded_count: agentsDegraded.length,\n    offline_count: agentsOffline.length,\n    has_issues: hasIssues,\n    checked_at: new Date().toISOString()\n  }\n}];"
+            },
+            "name": "Analyze Agent Quality",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                640,
+                300
+            ],
+            "id": "8af6a6fe-6f45-4637-9e10-b7fac8a6021e"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.has_issues }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Issues Found?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                860,
+                300
+            ],
+            "id": "88b17144-c788-4123-b1c4-e20776f7e68d"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "={\"service\": \"agent-quality\", \"event_type\": \"agent_degraded\", \"payload\": {\"agents_checked\": {{ $json.agents_checked }}, \"agents_degraded\": {{ JSON.stringify($json.agents_degraded) }}, \"agents_offline\": {{ JSON.stringify($json.agents_offline) }}, \"degraded_count\": {{ $json.degraded_count }}, \"offline_count\": {{ $json.offline_count }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+            },
+            "name": "Emit Agent Degraded",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1080,
+                200
+            ],
+            "id": "de50aa05-8c48-4a64-b1ed-628e1d34892b"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "={\"service\": \"agent-quality\", \"event_type\": \"agents_healthy\", \"payload\": {\"agents_checked\": {{ $json.agents_checked }}, \"degraded_count\": 0, \"offline_count\": 0, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+            },
+            "name": "Emit Agents Healthy",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1080,
+                400
+            ],
+            "id": "dadc3ad4-1759-4066-9d69-50d5b49fa026"
+        },
+        {
+            "parameters": {},
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                600
+            ],
+            "id": "467f230c-f36d-448f-a89c-3e3598ee164e"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W19 - Agent Output Quality\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+            },
+            "name": "POST Error to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                600
+            ],
+            "id": "e6752c58-07cb-44ed-9e0d-5fbcd67e1db8"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+            },
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1330,
+                375
+            ],
+            "onError": "continueRegularOutput",
+            "id": "e39eee04-3ad1-4056-91c8-c48e441b3689"
+        },
+        {
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "onError": "continueRegularOutput",
+            "position": [
+                1580,
+                325
+            ],
+            "id": "c04ce905-b50a-49f7-bf16-460fc930f490"
+        }
+    ],
+    "connections": {
+        "Daily 4 AM UTC": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Agent Heartbeats",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Agent Heartbeats": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze Agent Quality",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze Agent Quality": {
+            "main": [
+                [
+                    {
+                        "node": "Issues Found?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Issues Found?": {
+            "main": [
+                [
+                    {
+                        "node": "Emit Agent Degraded",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Emit Agents Healthy",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "POST Error to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Emit Agent Degraded": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Emit Agents Healthy": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "POST Error to Telemetry": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Daily 4 AM UTC": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "1c8eba85-02ad-4806-9f6d-ed702eeab371",
+    "activeVersionId": "1c8eba85-02ad-4806-9f6d-ed702eeab371",
+    "versionCounter": 48,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-20T17:29:56.936Z",
+            "createdAt": "2026-03-20T17:29:56.936Z",
+            "role": "workflow:owner",
+            "workflowId": "9UULScI3utUiRiZs",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-21T18:42:19.982Z",
+        "createdAt": "2026-03-21T18:42:19.982Z",
+        "versionId": "1c8eba85-02ad-4806-9f6d-ed702eeab371",
+        "workflowId": "9UULScI3utUiRiZs",
+        "nodes": [
+            {
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 4 * * *"
+                            }
+                        ]
+                    }
+                },
+                "name": "Daily 4 AM UTC",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    200,
+                    300
+                ],
+                "id": "5a64efae-8ebf-45e5-90a8-3fa19a618629"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/query",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"24 hours\"}}"
+                },
+                "name": "Fetch Agent Heartbeats",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    300
+                ],
+                "id": "4494e5b5-906a-4288-9e6d-8b187ddbabe0"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $('Fetch Agent Heartbeats').all().map(i => i.json);\n\n// Known agents that should be running\nconst EXPECTED_AGENTS = [\n  'content-scheduler',\n  'outreach-sequencer',\n  'health-monitor',\n  'pipeline-metrics',\n  'partner-scanner',\n  'performance-tracker'\n];\n\n// Aggregate heartbeats by agent\nconst agentStats = {};\nfor (const hb of items) {\n  const name = hb.name || hb.agent_name || 'unknown';\n  if (!agentStats[name]) {\n    agentStats[name] = { succeeded: 0, failed: 0, total: 0 };\n  }\n  const status = (hb.status || '').toLowerCase();\n  const count = parseInt(hb.cnt || hb.count || hb.total || 1);\n  if (status === 'succeeded' || status === 'success' || status === 'ok') {\n    agentStats[name].succeeded += count;\n  } else if (status === 'failed' || status === 'failure' || status === 'error') {\n    agentStats[name].failed += count;\n  }\n  agentStats[name].total += count;\n}\n\nconst agentsDegraded = [];\nconst agentsOffline = [];\nconst agentsChecked = Object.keys(agentStats).length;\n\n// Check success rates\nfor (const [name, stats] of Object.entries(agentStats)) {\n  if (stats.total > 0) {\n    const successRate = stats.succeeded / stats.total;\n    if (successRate < 0.8) {\n      agentsDegraded.push({\n        agent: name,\n        success_rate: Math.round(successRate * 100),\n        succeeded: stats.succeeded,\n        failed: stats.failed,\n        total: stats.total\n      });\n    }\n  }\n}\n\n// Check for offline agents (expected but no heartbeats)\nconst activeAgentNames = Object.keys(agentStats).map(n => n.toLowerCase());\nfor (const expected of EXPECTED_AGENTS) {\n  const found = activeAgentNames.some(a => a.includes(expected.toLowerCase()));\n  if (!found) {\n    agentsOffline.push({\n      agent: expected,\n      reason: 'No heartbeats in last 24 hours'\n    });\n  }\n}\n\nconst hasIssues = agentsDegraded.length > 0 || agentsOffline.length > 0;\n\nreturn [{\n  json: {\n    agents_checked: agentsChecked,\n    agents_degraded: agentsDegraded,\n    agents_offline: agentsOffline,\n    degraded_count: agentsDegraded.length,\n    offline_count: agentsOffline.length,\n    has_issues: hasIssues,\n    checked_at: new Date().toISOString()\n  }\n}];"
+                },
+                "name": "Analyze Agent Quality",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    640,
+                    300
+                ],
+                "id": "8af6a6fe-6f45-4637-9e10-b7fac8a6021e"
+            },
+            {
+                "parameters": {
+                    "conditions": {
+                        "boolean": [
+                            {
+                                "value1": "={{ $json.has_issues }}",
+                                "value2": true
+                            }
+                        ]
+                    }
+                },
+                "name": "Issues Found?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    860,
+                    300
+                ],
+                "id": "88b17144-c788-4123-b1c4-e20776f7e68d"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "={\"service\": \"agent-quality\", \"event_type\": \"agent_degraded\", \"payload\": {\"agents_checked\": {{ $json.agents_checked }}, \"agents_degraded\": {{ JSON.stringify($json.agents_degraded) }}, \"agents_offline\": {{ JSON.stringify($json.agents_offline) }}, \"degraded_count\": {{ $json.degraded_count }}, \"offline_count\": {{ $json.offline_count }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                },
+                "name": "Emit Agent Degraded",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1080,
+                    200
+                ],
+                "id": "de50aa05-8c48-4a64-b1ed-628e1d34892b"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "={\"service\": \"agent-quality\", \"event_type\": \"agents_healthy\", \"payload\": {\"agents_checked\": {{ $json.agents_checked }}, \"degraded_count\": 0, \"offline_count\": 0, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                },
+                "name": "Emit Agents Healthy",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1080,
+                    400
+                ],
+                "id": "dadc3ad4-1759-4066-9d69-50d5b49fa026"
+            },
+            {
+                "parameters": {},
+                "name": "Error Trigger",
+                "type": "n8n-nodes-base.errorTrigger",
+                "typeVersion": 1,
+                "position": [
+                    200,
+                    600
+                ],
+                "id": "467f230c-f36d-448f-a89c-3e3598ee164e"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W19 - Agent Output Quality\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                },
+                "name": "POST Error to Telemetry",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    600
+                ],
+                "id": "e6752c58-07cb-44ed-9e0d-5fbcd67e1db8"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+                },
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1330,
+                    375
+                ],
+                "onError": "continueRegularOutput",
+                "id": "e39eee04-3ad1-4056-91c8-c48e441b3689"
+            },
+            {
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                },
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "onError": "continueRegularOutput",
+                "position": [
+                    1580,
+                    325
+                ],
+                "id": "c04ce905-b50a-49f7-bf16-460fc930f490"
+            }
+        ],
+        "connections": {
+            "Daily 4 AM UTC": {
+                "main": [
+                    [
+                        {
+                            "node": "Fetch Agent Heartbeats",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Agent Heartbeats": {
+                "main": [
+                    [
+                        {
+                            "node": "Analyze Agent Quality",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Analyze Agent Quality": {
+                "main": [
+                    [
+                        {
+                            "node": "Issues Found?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Issues Found?": {
+                "main": [
+                    [
+                        {
+                            "node": "Emit Agent Degraded",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Emit Agents Healthy",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Error Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "POST Error to Telemetry",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Emit Agent Degraded": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Emit Agents Healthy": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "POST Error to Telemetry": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-21T18:42:20.042Z",
+                "id": 1345,
+                "workflowId": "9UULScI3utUiRiZs",
+                "versionId": "1c8eba85-02ad-4806-9f6d-ed702eeab371",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

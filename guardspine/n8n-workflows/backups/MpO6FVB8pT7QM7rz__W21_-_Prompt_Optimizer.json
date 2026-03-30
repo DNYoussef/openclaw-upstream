@@ -1,0 +1,687 @@
+{
+    "updatedAt": "2026-03-21T18:42:23.251Z",
+    "createdAt": "2026-03-20T17:29:57.496Z",
+    "id": "MpO6FVB8pT7QM7rz",
+    "name": "W21 - Prompt Optimizer",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 6 * * 6"
+                        }
+                    ]
+                }
+            },
+            "name": "Saturday 6 AM UTC",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                200,
+                300
+            ],
+            "id": "3ae10f73-d429-4bb4-81c4-a7919a333a62"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/query",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"168 hours\"}}"
+            },
+            "name": "Fetch Agent Heartbeats",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                300
+            ],
+            "id": "290c838c-d407-4a72-8bba-97105bb7f1ce"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/query",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"query_name\": \"telemetry_by_service\", \"params\": {\"service\": \"n8n\", \"limit\": 50}}"
+            },
+            "name": "Fetch Recent Errors",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                640,
+                300
+            ],
+            "id": "11c668dc-3311-4001-9f19-d96cd0aa93b9"
+        },
+        {
+            "parameters": {
+                "jsCode": "const heartbeats = $('Fetch Agent Heartbeats').first().json;\nconst errors = $('Fetch Recent Errors').first().json;\n\nconst hb_rows = heartbeats.rows || [];\nconst err_rows = errors.rows || [];\n\n// Group heartbeats by agent\nconst agents = {};\nfor (const r of hb_rows) {\n  if (!agents[r.name]) agents[r.name] = {success: 0, fail: 0, total: 0};\n  agents[r.name].total++;\n  if (r.status === 'succeeded') agents[r.name].success++;\n  else agents[r.name].fail++;\n}\n\n// Calculate quality scores\nconst quality_report = [];\nfor (const [name, stats] of Object.entries(agents)) {\n  const rate = stats.total > 0 ? stats.success / stats.total : 0;\n  quality_report.push({\n    agent: name,\n    success_rate: Math.round(rate * 100),\n    total_runs: stats.total,\n    failures: stats.fail,\n    needs_attention: rate < 0.8,\n    prompt_optimization_ready: stats.total >= 20\n  });\n}\n\n// Error analysis\nconst error_count = err_rows.filter(r => r.event_type === 'workflow_error').length;\n\nconst report = {\n  week_ending: new Date().toISOString().split('T')[0],\n  agents_analyzed: quality_report.length,\n  agents_needing_attention: quality_report.filter(a => a.needs_attention).length,\n  agents_ready_for_optimization: quality_report.filter(a => a.prompt_optimization_ready).length,\n  workflow_errors_this_week: error_count,\n  agent_details: quality_report,\n  dspy_recommendation: quality_report.some(a => a.prompt_optimization_ready && a.needs_attention)\n    ? 'Run DSPy SIMBA on degraded agents: python scripts/dspy/optimize_prompts.py'\n    : 'No agents meet optimization threshold (20+ runs + <80% success). Collecting more data.'\n};\n\nreturn [{json: report}];"
+            },
+            "name": "Analyze Agent Quality",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                860,
+                300
+            ],
+            "id": "d78ca9eb-ed41-47cc-b09c-d9cba41aa8de"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{ $json.agents_needing_attention }}",
+                            "operation": "larger",
+                            "value2": 0
+                        }
+                    ]
+                }
+            },
+            "name": "Attention Needed?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                1080,
+                300
+            ],
+            "id": "3d158ee6-902e-4fbe-9aeb-3b8c22817515"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_alert\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"agents_needing_attention\": \"={{ $json.agents_needing_attention }}\", \"agents_ready_for_optimization\": \"={{ $json.agents_ready_for_optimization }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}"
+            },
+            "name": "Log Quality Alert",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1300,
+                200
+            ],
+            "id": "d5ba0c90-cfcc-4fc1-a8fc-c24a76483dd0"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_ok\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}"
+            },
+            "name": "Log Quality OK",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1300,
+                400
+            ],
+            "id": "4c4503bd-daef-4fdb-9a81-56e129538894"
+        },
+        {
+            "parameters": {},
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                600
+            ],
+            "id": "63e475ba-a7c3-4b76-b304-e061345d0adb"
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W21 - Prompt Optimizer\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+            },
+            "name": "POST Error to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                600
+            ],
+            "id": "a477bded-1138-44d1-bbb0-74ffb1fac284"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+            },
+            "name": "Prepare Evidence",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1550,
+                366
+            ],
+            "onError": "continueRegularOutput",
+            "id": "ad455db6-1986-4c1f-b9d4-8890797cfe77"
+        },
+        {
+            "parameters": {
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "name": "Seal via GuardSpine",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "onError": "continueRegularOutput",
+            "position": [
+                1800,
+                316
+            ],
+            "id": "d3e5364f-7f8d-46ea-a399-fa6c5704aefe"
+        }
+    ],
+    "connections": {
+        "Saturday 6 AM UTC": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Agent Heartbeats",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Agent Heartbeats": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Recent Errors",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Recent Errors": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze Agent Quality",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze Agent Quality": {
+            "main": [
+                [
+                    {
+                        "node": "Attention Needed?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Attention Needed?": {
+            "main": [
+                [
+                    {
+                        "node": "Log Quality Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Log Quality OK",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "POST Error to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Quality Alert": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Quality OK": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "POST Error to Telemetry": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Seal via GuardSpine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Saturday 6 AM UTC": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "98a3bd8e-ab48-4bc7-9f19-9fe6e6f8dd08",
+    "activeVersionId": "98a3bd8e-ab48-4bc7-9f19-9fe6e6f8dd08",
+    "versionCounter": 48,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-20T17:29:57.498Z",
+            "createdAt": "2026-03-20T17:29:57.498Z",
+            "role": "workflow:owner",
+            "workflowId": "MpO6FVB8pT7QM7rz",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-21T18:42:23.257Z",
+        "createdAt": "2026-03-21T18:42:23.257Z",
+        "versionId": "98a3bd8e-ab48-4bc7-9f19-9fe6e6f8dd08",
+        "workflowId": "MpO6FVB8pT7QM7rz",
+        "nodes": [
+            {
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 6 * * 6"
+                            }
+                        ]
+                    }
+                },
+                "name": "Saturday 6 AM UTC",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    200,
+                    300
+                ],
+                "id": "3ae10f73-d429-4bb4-81c4-a7919a333a62"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/query",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"168 hours\"}}"
+                },
+                "name": "Fetch Agent Heartbeats",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    300
+                ],
+                "id": "290c838c-d407-4a72-8bba-97105bb7f1ce"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/query",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"query_name\": \"telemetry_by_service\", \"params\": {\"service\": \"n8n\", \"limit\": 50}}"
+                },
+                "name": "Fetch Recent Errors",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    640,
+                    300
+                ],
+                "id": "11c668dc-3311-4001-9f19-d96cd0aa93b9"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const heartbeats = $('Fetch Agent Heartbeats').first().json;\nconst errors = $('Fetch Recent Errors').first().json;\n\nconst hb_rows = heartbeats.rows || [];\nconst err_rows = errors.rows || [];\n\n// Group heartbeats by agent\nconst agents = {};\nfor (const r of hb_rows) {\n  if (!agents[r.name]) agents[r.name] = {success: 0, fail: 0, total: 0};\n  agents[r.name].total++;\n  if (r.status === 'succeeded') agents[r.name].success++;\n  else agents[r.name].fail++;\n}\n\n// Calculate quality scores\nconst quality_report = [];\nfor (const [name, stats] of Object.entries(agents)) {\n  const rate = stats.total > 0 ? stats.success / stats.total : 0;\n  quality_report.push({\n    agent: name,\n    success_rate: Math.round(rate * 100),\n    total_runs: stats.total,\n    failures: stats.fail,\n    needs_attention: rate < 0.8,\n    prompt_optimization_ready: stats.total >= 20\n  });\n}\n\n// Error analysis\nconst error_count = err_rows.filter(r => r.event_type === 'workflow_error').length;\n\nconst report = {\n  week_ending: new Date().toISOString().split('T')[0],\n  agents_analyzed: quality_report.length,\n  agents_needing_attention: quality_report.filter(a => a.needs_attention).length,\n  agents_ready_for_optimization: quality_report.filter(a => a.prompt_optimization_ready).length,\n  workflow_errors_this_week: error_count,\n  agent_details: quality_report,\n  dspy_recommendation: quality_report.some(a => a.prompt_optimization_ready && a.needs_attention)\n    ? 'Run DSPy SIMBA on degraded agents: python scripts/dspy/optimize_prompts.py'\n    : 'No agents meet optimization threshold (20+ runs + <80% success). Collecting more data.'\n};\n\nreturn [{json: report}];"
+                },
+                "name": "Analyze Agent Quality",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    860,
+                    300
+                ],
+                "id": "d78ca9eb-ed41-47cc-b09c-d9cba41aa8de"
+            },
+            {
+                "parameters": {
+                    "conditions": {
+                        "number": [
+                            {
+                                "value1": "={{ $json.agents_needing_attention }}",
+                                "operation": "larger",
+                                "value2": 0
+                            }
+                        ]
+                    }
+                },
+                "name": "Attention Needed?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    1080,
+                    300
+                ],
+                "id": "3d158ee6-902e-4fbe-9aeb-3b8c22817515"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_alert\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"agents_needing_attention\": \"={{ $json.agents_needing_attention }}\", \"agents_ready_for_optimization\": \"={{ $json.agents_ready_for_optimization }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}"
+                },
+                "name": "Log Quality Alert",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1300,
+                    200
+                ],
+                "id": "d5ba0c90-cfcc-4fc1-a8fc-c24a76483dd0"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_ok\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}"
+                },
+                "name": "Log Quality OK",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1300,
+                    400
+                ],
+                "id": "4c4503bd-daef-4fdb-9a81-56e129538894"
+            },
+            {
+                "parameters": {},
+                "name": "Error Trigger",
+                "type": "n8n-nodes-base.errorTrigger",
+                "typeVersion": 1,
+                "position": [
+                    200,
+                    600
+                ],
+                "id": "63e475ba-a7c3-4b76-b304-e061345d0adb"
+            },
+            {
+                "parameters": {
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "contentType": "json",
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W21 - Prompt Optimizer\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                },
+                "name": "POST Error to Telemetry",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    420,
+                    600
+                ],
+                "id": "a477bded-1138-44d1-bbb0-74ffb1fac284"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
+                },
+                "name": "Prepare Evidence",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1550,
+                    366
+                ],
+                "onError": "continueRegularOutput",
+                "id": "ad455db6-1986-4c1f-b9d4-8890797cfe77"
+            },
+            {
+                "parameters": {
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "method": "POST",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {
+                        "timeout": 10000
+                    }
+                },
+                "name": "Seal via GuardSpine",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "onError": "continueRegularOutput",
+                "position": [
+                    1800,
+                    316
+                ],
+                "id": "d3e5364f-7f8d-46ea-a399-fa6c5704aefe"
+            }
+        ],
+        "connections": {
+            "Saturday 6 AM UTC": {
+                "main": [
+                    [
+                        {
+                            "node": "Fetch Agent Heartbeats",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Agent Heartbeats": {
+                "main": [
+                    [
+                        {
+                            "node": "Fetch Recent Errors",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Recent Errors": {
+                "main": [
+                    [
+                        {
+                            "node": "Analyze Agent Quality",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Analyze Agent Quality": {
+                "main": [
+                    [
+                        {
+                            "node": "Attention Needed?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Attention Needed?": {
+                "main": [
+                    [
+                        {
+                            "node": "Log Quality Alert",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Log Quality OK",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Error Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "POST Error to Telemetry",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log Quality Alert": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log Quality OK": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "POST Error to Telemetry": {
+                "main": [
+                    [
+                        {
+                            "node": "Prepare Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Prepare Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal via GuardSpine",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-21T18:42:23.311Z",
+                "id": 1387,
+                "workflowId": "MpO6FVB8pT7QM7rz",
+                "versionId": "98a3bd8e-ab48-4bc7-9f19-9fe6e6f8dd08",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

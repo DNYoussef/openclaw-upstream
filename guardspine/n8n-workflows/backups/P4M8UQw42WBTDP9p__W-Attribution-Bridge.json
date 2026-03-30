@@ -1,0 +1,523 @@
+{
+    "updatedAt": "2026-03-22T21:18:32.720Z",
+    "createdAt": "2026-03-22T21:18:32.720Z",
+    "id": "P4M8UQw42WBTDP9p",
+    "name": "W-Attribution-Bridge",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Webhook Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                250,
+                300
+            ],
+            "webhookId": "attribution-bridge",
+            "parameters": {
+                "path": "attribution-bridge",
+                "httpMethod": "POST",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "7add6aa4-95ac-4148-9d84-fb9f21399441"
+        },
+        {
+            "name": "Parse Payload",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                470,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst email = (body.email || \"\").toLowerCase().trim();\nconst company = (body.company || \"\").trim();\nconst source = body.source || \"unknown\";\nconst eventType = body.event_type || (body.title ? \"demo_request\" : \"signup\");\nconst utmSource = body.utm_source || \"\";\nconst utmMedium = body.utm_medium || \"\";\nconst utmCampaign = body.utm_campaign || \"\";\nif (!email) return [{json:{error:\"No email\",skip:true}}];\nreturn [{json:{email,company,source,eventType,utmSource,utmMedium,utmCampaign,rawPayload:JSON.stringify(body),skip:false}}];"
+            },
+            "id": "86d5625a-b131-4c0a-903b-1d14af23a8cc"
+        },
+        {
+            "name": "Check Skip",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                690,
+                300
+            ],
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "combinator": "and",
+                    "conditions": [
+                        {
+                            "id": "a",
+                            "leftValue": "={{ $json.skip }}",
+                            "rightValue": false,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals"
+                            }
+                        }
+                    ]
+                }
+            },
+            "id": "6b105884-177a-4a08-bc6f-b69f7cde858b"
+        },
+        {
+            "name": "Log Event",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                910,
+                200
+            ],
+            "parameters": {
+                "jsCode": "const d=$input.first().json;\nconst now=new Date().toISOString();\nreturn [{json:{...d,timestamp:now,emailDomain:d.email.split(\"@\")[1]||\"\"}}];"
+            },
+            "id": "74f3ff4c-6968-451a-88a1-2a3892130484"
+        },
+        {
+            "name": "Post to Pipeline",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1130,
+                200
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "slackApi",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"channel\":\"C0AKXAYJ41W\",\"text\":\"\ud83c\udfaf *Attribution*\\nType: \"+$json.eventType+\"\\nEmail: \"+$json.email+\"\\nCompany: \"+($json.company||\"?\")+\"\\nSource: \"+$json.source+\"\\nUTM: \"+($json.utmSource||\"-\")+\"/\"+($json.utmMedium||\"-\")+\"\\nTime: \"+$json.timestamp}",
+                "options": {}
+            },
+            "credentials": {
+                "slackApi": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            },
+            "id": "d36346cc-d57c-448d-908d-5b30be2067fe"
+        },
+        {
+            "name": "Seal Evidence",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1350,
+                200
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\"stream\":\"attribution\",\"event_type\":\"attribution_event\",\"payload\":{\"email\":$json.email,\"type\":$json.eventType,\"source\":$json.source},\"source\":\"W-Attribution-Bridge\"}",
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "6Cliqjk7UlsZOGZJ",
+                    "name": "paperclip-auth"
+                }
+            },
+            "id": "91f53188-b7de-466e-8ea5-7a33560b0eba"
+        },
+        {
+            "name": "Respond OK",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                1570,
+                200
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={\"status\":\"attributed\",\"email\":$json.email}"
+            },
+            "id": "f2993bdc-20f0-4541-a123-288915da03a2"
+        },
+        {
+            "name": "Respond Error",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                910,
+                400
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={\"status\":\"skipped\"}"
+            },
+            "id": "2662c00a-3b86-4a6b-b972-37cda0345266"
+        }
+    ],
+    "connections": {
+        "Webhook Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Payload",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Payload": {
+            "main": [
+                [
+                    {
+                        "node": "Check Skip",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Skip": {
+            "main": [
+                [
+                    {
+                        "node": "Log Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Respond Error",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Event": {
+            "main": [
+                [
+                    {
+                        "node": "Post to Pipeline",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Post to Pipeline": {
+            "main": [
+                [
+                    {
+                        "node": "Seal Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Seal Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Respond OK",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "908f0203-2b35-4f7e-a796-e4a43c32f3e8",
+    "activeVersionId": "908f0203-2b35-4f7e-a796-e4a43c32f3e8",
+    "versionCounter": 14,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-22T21:18:32.724Z",
+            "createdAt": "2026-03-22T21:18:32.724Z",
+            "role": "workflow:owner",
+            "workflowId": "P4M8UQw42WBTDP9p",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-22T21:18:32.732Z",
+        "createdAt": "2026-03-22T21:18:32.732Z",
+        "versionId": "908f0203-2b35-4f7e-a796-e4a43c32f3e8",
+        "workflowId": "P4M8UQw42WBTDP9p",
+        "nodes": [
+            {
+                "name": "Webhook Trigger",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [
+                    250,
+                    300
+                ],
+                "webhookId": "attribution-bridge",
+                "parameters": {
+                    "path": "attribution-bridge",
+                    "httpMethod": "POST",
+                    "responseMode": "responseNode",
+                    "options": {}
+                },
+                "id": "7add6aa4-95ac-4148-9d84-fb9f21399441"
+            },
+            {
+                "name": "Parse Payload",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    470,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst email = (body.email || \"\").toLowerCase().trim();\nconst company = (body.company || \"\").trim();\nconst source = body.source || \"unknown\";\nconst eventType = body.event_type || (body.title ? \"demo_request\" : \"signup\");\nconst utmSource = body.utm_source || \"\";\nconst utmMedium = body.utm_medium || \"\";\nconst utmCampaign = body.utm_campaign || \"\";\nif (!email) return [{json:{error:\"No email\",skip:true}}];\nreturn [{json:{email,company,source,eventType,utmSource,utmMedium,utmCampaign,rawPayload:JSON.stringify(body),skip:false}}];"
+                },
+                "id": "86d5625a-b131-4c0a-903b-1d14af23a8cc"
+            },
+            {
+                "name": "Check Skip",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    690,
+                    300
+                ],
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": "",
+                            "typeValidation": "strict"
+                        },
+                        "combinator": "and",
+                        "conditions": [
+                            {
+                                "id": "a",
+                                "leftValue": "={{ $json.skip }}",
+                                "rightValue": false,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "equals"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "id": "6b105884-177a-4a08-bc6f-b69f7cde858b"
+            },
+            {
+                "name": "Log Event",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    910,
+                    200
+                ],
+                "parameters": {
+                    "jsCode": "const d=$input.first().json;\nconst now=new Date().toISOString();\nreturn [{json:{...d,timestamp:now,emailDomain:d.email.split(\"@\")[1]||\"\"}}];"
+                },
+                "id": "74f3ff4c-6968-451a-88a1-2a3892130484"
+            },
+            {
+                "name": "Post to Pipeline",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1130,
+                    200
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "slackApi",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={\"channel\":\"C0AKXAYJ41W\",\"text\":\"\ud83c\udfaf *Attribution*\\nType: \"+$json.eventType+\"\\nEmail: \"+$json.email+\"\\nCompany: \"+($json.company||\"?\")+\"\\nSource: \"+$json.source+\"\\nUTM: \"+($json.utmSource||\"-\")+\"/\"+($json.utmMedium||\"-\")+\"\\nTime: \"+$json.timestamp}",
+                    "options": {}
+                },
+                "credentials": {
+                    "slackApi": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                },
+                "id": "d36346cc-d57c-448d-908d-5b30be2067fe"
+            },
+            {
+                "name": "Seal Evidence",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1350,
+                    200
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={\"stream\":\"attribution\",\"event_type\":\"attribution_event\",\"payload\":{\"email\":$json.email,\"type\":$json.eventType,\"source\":$json.source},\"source\":\"W-Attribution-Bridge\"}",
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "6Cliqjk7UlsZOGZJ",
+                        "name": "paperclip-auth"
+                    }
+                },
+                "id": "91f53188-b7de-466e-8ea5-7a33560b0eba"
+            },
+            {
+                "name": "Respond OK",
+                "type": "n8n-nodes-base.respondToWebhook",
+                "typeVersion": 1.1,
+                "position": [
+                    1570,
+                    200
+                ],
+                "parameters": {
+                    "respondWith": "json",
+                    "responseBody": "={\"status\":\"attributed\",\"email\":$json.email}"
+                },
+                "id": "f2993bdc-20f0-4541-a123-288915da03a2"
+            },
+            {
+                "name": "Respond Error",
+                "type": "n8n-nodes-base.respondToWebhook",
+                "typeVersion": 1.1,
+                "position": [
+                    910,
+                    400
+                ],
+                "parameters": {
+                    "respondWith": "json",
+                    "responseBody": "={\"status\":\"skipped\"}"
+                },
+                "id": "2662c00a-3b86-4a6b-b972-37cda0345266"
+            }
+        ],
+        "connections": {
+            "Webhook Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "Parse Payload",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Parse Payload": {
+                "main": [
+                    [
+                        {
+                            "node": "Check Skip",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Check Skip": {
+                "main": [
+                    [
+                        {
+                            "node": "Log Event",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Respond Error",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log Event": {
+                "main": [
+                    [
+                        {
+                            "node": "Post to Pipeline",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Post to Pipeline": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Seal Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Respond OK",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-22T21:20:39.542Z",
+                "id": 1616,
+                "workflowId": "P4M8UQw42WBTDP9p",
+                "versionId": "908f0203-2b35-4f7e-a796-e4a43c32f3e8",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

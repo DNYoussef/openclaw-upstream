@@ -1,0 +1,273 @@
+{
+    "updatedAt": "2026-03-27T11:52:47.961Z",
+    "createdAt": "2026-03-27T11:52:47.961Z",
+    "id": "iW9YH0v9vFqqPsEw",
+    "name": "W29 - PMC Analyzer",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 4 * * 0"
+                        }
+                    ]
+                }
+            },
+            "id": "weekly-trigger",
+            "name": "Weekly Sunday 4 AM UTC",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                200,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/query",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"query_name\": \"telemetry_by_service\", \"params\": {\"service\": \"agent_notes\", \"limit\": 200}}"
+            },
+            "id": "fetch-agent-notes",
+            "name": "Fetch Agent Notes",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/query",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 500}}"
+            },
+            "id": "fetch-all-telemetry",
+            "name": "Fetch All Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                640,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const notes = $('Fetch Agent Notes').first().json;\nconst telemetry = $('Fetch All Telemetry').first().json;\n\nconst noteRows = notes.rows || [];\nconst allRows = telemetry.rows || [];\n\n// Aggregate PMC moves from agent notes\nconst moveStats = {\n  retrieve: {total: 0, deterministic: 0, intelligence: 0},\n  compare: {total: 0, deterministic: 0, intelligence: 0},\n  classify: {total: 0, deterministic: 0, intelligence: 0},\n  infer: {total: 0, deterministic: 0, intelligence: 0},\n  flag: {total: 0, deterministic: 0, intelligence: 0},\n  prioritize: {total: 0, deterministic: 0, intelligence: 0}\n};\n\nconst agentStats = {};\nlet totalActions = 0;\nlet totalDeterministic = 0;\n\nfor (const row of noteRows) {\n  const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : (row.payload || {});\n  const agent = payload.agent || 'unknown';\n\n  if (!agentStats[agent]) {\n    agentStats[agent] = {heartbeats: 0, actions: 0, deterministic: 0, intelligence: 0, moves: {}};\n  }\n  agentStats[agent].heartbeats++;\n\n  for (const action of (payload.actions || [])) {\n    const move = action.move || 'unknown';\n    const isDet = action.deterministic === true;\n\n    totalActions++;\n    if (isDet) totalDeterministic++;\n\n    if (moveStats[move]) {\n      moveStats[move].total++;\n      if (isDet) moveStats[move].deterministic++;\n      else moveStats[move].intelligence++;\n    }\n\n    agentStats[agent].actions++;\n    if (isDet) agentStats[agent].deterministic++;\n    else agentStats[agent].intelligence++;\n\n    if (!agentStats[agent].moves[move]) agentStats[agent].moves[move] = 0;\n    agentStats[agent].moves[move]++;\n  }\n}\n\n// Analyze telemetry for workflow vs agent activity ratio\nconst workflowEvents = allRows.filter(r => r.service === 'n8n' || (r.event_type || '').includes('workflow'));\nconst agentEvents = allRows.filter(r => r.service === 'agent_notes' || (r.service || '').includes('cmo') || (r.service || '').includes('cto'));\n\n// Generate optimization recommendations\nconst recommendations = [];\n\n// Check if any agent has >50% deterministic actions\nfor (const [agent, stats] of Object.entries(agentStats)) {\n  if (stats.actions > 5 && stats.deterministic / stats.actions > 0.5) {\n    recommendations.push({\n      type: 'migrate_to_n8n',\n      agent: agent,\n      reason: Math.round(100 * stats.deterministic / stats.actions) + '% of actions are deterministic',\n      top_deterministic_moves: Object.entries(stats.moves)\n        .sort((a, b) => b[1] - a[1])\n        .slice(0, 3)\n        .map(([m, c]) => m + ' (' + c + 'x)')\n    });\n  }\n}\n\n// Check if retrieve is the dominant move (common pattern to migrate)\nif (moveStats.retrieve.deterministic > moveStats.retrieve.intelligence * 2) {\n  recommendations.push({\n    type: 'retrieve_migration',\n    reason: 'Most retrieve actions are deterministic -- consider moving data fetching to n8n HTTP nodes'\n  });\n}\n\n// Check if classify is highly deterministic (rule-based classification should be n8n)\nif (moveStats.classify.deterministic > moveStats.classify.intelligence) {\n  recommendations.push({\n    type: 'classify_migration',\n    reason: 'Most classify actions are deterministic -- consider moving to n8n Code nodes with rule tables'\n  });\n}\n\nconst report = {\n  week_summary: {\n    total_heartbeats: noteRows.length,\n    total_actions: totalActions,\n    deterministic_pct: totalActions > 0 ? Math.round(100 * totalDeterministic / totalActions) : 0,\n    intelligence_pct: totalActions > 0 ? Math.round(100 * (totalActions - totalDeterministic) / totalActions) : 0,\n    current_split: totalActions > 0 ?\n      Math.round(100 * totalDeterministic / totalActions) + '/' + Math.round(100 * (totalActions - totalDeterministic) / totalActions) + ' (det/intel)' :\n      'no data'\n  },\n  move_breakdown: moveStats,\n  agent_breakdown: agentStats,\n  workflow_vs_agent: {\n    workflow_events: workflowEvents.length,\n    agent_events: agentEvents.length,\n    total_telemetry: allRows.length\n  },\n  recommendations: recommendations,\n  analyzed_at: new Date().toISOString()\n};\n\nreturn [{json: report}];"
+            },
+            "id": "pmc-analysis",
+            "name": "PMC Analysis",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                860,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.recommendations.length > 0 }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "id": "check-recommendations",
+            "name": "Has Recommendations?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                1080,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "={\"service\": \"pmc-analyzer\", \"event_type\": \"optimization_found\", \"payload\": {\"week_summary\": {{ JSON.stringify($json.week_summary) }}, \"move_breakdown\": {{ JSON.stringify($json.move_breakdown) }}, \"agent_breakdown\": {{ JSON.stringify($json.agent_breakdown) }}, \"workflow_vs_agent\": {{ JSON.stringify($json.workflow_vs_agent) }}, \"recommendations\": {{ JSON.stringify($json.recommendations) }}, \"analyzed_at\": \"{{ $json.analyzed_at }}\"}}"
+            },
+            "id": "log-with-recommendations",
+            "name": "Log PMC Report with Recommendations",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1300,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "={\"service\": \"pmc-analyzer\", \"event_type\": \"split_optimal\", \"payload\": {\"week_summary\": {{ JSON.stringify($json.week_summary) }}, \"move_breakdown\": {{ JSON.stringify($json.move_breakdown) }}, \"agent_breakdown\": {{ JSON.stringify($json.agent_breakdown) }}, \"workflow_vs_agent\": {{ JSON.stringify($json.workflow_vs_agent) }}, \"recommendations\": [], \"analyzed_at\": \"{{ $json.analyzed_at }}\"}}"
+            },
+            "id": "log-clean-report",
+            "name": "Log Clean PMC Report",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1300,
+                400
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "error-trigger",
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W29 - PMC Analyzer\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+            },
+            "id": "post-error-telemetry",
+            "name": "POST Error to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                600
+            ]
+        }
+    ],
+    "connections": {
+        "Weekly Sunday 4 AM UTC": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Agent Notes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Agent Notes": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch All Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch All Telemetry": {
+            "main": [
+                [
+                    {
+                        "node": "PMC Analysis",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "PMC Analysis": {
+            "main": [
+                [
+                    {
+                        "node": "Has Recommendations?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Has Recommendations?": {
+            "main": [
+                [
+                    {
+                        "node": "Log PMC Report with Recommendations",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Log Clean PMC Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "POST Error to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "540cc4ed-b1b8-472b-a38c-269d26cb4257",
+    "activeVersionId": null,
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "shared": [
+        {
+            "updatedAt": "2026-03-27T11:52:47.963Z",
+            "createdAt": "2026-03-27T11:52:47.963Z",
+            "role": "workflow:owner",
+            "workflowId": "iW9YH0v9vFqqPsEw",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": null
+}

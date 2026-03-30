@@ -1,0 +1,417 @@
+{
+    "updatedAt": "2026-03-28T13:15:50.141Z",
+    "createdAt": "2026-03-28T02:59:47.338Z",
+    "id": "3W9AXTZXKfVBq6lw",
+    "name": "Four-Fit: Experiment Tracker",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                200
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "weeks",
+                            "weeksInterval": 1,
+                            "triggerAtDay": [
+                                1
+                            ],
+                            "triggerAtHour": 7,
+                            "triggerAtMinute": 0
+                        }
+                    ]
+                }
+            },
+            "id": "a23332dc-4642-4db2-8aec-cf6d0e65029c"
+        },
+        {
+            "name": "Experiments Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                250,
+                400
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "four-fit/experiments",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "52ca88ef-d007-4773-88dc-15c8f8ff7376"
+        },
+        {
+            "name": "Check Active Experiments",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                500,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const input = $input.first()?.json?.body || {};\nconst experiments = input.experiments || [];\nconst now = new Date();\n\nconst activeExperiments = experiments.length > 0 ? experiments : [\n  {\n    id: 'EXP-001',\n    hypothesis: 'Security-conscious founders respond to compliance-risk framing',\n    fit_tested: 'MP',\n    start_date: new Date(now - 14 * 24 * 60 * 60 * 1000).toISOString(),\n    end_date: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),\n    stop_conditions: [\n      { metric: 'response_rate', threshold: 0.15, operator: 'gte', description: 'Response rate >= 15% confirms hypothesis' },\n      { metric: 'response_rate', threshold: 0.05, operator: 'lte', description: 'Response rate <= 5% falsifies hypothesis' }\n    ],\n    current_metrics: { response_rate: 0.08, sample_size: 25 },\n    status: 'running',\n    variant: 'compliance-risk-email-v1'\n  },\n  {\n    id: 'EXP-002',\n    hypothesis: 'LinkedIn DM outperforms cold email for builder segment',\n    fit_tested: 'PC',\n    start_date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),\n    end_date: new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000).toISOString(),\n    stop_conditions: [\n      { metric: 'response_rate', threshold: 0.20, operator: 'gte', description: 'LinkedIn wins \u2014 confirm channel' },\n      { metric: 'sample_size', threshold: 50, operator: 'gte', description: 'Sufficient sample reached' }\n    ],\n    current_metrics: { response_rate: 0.12, sample_size: 18 },\n    status: 'running',\n    variant: 'linkedin-dm-builder'\n  }\n];\n\nconst enriched = activeExperiments.map(exp => ({\n  ...exp,\n  days_running: Math.floor((now - new Date(exp.start_date)) / (24 * 60 * 60 * 1000)),\n  days_remaining: Math.max(0, Math.floor((new Date(exp.end_date) - now) / (24 * 60 * 60 * 1000))),\n  progress_pct: Math.min(100, Math.floor((now - new Date(exp.start_date)) / (new Date(exp.end_date) - new Date(exp.start_date)) * 100))\n}));\n\nreturn [{ json: { active_experiments: enriched, checked_at: now.toISOString() } }];"
+            },
+            "id": "42afcc98-c08b-496e-94e9-e81eeadf903e"
+        },
+        {
+            "name": "Evaluate Stop Conditions",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                750,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const input = $input.first().json;\nconst experiments = input.active_experiments || [];\n\nconst evaluate = (exp) => {\n  const triggered = [];\n  for (const cond of (exp.stop_conditions || [])) {\n    const val = exp.current_metrics?.[cond.metric];\n    if (val === undefined) continue;\n    let met = false;\n    if (cond.operator === 'gte') met = val >= cond.threshold;\n    else if (cond.operator === 'lte') met = val <= cond.threshold;\n    else if (cond.operator === 'gt') met = val > cond.threshold;\n    else if (cond.operator === 'lt') met = val < cond.threshold;\n    if (met) triggered.push(cond);\n  }\n\n  const isOverdue = exp.days_remaining <= 0;\n  const confirmed = triggered.some(t => t.description?.includes('confirms') || t.description?.includes('wins'));\n  const falsified = triggered.some(t => t.description?.includes('falsifies'));\n\n  let recommendation = 'continue';\n  let conclusion = null;\n  if (confirmed) { recommendation = 'conclude_positive'; conclusion = 'CONFIRMED: Hypothesis supported'; }\n  else if (falsified) { recommendation = 'conclude_negative'; conclusion = 'FALSIFIED: Pivot or abandon'; }\n  else if (isOverdue) { recommendation = 'conclude_inconclusive'; conclusion = 'INCONCLUSIVE: Time expired'; }\n\n  return { ...exp, triggered_conditions: triggered, recommendation, conclusion, should_stop: recommendation !== 'continue' };\n};\n\nconst evaluated = experiments.map(evaluate);\nreturn [{ json: { evaluated_experiments: evaluated, stopping_count: evaluated.filter(e => e.should_stop).length, continuing_count: evaluated.filter(e => !e.should_stop).length } }];"
+            },
+            "id": "03056ecc-033c-4736-8e67-1c8149719d84"
+        },
+        {
+            "name": "Generate Status Report",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1000,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const input = $input.first().json;\nconst experiments = input.evaluated_experiments || [];\nconst emojiMap = { continue: '\ud83d\udd2c', conclude_positive: '\u2705', conclude_negative: '\u274c', conclude_inconclusive: '\u2753' };\n\nconst lines = experiments.map(exp => {\n  const emoji = emojiMap[exp.recommendation] || '\ud83d\udd2c';\n  const metrics = Object.entries(exp.current_metrics || {}).map(([k,v]) => k + ': ' + (typeof v === 'number' && v < 1 ? Math.round(v*100)+'%' : v)).join(', ');\n  return emoji + ' *' + exp.id + '* \u2014 ' + exp.hypothesis + '\\n  Fit: ' + exp.fit_tested + ' | Day ' + exp.days_running + ' (' + exp.progress_pct + '%)\\n  ' + metrics + '\\n  ' + (exp.conclusion || 'Continuing \u2014 ' + exp.days_remaining + 'd remaining');\n});\n\nconst slackMsg = [\n  '\ud83e\uddea *Four-Fit Experiment Tracker \u2014 Week of ' + new Date().toLocaleDateString() + '*',\n  '',\n  '*Active: ' + experiments.length + ' | Action Required: ' + input.stopping_count + ' | Continuing: ' + input.continuing_count + '*',\n  '',\n  ...lines,\n  '',\n  input.stopping_count > 0 ? '\u26a0\ufe0f *' + input.stopping_count + ' experiment(s) need conclusion decision*' : '\u2705 All experiments running normally'\n].join('\\n');\n\nreturn [{ json: { slack_message: slackMsg, generated_at: new Date().toISOString(), summary: { total: experiments.length, stopping: input.stopping_count, continuing: input.continuing_count } } }];"
+            },
+            "id": "b7982cac-2f87-4be3-bfac-f32e911103fb"
+        },
+        {
+            "name": "Post Experiment Slack",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1250,
+                300
+            ],
+            "id": "a3352414-cf8d-4a3e-9a26-d78565febee6",
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "contentType": "json",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "channel",
+                            "value": "D0AMT6KMGNP"
+                        },
+                        {
+                            "name": "text",
+                            "value": "={{ $json.slack_message }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Check Active Experiments",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Experiments Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Check Active Experiments",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Active Experiments": {
+            "main": [
+                [
+                    {
+                        "node": "Evaluate Stop Conditions",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Evaluate Stop Conditions": {
+            "main": [
+                [
+                    {
+                        "node": "Generate Status Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate Status Report": {
+            "main": [
+                [
+                    {
+                        "node": "Post Experiment Slack",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Schedule Trigger": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "4be162c0-674b-4902-b491-9968a88255f6",
+    "activeVersionId": "4be162c0-674b-4902-b491-9968a88255f6",
+    "versionCounter": 5,
+    "triggerCount": 2,
+    "shared": [
+        {
+            "updatedAt": "2026-03-28T02:59:47.339Z",
+            "createdAt": "2026-03-28T02:59:47.339Z",
+            "role": "workflow:owner",
+            "workflowId": "3W9AXTZXKfVBq6lw",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-28T13:15:50.141Z",
+        "createdAt": "2026-03-28T13:15:50.141Z",
+        "versionId": "4be162c0-674b-4902-b491-9968a88255f6",
+        "workflowId": "3W9AXTZXKfVBq6lw",
+        "nodes": [
+            {
+                "name": "Schedule Trigger",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    250,
+                    200
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "weeks",
+                                "weeksInterval": 1,
+                                "triggerAtDay": [
+                                    1
+                                ],
+                                "triggerAtHour": 7,
+                                "triggerAtMinute": 0
+                            }
+                        ]
+                    }
+                },
+                "id": "a23332dc-4642-4db2-8aec-cf6d0e65029c"
+            },
+            {
+                "name": "Experiments Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [
+                    250,
+                    400
+                ],
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "four-fit/experiments",
+                    "responseMode": "responseNode",
+                    "options": {}
+                },
+                "id": "52ca88ef-d007-4773-88dc-15c8f8ff7376"
+            },
+            {
+                "name": "Check Active Experiments",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    500,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const input = $input.first()?.json?.body || {};\nconst experiments = input.experiments || [];\nconst now = new Date();\n\nconst activeExperiments = experiments.length > 0 ? experiments : [\n  {\n    id: 'EXP-001',\n    hypothesis: 'Security-conscious founders respond to compliance-risk framing',\n    fit_tested: 'MP',\n    start_date: new Date(now - 14 * 24 * 60 * 60 * 1000).toISOString(),\n    end_date: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),\n    stop_conditions: [\n      { metric: 'response_rate', threshold: 0.15, operator: 'gte', description: 'Response rate >= 15% confirms hypothesis' },\n      { metric: 'response_rate', threshold: 0.05, operator: 'lte', description: 'Response rate <= 5% falsifies hypothesis' }\n    ],\n    current_metrics: { response_rate: 0.08, sample_size: 25 },\n    status: 'running',\n    variant: 'compliance-risk-email-v1'\n  },\n  {\n    id: 'EXP-002',\n    hypothesis: 'LinkedIn DM outperforms cold email for builder segment',\n    fit_tested: 'PC',\n    start_date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),\n    end_date: new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000).toISOString(),\n    stop_conditions: [\n      { metric: 'response_rate', threshold: 0.20, operator: 'gte', description: 'LinkedIn wins \u2014 confirm channel' },\n      { metric: 'sample_size', threshold: 50, operator: 'gte', description: 'Sufficient sample reached' }\n    ],\n    current_metrics: { response_rate: 0.12, sample_size: 18 },\n    status: 'running',\n    variant: 'linkedin-dm-builder'\n  }\n];\n\nconst enriched = activeExperiments.map(exp => ({\n  ...exp,\n  days_running: Math.floor((now - new Date(exp.start_date)) / (24 * 60 * 60 * 1000)),\n  days_remaining: Math.max(0, Math.floor((new Date(exp.end_date) - now) / (24 * 60 * 60 * 1000))),\n  progress_pct: Math.min(100, Math.floor((now - new Date(exp.start_date)) / (new Date(exp.end_date) - new Date(exp.start_date)) * 100))\n}));\n\nreturn [{ json: { active_experiments: enriched, checked_at: now.toISOString() } }];"
+                },
+                "id": "42afcc98-c08b-496e-94e9-e81eeadf903e"
+            },
+            {
+                "name": "Evaluate Stop Conditions",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    750,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const input = $input.first().json;\nconst experiments = input.active_experiments || [];\n\nconst evaluate = (exp) => {\n  const triggered = [];\n  for (const cond of (exp.stop_conditions || [])) {\n    const val = exp.current_metrics?.[cond.metric];\n    if (val === undefined) continue;\n    let met = false;\n    if (cond.operator === 'gte') met = val >= cond.threshold;\n    else if (cond.operator === 'lte') met = val <= cond.threshold;\n    else if (cond.operator === 'gt') met = val > cond.threshold;\n    else if (cond.operator === 'lt') met = val < cond.threshold;\n    if (met) triggered.push(cond);\n  }\n\n  const isOverdue = exp.days_remaining <= 0;\n  const confirmed = triggered.some(t => t.description?.includes('confirms') || t.description?.includes('wins'));\n  const falsified = triggered.some(t => t.description?.includes('falsifies'));\n\n  let recommendation = 'continue';\n  let conclusion = null;\n  if (confirmed) { recommendation = 'conclude_positive'; conclusion = 'CONFIRMED: Hypothesis supported'; }\n  else if (falsified) { recommendation = 'conclude_negative'; conclusion = 'FALSIFIED: Pivot or abandon'; }\n  else if (isOverdue) { recommendation = 'conclude_inconclusive'; conclusion = 'INCONCLUSIVE: Time expired'; }\n\n  return { ...exp, triggered_conditions: triggered, recommendation, conclusion, should_stop: recommendation !== 'continue' };\n};\n\nconst evaluated = experiments.map(evaluate);\nreturn [{ json: { evaluated_experiments: evaluated, stopping_count: evaluated.filter(e => e.should_stop).length, continuing_count: evaluated.filter(e => !e.should_stop).length } }];"
+                },
+                "id": "03056ecc-033c-4736-8e67-1c8149719d84"
+            },
+            {
+                "name": "Generate Status Report",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1000,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const input = $input.first().json;\nconst experiments = input.evaluated_experiments || [];\nconst emojiMap = { continue: '\ud83d\udd2c', conclude_positive: '\u2705', conclude_negative: '\u274c', conclude_inconclusive: '\u2753' };\n\nconst lines = experiments.map(exp => {\n  const emoji = emojiMap[exp.recommendation] || '\ud83d\udd2c';\n  const metrics = Object.entries(exp.current_metrics || {}).map(([k,v]) => k + ': ' + (typeof v === 'number' && v < 1 ? Math.round(v*100)+'%' : v)).join(', ');\n  return emoji + ' *' + exp.id + '* \u2014 ' + exp.hypothesis + '\\n  Fit: ' + exp.fit_tested + ' | Day ' + exp.days_running + ' (' + exp.progress_pct + '%)\\n  ' + metrics + '\\n  ' + (exp.conclusion || 'Continuing \u2014 ' + exp.days_remaining + 'd remaining');\n});\n\nconst slackMsg = [\n  '\ud83e\uddea *Four-Fit Experiment Tracker \u2014 Week of ' + new Date().toLocaleDateString() + '*',\n  '',\n  '*Active: ' + experiments.length + ' | Action Required: ' + input.stopping_count + ' | Continuing: ' + input.continuing_count + '*',\n  '',\n  ...lines,\n  '',\n  input.stopping_count > 0 ? '\u26a0\ufe0f *' + input.stopping_count + ' experiment(s) need conclusion decision*' : '\u2705 All experiments running normally'\n].join('\\n');\n\nreturn [{ json: { slack_message: slackMsg, generated_at: new Date().toISOString(), summary: { total: experiments.length, stopping: input.stopping_count, continuing: input.continuing_count } } }];"
+                },
+                "id": "b7982cac-2f87-4be3-bfac-f32e911103fb"
+            },
+            {
+                "name": "Post Experiment Slack",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1250,
+                    300
+                ],
+                "id": "a3352414-cf8d-4a3e-9a26-d78565febee6",
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth",
+                    "sendBody": true,
+                    "contentType": "json",
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "channel",
+                                "value": "D0AMT6KMGNP"
+                            },
+                            {
+                                "name": "text",
+                                "value": "={{ $json.slack_message }}"
+                            }
+                        ]
+                    },
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                }
+            }
+        ],
+        "connections": {
+            "Schedule Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "Check Active Experiments",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Experiments Webhook": {
+                "main": [
+                    [
+                        {
+                            "node": "Check Active Experiments",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Check Active Experiments": {
+                "main": [
+                    [
+                        {
+                            "node": "Evaluate Stop Conditions",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Evaluate Stop Conditions": {
+                "main": [
+                    [
+                        {
+                            "node": "Generate Status Report",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Generate Status Report": {
+                "main": [
+                    [
+                        {
+                            "node": "Post Experiment Slack",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-28T13:15:50.218Z",
+                "id": 1806,
+                "workflowId": "3W9AXTZXKfVBq6lw",
+                "versionId": "4be162c0-674b-4902-b491-9968a88255f6",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

@@ -1,0 +1,417 @@
+{
+    "updatedAt": "2026-03-28T13:15:50.027Z",
+    "createdAt": "2026-03-28T02:58:59.978Z",
+    "id": "0OMZrpDIbqlBOHEh",
+    "name": "Four-Fit: Monthly Diagnose",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Diagnose Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                250,
+                300
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "four-fit/diagnose",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "09986a78-7f2b-465e-a780-c964e6d42d87"
+        },
+        {
+            "name": "Detect Contradictions",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                500,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const input = $input.first()?.json?.body || {};\nconst evidence = input.evidence || [];\n\n// 8 Contradiction Detection Patterns\nconst patterns = [\n  { id: 'P1', name: 'Problem-Signal Reversal', description: 'Customers describe the problem but show low urgency scores', severity: 'medium' },\n  { id: 'P2', name: 'Channel-Conversion Mismatch', description: 'High channel reach but low conversion rate \u2014 ICP misalignment', severity: 'medium' },\n  { id: 'P3', name: 'Pricing-Willingness Gap', description: 'Product loved but pricing rejected \u2014 model-market misalignment', severity: 'high' },\n  { id: 'P4', name: 'Pilot-Pipeline Divergence', description: 'Pilots succeed but pipeline stalls \u2014 channel misses pilot-quality prospects', severity: 'high' },\n  { id: 'P5', name: 'ICP Drift', description: 'Closed deals diverge from defined ICP \u2014 model needs recalibration', severity: 'high' },\n  { id: 'P6', name: 'Advocacy-Retention Contradiction', description: 'High NPS but churning customers \u2014 measurement lag or wrong segment', severity: 'medium' },\n  { id: 'P7', name: 'Community-Commercial Gap', description: 'Strong community engagement but no commercial traction', severity: 'medium' },\n  { id: 'P8', name: 'Confidence-Evidence Asymmetry', description: 'High-confidence scores built on low-reliability evidence sources', severity: 'medium' }\n];\n\nconst now = new Date().toISOString();\n\nif (evidence.length === 0) {\n  return [{ json: {\n    mode: 'pattern_reference',\n    message: 'No evidence provided \u2014 returning pattern definitions for inspection',\n    patterns: patterns,\n    contradictions: [],\n    run_at: now\n  } }];\n}\n\n// Simple heuristic detection against evidence array\nconst detected = [];\nfor (const p of patterns) {\n  const relevantEvidence = evidence.filter(e => e.direction && e.magnitude !== undefined);\n  const conflicts = relevantEvidence.filter(e => e.confidence > 0.7 && e.source_reliability < 0.5);\n  \n  if ((p.id === 'P8' && conflicts.length >= 2) ||\n      (p.id !== 'P8' && relevantEvidence.some(e => e.direction === 'negative' && e.magnitude > 0.6))) {\n    detected.push({\n      ...p,\n      detected_at: now,\n      supporting_evidence_count: relevantEvidence.length,\n      status: 'new',\n      llm_prompt: 'Analyze contradiction: ' + p.name + ' \u2014 ' + p.description + ' for GuardSpine GTM. Return JSON: {\"root_cause\":\"string\",\"confirmation_evidence\":[],\"recommended_experiment\":\"string\",\"urgency\":\"high|medium|low\"}'\n    });\n  }\n}\n\nreturn [{ json: { contradictions: detected, evidence_analyzed: evidence.length, run_at: now } }];"
+            },
+            "id": "6ed9a5c4-f01d-4599-9bf7-442c2dfb0e43"
+        },
+        {
+            "name": "Format Contradictions",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                750,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const input = $input.first().json;\nconst contradictions = input.contradictions || [];\n\nif (contradictions.length === 0) {\n  return [{ json: { message: 'No contradictions detected this period', count: 0, items: [] } }];\n}\n\nreturn contradictions.map(c => ({ json: c }));"
+            },
+            "id": "8a1524ae-75d8-4bdd-aa21-dc452bc8a53b"
+        },
+        {
+            "name": "LLM Root Cause",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1000,
+                300
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:11434/v1/chat/completions",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "json",
+                "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a GTM strategist analyzing contradictions in startup evidence. Be concise and evidence-based.\"},{\"role\":\"user\",\"content\":\"{{ $json.llm_prompt }}\"}],\"temperature\":0.3}",
+                "options": {}
+            },
+            "id": "b265f427-d0fd-4257-8112-073a154ee622"
+        },
+        {
+            "name": "Output for DB",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1250,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const data = item.json;\n  let llmAnalysis = {};\n  try {\n    const content = data.choices?.[0]?.message?.content || '{}';\n    llmAnalysis = typeof content === 'string' ? JSON.parse(content) : content;\n  } catch(e) {\n    llmAnalysis = { root_cause: 'Analysis pending', urgency: 'medium' };\n  }\n\n  output.push({ json: {\n    pattern_id: data.pattern_id || data.id,\n    pattern_name: data.pattern_name || data.name,\n    description: data.description,\n    severity: data.severity,\n    detected_at: data.detected_at,\n    root_cause: llmAnalysis.root_cause || 'Pending',\n    confirmation_evidence_needed: llmAnalysis.confirmation_evidence || [],\n    recommended_experiment: llmAnalysis.recommended_experiment || '',\n    urgency: llmAnalysis.urgency || data.severity,\n    status: 'new',\n    ready_for_db: true\n  } });\n}\n\nreturn output.length > 0 ? output : [{ json: { message: 'No contradictions processed', count: 0 } }];"
+            },
+            "id": "673d2361-9b5d-416c-9ee7-4f28b0ea95b1"
+        },
+        {
+            "name": "Alert Contradictions Slack",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1500,
+                300
+            ],
+            "id": "95024f67-98a8-49e7-9f8c-0b8ad7eeec53",
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "contentType": "json",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "channel",
+                            "value": "D0AMT6KMGNP"
+                        },
+                        {
+                            "name": "text",
+                            "value": "=\ud83d\udd0d *Four-Fit Contradiction Alert*\n\n*{{ $json.pattern_id }}: {{ $json.pattern_name }}* ({{ $json.urgency?.toUpperCase() || 'MEDIUM' }})\n{{ $json.description }}\n\n*Root Cause:* {{ $json.root_cause }}\n*Recommended Experiment:* {{ $json.recommended_experiment }}\n\n_Status: {{ $json.status }} | Detected: {{ $json.detected_at }}_"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Diagnose Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Detect Contradictions",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Detect Contradictions": {
+            "main": [
+                [
+                    {
+                        "node": "Format Contradictions",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Contradictions": {
+            "main": [
+                [
+                    {
+                        "node": "LLM Root Cause",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "LLM Root Cause": {
+            "main": [
+                [
+                    {
+                        "node": "Output for DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Output for DB": {
+            "main": [
+                [
+                    {
+                        "node": "Alert Contradictions Slack",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "abfb031d-94f1-40d0-bc76-aecee963c89f",
+    "activeVersionId": "abfb031d-94f1-40d0-bc76-aecee963c89f",
+    "versionCounter": 4,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-28T02:58:59.980Z",
+            "createdAt": "2026-03-28T02:58:59.980Z",
+            "role": "workflow:owner",
+            "workflowId": "0OMZrpDIbqlBOHEh",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-28T13:15:50.028Z",
+        "createdAt": "2026-03-28T13:15:50.028Z",
+        "versionId": "abfb031d-94f1-40d0-bc76-aecee963c89f",
+        "workflowId": "0OMZrpDIbqlBOHEh",
+        "nodes": [
+            {
+                "name": "Diagnose Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [
+                    250,
+                    300
+                ],
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "four-fit/diagnose",
+                    "responseMode": "responseNode",
+                    "options": {}
+                },
+                "id": "09986a78-7f2b-465e-a780-c964e6d42d87"
+            },
+            {
+                "name": "Detect Contradictions",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    500,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const input = $input.first()?.json?.body || {};\nconst evidence = input.evidence || [];\n\n// 8 Contradiction Detection Patterns\nconst patterns = [\n  { id: 'P1', name: 'Problem-Signal Reversal', description: 'Customers describe the problem but show low urgency scores', severity: 'medium' },\n  { id: 'P2', name: 'Channel-Conversion Mismatch', description: 'High channel reach but low conversion rate \u2014 ICP misalignment', severity: 'medium' },\n  { id: 'P3', name: 'Pricing-Willingness Gap', description: 'Product loved but pricing rejected \u2014 model-market misalignment', severity: 'high' },\n  { id: 'P4', name: 'Pilot-Pipeline Divergence', description: 'Pilots succeed but pipeline stalls \u2014 channel misses pilot-quality prospects', severity: 'high' },\n  { id: 'P5', name: 'ICP Drift', description: 'Closed deals diverge from defined ICP \u2014 model needs recalibration', severity: 'high' },\n  { id: 'P6', name: 'Advocacy-Retention Contradiction', description: 'High NPS but churning customers \u2014 measurement lag or wrong segment', severity: 'medium' },\n  { id: 'P7', name: 'Community-Commercial Gap', description: 'Strong community engagement but no commercial traction', severity: 'medium' },\n  { id: 'P8', name: 'Confidence-Evidence Asymmetry', description: 'High-confidence scores built on low-reliability evidence sources', severity: 'medium' }\n];\n\nconst now = new Date().toISOString();\n\nif (evidence.length === 0) {\n  return [{ json: {\n    mode: 'pattern_reference',\n    message: 'No evidence provided \u2014 returning pattern definitions for inspection',\n    patterns: patterns,\n    contradictions: [],\n    run_at: now\n  } }];\n}\n\n// Simple heuristic detection against evidence array\nconst detected = [];\nfor (const p of patterns) {\n  const relevantEvidence = evidence.filter(e => e.direction && e.magnitude !== undefined);\n  const conflicts = relevantEvidence.filter(e => e.confidence > 0.7 && e.source_reliability < 0.5);\n  \n  if ((p.id === 'P8' && conflicts.length >= 2) ||\n      (p.id !== 'P8' && relevantEvidence.some(e => e.direction === 'negative' && e.magnitude > 0.6))) {\n    detected.push({\n      ...p,\n      detected_at: now,\n      supporting_evidence_count: relevantEvidence.length,\n      status: 'new',\n      llm_prompt: 'Analyze contradiction: ' + p.name + ' \u2014 ' + p.description + ' for GuardSpine GTM. Return JSON: {\"root_cause\":\"string\",\"confirmation_evidence\":[],\"recommended_experiment\":\"string\",\"urgency\":\"high|medium|low\"}'\n    });\n  }\n}\n\nreturn [{ json: { contradictions: detected, evidence_analyzed: evidence.length, run_at: now } }];"
+                },
+                "id": "6ed9a5c4-f01d-4599-9bf7-442c2dfb0e43"
+            },
+            {
+                "name": "Format Contradictions",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    750,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const input = $input.first().json;\nconst contradictions = input.contradictions || [];\n\nif (contradictions.length === 0) {\n  return [{ json: { message: 'No contradictions detected this period', count: 0, items: [] } }];\n}\n\nreturn contradictions.map(c => ({ json: c }));"
+                },
+                "id": "8a1524ae-75d8-4bdd-aa21-dc452bc8a53b"
+            },
+            {
+                "name": "LLM Root Cause",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1000,
+                    300
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://localhost:11434/v1/chat/completions",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "contentType": "json",
+                    "body": "={\"model\":\"llama3.2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a GTM strategist analyzing contradictions in startup evidence. Be concise and evidence-based.\"},{\"role\":\"user\",\"content\":\"{{ $json.llm_prompt }}\"}],\"temperature\":0.3}",
+                    "options": {}
+                },
+                "id": "b265f427-d0fd-4257-8112-073a154ee622"
+            },
+            {
+                "name": "Output for DB",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1250,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const data = item.json;\n  let llmAnalysis = {};\n  try {\n    const content = data.choices?.[0]?.message?.content || '{}';\n    llmAnalysis = typeof content === 'string' ? JSON.parse(content) : content;\n  } catch(e) {\n    llmAnalysis = { root_cause: 'Analysis pending', urgency: 'medium' };\n  }\n\n  output.push({ json: {\n    pattern_id: data.pattern_id || data.id,\n    pattern_name: data.pattern_name || data.name,\n    description: data.description,\n    severity: data.severity,\n    detected_at: data.detected_at,\n    root_cause: llmAnalysis.root_cause || 'Pending',\n    confirmation_evidence_needed: llmAnalysis.confirmation_evidence || [],\n    recommended_experiment: llmAnalysis.recommended_experiment || '',\n    urgency: llmAnalysis.urgency || data.severity,\n    status: 'new',\n    ready_for_db: true\n  } });\n}\n\nreturn output.length > 0 ? output : [{ json: { message: 'No contradictions processed', count: 0 } }];"
+                },
+                "id": "673d2361-9b5d-416c-9ee7-4f28b0ea95b1"
+            },
+            {
+                "name": "Alert Contradictions Slack",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1500,
+                    300
+                ],
+                "id": "95024f67-98a8-49e7-9f8c-0b8ad7eeec53",
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth",
+                    "sendBody": true,
+                    "contentType": "json",
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "channel",
+                                "value": "D0AMT6KMGNP"
+                            },
+                            {
+                                "name": "text",
+                                "value": "=\ud83d\udd0d *Four-Fit Contradiction Alert*\n\n*{{ $json.pattern_id }}: {{ $json.pattern_name }}* ({{ $json.urgency?.toUpperCase() || 'MEDIUM' }})\n{{ $json.description }}\n\n*Root Cause:* {{ $json.root_cause }}\n*Recommended Experiment:* {{ $json.recommended_experiment }}\n\n_Status: {{ $json.status }} | Detected: {{ $json.detected_at }}_"
+                            }
+                        ]
+                    },
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                }
+            }
+        ],
+        "connections": {
+            "Diagnose Webhook": {
+                "main": [
+                    [
+                        {
+                            "node": "Detect Contradictions",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Detect Contradictions": {
+                "main": [
+                    [
+                        {
+                            "node": "Format Contradictions",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Format Contradictions": {
+                "main": [
+                    [
+                        {
+                            "node": "LLM Root Cause",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "LLM Root Cause": {
+                "main": [
+                    [
+                        {
+                            "node": "Output for DB",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Output for DB": {
+                "main": [
+                    [
+                        {
+                            "node": "Alert Contradictions Slack",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-28T13:15:50.103Z",
+                "id": 1805,
+                "workflowId": "0OMZrpDIbqlBOHEh",
+                "versionId": "abfb031d-94f1-40d0-bc76-aecee963c89f",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

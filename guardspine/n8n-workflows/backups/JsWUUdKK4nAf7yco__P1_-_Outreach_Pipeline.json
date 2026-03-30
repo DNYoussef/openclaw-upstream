@@ -1,0 +1,536 @@
+{
+    "updatedAt": "2026-03-27T11:52:45.546Z",
+    "createdAt": "2026-03-27T11:52:45.546Z",
+    "id": "JsWUUdKK4nAf7yco",
+    "name": "P1 - Outreach Pipeline",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 6
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                300
+            ],
+            "id": "93ceaad8-63bd-4ee5-acec-ef8ccbb9e4ed"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "check_response_signals"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "name": "Check Response Signals",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                470,
+                100
+            ],
+            "id": "3f4698e7-df3d-4412-943c-31c0e575a741"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "check_landing_signups"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "name": "Check Landing Signups",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                470,
+                300
+            ],
+            "id": "c8d6286d-ead4-447b-b11f-1f9bcdf19341"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "check_followups_due"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "name": "Check Follow-ups Due",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                470,
+                500
+            ],
+            "id": "46159277-bff0-4ad9-b3de-bca70e4a4c0e"
+        },
+        {
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineAll",
+                "options": {}
+            },
+            "name": "Merge Signals + Signups",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                690,
+                200
+            ],
+            "id": "5ac5f390-1b31-48ce-81e9-8fe1306cf2f0"
+        },
+        {
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineAll",
+                "options": {}
+            },
+            "name": "Merge All Sources",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                910,
+                350
+            ],
+            "id": "14a1cb80-48e3-4613-a10d-e843946fc94a"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": ""
+                    },
+                    "conditions": [
+                        {
+                            "id": "has-green-or-yellow",
+                            "leftValue": "={{ ($json.green_count || 0) + ($json.yellow_count || 0) + ($json.demo_count || 0) }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "gt"
+                            }
+                        }
+                    ]
+                }
+            },
+            "name": "Revenue Signals?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                1130,
+                250
+            ],
+            "id": "6363a49d-a240-4a3f-a65d-93fbe12aaf93"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "send_alert"
+                        },
+                        {
+                            "name": "signals",
+                            "value": "={{ JSON.stringify($json) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "name": "Alert: Revenue Signal",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1350,
+                150
+            ],
+            "id": "5dc9964a-5941-4e45-a6ad-5f428b7498f0"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": ""
+                    },
+                    "conditions": [
+                        {
+                            "id": "has-followups",
+                            "leftValue": "={{ $json.followups_due_count || 0 }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "gt"
+                            }
+                        }
+                    ]
+                }
+            },
+            "name": "Follow-ups Due?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                1130,
+                450
+            ],
+            "id": "46b514e0-294f-473e-9df7-e2b29b1c06f5"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "action",
+                            "value": "draft_followups"
+                        },
+                        {
+                            "name": "prospects",
+                            "value": "={{ JSON.stringify($json.followups_due || []) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "name": "Draft Follow-ups",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1350,
+                350
+            ],
+            "id": "2fd1b589-77ea-4431-8eba-0714df055def"
+        },
+        {
+            "parameters": {},
+            "name": "No Follow-ups",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                1350,
+                550
+            ],
+            "id": "7a612bef-0c8f-4969-81ba-0607b183fb16"
+        },
+        {
+            "parameters": {},
+            "name": "Quiet Period",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                1560,
+                150
+            ],
+            "id": "33b41c25-70ec-4ecf-8ee7-24587daa7810"
+        },
+        {
+            "parameters": {},
+            "id": "error-trigger",
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                200,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "method": "POST",
+                "sendBody": true,
+                "specifyBody": "json",
+                "contentType": "json",
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"P1 - Outreach Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+            },
+            "id": "post-error-telemetry",
+            "name": "POST Error to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                420,
+                600
+            ]
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Check Response Signals",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check Landing Signups",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check Follow-ups Due",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Response Signals": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Signals + Signups",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Landing Signups": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Signals + Signups",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge Signals + Signups": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All Sources",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Follow-ups Due": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All Sources",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge All Sources": {
+            "main": [
+                [
+                    {
+                        "node": "Revenue Signals?",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Follow-ups Due?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Revenue Signals?": {
+            "main": [
+                [
+                    {
+                        "node": "Alert: Revenue Signal",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Quiet Period",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Follow-ups Due?": {
+            "main": [
+                [
+                    {
+                        "node": "Draft Follow-ups",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "No Follow-ups",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "POST Error to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "056918c9-fe57-4ce0-87a6-bfd89ad36df0",
+    "activeVersionId": null,
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "shared": [
+        {
+            "updatedAt": "2026-03-27T11:52:45.550Z",
+            "createdAt": "2026-03-27T11:52:45.550Z",
+            "role": "workflow:owner",
+            "workflowId": "JsWUUdKK4nAf7yco",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": null
+}

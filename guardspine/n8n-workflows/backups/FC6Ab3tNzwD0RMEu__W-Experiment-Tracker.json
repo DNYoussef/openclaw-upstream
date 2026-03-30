@@ -1,0 +1,237 @@
+{
+    "updatedAt": "2026-03-21T22:14:16.655Z",
+    "createdAt": "2026-03-21T22:14:16.655Z",
+    "id": "FC6Ab3tNzwD0RMEu",
+    "name": "W-Experiment-Tracker",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Daily 6am ET",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                0,
+                0
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 10 * * *"
+                        }
+                    ]
+                }
+            },
+            "id": "9f932b21-827b-4068-8800-fcfba18b7cd4"
+        },
+        {
+            "name": "Track Active Experiments",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                220,
+                0
+            ],
+            "parameters": {
+                "jsCode": "// Section XIX.C.4 - Experiment Review\n// Tracks active experiments, hypothesis status, results\n\nconst experiments = [\n  {\n    id: 'pain-first-templates',\n    hypothesis: 'Pain-first outreach templates (leading with prospect pain instead of product vision) will increase response rate above the 0.67% baseline for cold email',\n    start_date: '2026-03-21',\n    status: 'active',\n    target_segment: 'All CRM lanes (buyer, builder, investor, connector)',\n    success_criteria: 'Response rate > 2% on first 50 sends',\n    failure_criteria: 'No improvement after 50 sends',\n    current_sends: 0,\n    current_responses: 0,\n    learning_objective: 'Does pain-first messaging outperform vision-first for cold outreach?',\n    next_iteration: 'If fails: try shorter messages (under 80 words); if wins: expand to all 365 contacts'\n  },\n  {\n    id: 'counterpart-scoring',\n    hypothesis: 'Scoring prospects on 7-factor counterpart model will surface 2-3 true counterparts from the 5 hypotheses (APCO, FTI, Weber, FGS, Brunswick)',\n    start_date: '2026-03-21',\n    status: 'active',\n    target_segment: 'Known counterpart hypotheses + similar firms in CRM',\n    success_criteria: 'At least 1 true counterpart (>75% score) initiates conversation',\n    failure_criteria: 'All 5 hypotheses score below 55% (no plausible partners)',\n    current_sends: 0,\n    current_responses: 0,\n    learning_objective: 'Which counterpart type scores highest on 7-factor model?',\n    next_iteration: 'If fails: revise scoring weights; if wins: expand outreach to top-scored firms'\n  },\n  {\n    id: 'warm-intro-priority',\n    hypothesis: 'Prioritizing warm intros (40% baseline response) over cold outreach will produce 3x more meetings in 30 days',\n    start_date: '2026-03-21',\n    status: 'active',\n    target_segment: 'Contacts with mutual connections or warm signals',\n    success_criteria: '3+ meetings booked in 30 days via warm intros only',\n    failure_criteria: 'Under 1 meeting after 30 days',\n    current_meets: 0,\n    learning_objective: 'Can warm intro pipeline alone drive first revenue?',\n    next_iteration: 'Map all warm intro paths from 365 contacts'\n  }\n];\n\n// Calculate days running for each\nconst today = new Date();\nexperiments.forEach(e => {\n  const start = new Date(e.start_date);\n  e.days_running = Math.floor((today - start) / (24*60*60*1000));\n});\n\nconst summary = {\n  active_experiments: experiments.filter(e => e.status === 'active').length,\n  experiments: experiments,\n  last_checked: today.toISOString()\n};\n\nreturn [{ json: summary }];"
+            },
+            "id": "59dcbc3d-ead8-4b08-9c59-7cff17fc5264"
+        },
+        {
+            "name": "Seal Evidence",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                440,
+                0
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-Evidence-Key",
+                            "value": "={{ $env.OPS_EVIDENCE_API_KEY || '' }}"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ stream_key: 'experiment-tracker', execution_id: String($execution.id), workflow_name: $workflow.name, payload: { active: $json.active_experiments, summary: $json.experiments.map(e => e.id + ':' + e.status).join(',') }, sealed_hash: 'sha256:exp-' + String($execution.id) }) }}"
+            },
+            "onError": "continueRegularOutput",
+            "id": "0ef597f6-7651-4bfa-a20c-e2ed1f1266db"
+        }
+    ],
+    "connections": {
+        "Daily 6am ET": {
+            "main": [
+                [
+                    {
+                        "node": "Track Active Experiments",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Track Active Experiments": {
+            "main": [
+                [
+                    {
+                        "node": "Seal Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Daily 6am ET": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "3a8da68b-7e02-42c0-8574-d958aa5d4869",
+    "activeVersionId": "3a8da68b-7e02-42c0-8574-d958aa5d4869",
+    "versionCounter": 20,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-21T22:14:16.657Z",
+            "createdAt": "2026-03-21T22:14:16.657Z",
+            "role": "workflow:owner",
+            "workflowId": "FC6Ab3tNzwD0RMEu",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-21T22:14:16.664Z",
+        "createdAt": "2026-03-21T22:14:16.664Z",
+        "versionId": "3a8da68b-7e02-42c0-8574-d958aa5d4869",
+        "workflowId": "FC6Ab3tNzwD0RMEu",
+        "nodes": [
+            {
+                "name": "Daily 6am ET",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    0,
+                    0
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 10 * * *"
+                            }
+                        ]
+                    }
+                },
+                "id": "9f932b21-827b-4068-8800-fcfba18b7cd4"
+            },
+            {
+                "name": "Track Active Experiments",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    220,
+                    0
+                ],
+                "parameters": {
+                    "jsCode": "// Section XIX.C.4 - Experiment Review\n// Tracks active experiments, hypothesis status, results\n\nconst experiments = [\n  {\n    id: 'pain-first-templates',\n    hypothesis: 'Pain-first outreach templates (leading with prospect pain instead of product vision) will increase response rate above the 0.67% baseline for cold email',\n    start_date: '2026-03-21',\n    status: 'active',\n    target_segment: 'All CRM lanes (buyer, builder, investor, connector)',\n    success_criteria: 'Response rate > 2% on first 50 sends',\n    failure_criteria: 'No improvement after 50 sends',\n    current_sends: 0,\n    current_responses: 0,\n    learning_objective: 'Does pain-first messaging outperform vision-first for cold outreach?',\n    next_iteration: 'If fails: try shorter messages (under 80 words); if wins: expand to all 365 contacts'\n  },\n  {\n    id: 'counterpart-scoring',\n    hypothesis: 'Scoring prospects on 7-factor counterpart model will surface 2-3 true counterparts from the 5 hypotheses (APCO, FTI, Weber, FGS, Brunswick)',\n    start_date: '2026-03-21',\n    status: 'active',\n    target_segment: 'Known counterpart hypotheses + similar firms in CRM',\n    success_criteria: 'At least 1 true counterpart (>75% score) initiates conversation',\n    failure_criteria: 'All 5 hypotheses score below 55% (no plausible partners)',\n    current_sends: 0,\n    current_responses: 0,\n    learning_objective: 'Which counterpart type scores highest on 7-factor model?',\n    next_iteration: 'If fails: revise scoring weights; if wins: expand outreach to top-scored firms'\n  },\n  {\n    id: 'warm-intro-priority',\n    hypothesis: 'Prioritizing warm intros (40% baseline response) over cold outreach will produce 3x more meetings in 30 days',\n    start_date: '2026-03-21',\n    status: 'active',\n    target_segment: 'Contacts with mutual connections or warm signals',\n    success_criteria: '3+ meetings booked in 30 days via warm intros only',\n    failure_criteria: 'Under 1 meeting after 30 days',\n    current_meets: 0,\n    learning_objective: 'Can warm intro pipeline alone drive first revenue?',\n    next_iteration: 'Map all warm intro paths from 365 contacts'\n  }\n];\n\n// Calculate days running for each\nconst today = new Date();\nexperiments.forEach(e => {\n  const start = new Date(e.start_date);\n  e.days_running = Math.floor((today - start) / (24*60*60*1000));\n});\n\nconst summary = {\n  active_experiments: experiments.filter(e => e.status === 'active').length,\n  experiments: experiments,\n  last_checked: today.toISOString()\n};\n\nreturn [{ json: summary }];"
+                },
+                "id": "59dcbc3d-ead8-4b08-9c59-7cff17fc5264"
+            },
+            {
+                "name": "Seal Evidence",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    440,
+                    0
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "X-Evidence-Key",
+                                "value": "={{ $env.OPS_EVIDENCE_API_KEY || '' }}"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({ stream_key: 'experiment-tracker', execution_id: String($execution.id), workflow_name: $workflow.name, payload: { active: $json.active_experiments, summary: $json.experiments.map(e => e.id + ':' + e.status).join(',') }, sealed_hash: 'sha256:exp-' + String($execution.id) }) }}"
+                },
+                "onError": "continueRegularOutput",
+                "id": "0ef597f6-7651-4bfa-a20c-e2ed1f1266db"
+            }
+        ],
+        "connections": {
+            "Daily 6am ET": {
+                "main": [
+                    [
+                        {
+                            "node": "Track Active Experiments",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Track Active Experiments": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-21T22:14:16.725Z",
+                "id": 1510,
+                "workflowId": "FC6Ab3tNzwD0RMEu",
+                "versionId": "3a8da68b-7e02-42c0-8574-d958aa5d4869",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

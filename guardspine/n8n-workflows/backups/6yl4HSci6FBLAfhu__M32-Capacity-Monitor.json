@@ -1,0 +1,799 @@
+{
+    "updatedAt": "2026-03-27T17:39:23.431Z",
+    "createdAt": "2026-03-22T03:19:20.795Z",
+    "id": "6yl4HSci6FBLAfhu",
+    "name": "M32-Capacity-Monitor",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Every 6 Hours",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                0,
+                0
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 */6 * * *"
+                        }
+                    ]
+                }
+            },
+            "id": "268067c8-4677-4543-b8ee-fd42e1630167"
+        },
+        {
+            "name": "Collect LiteLLM Spend",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                220,
+                -100
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "http://litellm.railway.internal:4000/health",
+                "authentication": "genericCredentialType",
+                "options": {
+                    "timeout": 10000,
+                    "response": {
+                        "response": {
+                            "fullResponse": false
+                        }
+                    }
+                },
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "dbefe067-d576-4c26-85a8-2e18cc41a405",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "JOEzshTgTJqyjYRg",
+                    "name": "litellm-auth"
+                }
+            },
+            "continueOnFail": true
+        },
+        {
+            "name": "Collect LiteLLM Models",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                220,
+                100
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "http://litellm.railway.internal:4000/models",
+                "authentication": "genericCredentialType",
+                "options": {
+                    "timeout": 10000
+                },
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "c404e78d-c965-4ff5-afd4-1dbbf42fe5a8",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "JOEzshTgTJqyjYRg",
+                    "name": "litellm-auth"
+                }
+            },
+            "continueOnFail": true
+        },
+        {
+            "name": "Check All Services",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                220,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const services = [\n  {name: 'openclaw', url: 'http://openclaw.railway.internal:18789/health'},\n  {name: 'paperclip', url: 'http://paperclip.railway.internal:3100/health'},\n  {name: 'n8n', url: 'http://n8n.railway.internal:5678/healthz'},\n  {name: 'litellm', url: 'http://litellm.railway.internal:4000/health'},\n  {name: 'telemetry-api', url: 'http://telemetry-api.railway.internal:8090/health'},\n  {name: 'guardspine-internal', url: 'http://guardspine-internal.railway.internal:8000/health'},\n  {name: 'decision-engine', url: 'http://decision-engine.railway.internal:8091/health'},\n  {name: 'memory-mcp', url: 'http://memory-mcp.railway.internal:8080/health'}\n];\nreturn services.map((service) => ({ json: service }));"
+            },
+            "id": "7c9ec8f0-cd23-4e5e-ba82-3bd4d85e29bb"
+        },
+        {
+            "name": "Aggregate Metrics",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                500,
+                0
+            ],
+            "parameters": {
+                "jsCode": "const now = new Date().toISOString();\nconst spendRaw = $('Collect LiteLLM Spend').first().json || {};\nconst modelRaw = $('Collect LiteLLM Models').first().json || {};\nconst serviceItems = $('Fetch Service Health').all().map(i => i.json || {});\n\nconst spendEntries = Array.isArray(spendRaw) ? spendRaw : (Array.isArray(spendRaw.data) ? spendRaw.data : (Array.isArray(spendRaw.response) ? spendRaw.response : []));\nconst models = Array.isArray(modelRaw.data) ? modelRaw.data : (Array.isArray(modelRaw.models) ? modelRaw.models : (Array.isArray(modelRaw) ? modelRaw : []));\nconst healthyEndpoints = Array.isArray(spendRaw.healthy_endpoints) ? spendRaw.healthy_endpoints.length : Number(spendRaw.healthy_count || 0);\nconst unhealthyEndpoints = Array.isArray(spendRaw.unhealthy_endpoints) ? spendRaw.unhealthy_endpoints.length : Number(spendRaw.unhealthy_count || 0);\n\nconst serviceHealth = serviceItems.map(item => ({\n  name: item.name || 'unknown',\n  url: item.url || null,\n  ok: item.statusCode ? item.statusCode < 400 : !(item.error || item.status === 'error'),\n  statusCode: item.statusCode || null\n}));\n\nreturn [{json: {\n  timestamp: now,\n  litellm: {\n    total_models: models.length,\n    model_names: models.map(m => m.model_name || m.id || m.name).filter(Boolean),\n    unhealthy_endpoints: unhealthyEndpoints,\n    healthy_endpoints: healthyEndpoints,\n    spend_tracking_available: false,\n    spend_source: 'litellm_health_fallback'\n  },\n  spend_entries: spendEntries,\n  service_health: serviceHealth,\n  services_checked: serviceHealth.length\n}}];"
+            },
+            "id": "e43db933-5858-448a-a0a8-001a5faa72db"
+        },
+        {
+            "name": "Check Thresholds",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                720,
+                0
+            ],
+            "parameters": {
+                "jsCode": "const metrics = $json;\nconst alerts = [];\nconst spendEntries = Array.isArray(metrics.spend_entries) ? metrics.spend_entries : [];\nconst todaySpend = spendEntries.reduce((sum, e) => sum + Number(e.spend || e.amount || 0), 0);\nconst downServices = (metrics.service_health || []).filter(s => s.ok === false);\n\nif (!metrics.metrics_valid) {\n  alerts.push({severity: 'MEDIUM', service: 'capacity-monitor', message: 'Metric validation failed: ' + (metrics.validation_errors || []).join(', ')});\n}\nif (downServices.length > 0) {\n  alerts.push({severity: 'HIGH', service: 'railway', message: 'Services down: ' + downServices.map(s => s.name + (s.statusCode ? ' (' + s.statusCode + ')' : '')).join(', ')});\n}\nif (metrics.litellm.unhealthy_endpoints > 0) {\n  alerts.push({severity: 'HIGH', service: 'litellm', message: metrics.litellm.unhealthy_endpoints + ' unhealthy LiteLLM endpoints detected'});\n}\nif (todaySpend > 8) {\n  alerts.push({severity: 'HIGH', service: 'litellm', message: 'Daily LLM spend: $' + todaySpend.toFixed(2) + ' (threshold: $8.00)'});\n}\n\nreturn [{json: {\n  ...metrics,\n  alerts,\n  has_alerts: alerts.length > 0,\n  daily_spend_usd: todaySpend,\n  down_services: downServices.map(s => s.name)\n}}];"
+            },
+            "id": "6dbd2c37-7b50-438c-91fc-e33bbe685331"
+        },
+        {
+            "name": "Has Alerts?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                940,
+                0
+            ],
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "alert-check",
+                            "leftValue": "={{ $json.has_alerts }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "cb58fae7-7a04-4119-983a-10d2bfebb604"
+        },
+        {
+            "name": "Send Alert",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1160,
+                -50
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "authentication": "genericCredentialType",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({channel: 'C0AJMK54QCF', text: '\ud83d\udea8 *Capacity Alert*\\n' + $json.alerts.map(a => '\u2022 [' + a.severity + '] ' + a.service + ': ' + a.message).join('\\n')}) }}",
+                "options": {},
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "id": "702a1bfd-8c67-4c6b-8b70-33f9037f3913",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            }
+        },
+        {
+            "name": "Log Metrics",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1160,
+                100
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "authentication": "noAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({stream_key: 'capacity-monitor', execution_id: 'cap-' + Date.now(), event_type: 'capacity_snapshot', payload: {daily_spend_usd: $json.daily_spend_usd, litellm_models: $json.litellm.total_models, down_services: $json.down_services, alerts_count: $json.alerts.length, metrics_valid: $json.metrics_valid}, meta: {workflow: 'M32-Capacity-Monitor'}}) }}",
+                "options": {}
+            },
+            "id": "d9c3f26e-b76f-435f-8252-40f3fc47f210"
+        },
+        {
+            "name": "Fetch Service Health",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                760,
+                420
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "={{ $json.url }}",
+                "authentication": "none",
+                "options": {
+                    "timeout": 5000,
+                    "ignoreResponseCode": true
+                }
+            },
+            "id": "ada29275-b4b8-49ea-8008-5fa9f5cc974a"
+        },
+        {
+            "name": "Validate Metrics",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1250,
+                280
+            ],
+            "parameters": {
+                "jsCode": "const metrics = $json;\nconst validation_errors = [];\nif (!metrics.timestamp) validation_errors.push('missing_timestamp');\nif (!metrics.litellm || typeof metrics.litellm.total_models !== 'number') validation_errors.push('missing_litellm_models');\nif (!Array.isArray(metrics.service_health)) validation_errors.push('missing_service_health');\nreturn [{json:{...metrics, validation_errors, metrics_valid: validation_errors.length === 0}}];"
+            },
+            "id": "68ce9847-0bec-42d2-b6f4-4bf7d9e5b321"
+        }
+    ],
+    "connections": {
+        "Every 6 Hours": {
+            "main": [
+                [
+                    {
+                        "node": "Collect LiteLLM Spend",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Collect LiteLLM Models",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check All Services",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Collect LiteLLM Spend": {
+            "main": [
+                [
+                    {
+                        "node": "Aggregate Metrics",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Collect LiteLLM Models": {
+            "main": [
+                [
+                    {
+                        "node": "Aggregate Metrics",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check All Services": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Service Health",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Aggregate Metrics": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Metrics",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Thresholds": {
+            "main": [
+                [
+                    {
+                        "node": "Has Alerts?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Has Alerts?": {
+            "main": [
+                [
+                    {
+                        "node": "Send Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Log Metrics",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send Alert": {
+            "main": [
+                [
+                    {
+                        "node": "Log Metrics",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Service Health": {
+            "main": [
+                [
+                    {
+                        "node": "Aggregate Metrics",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Metrics": {
+            "main": [
+                [
+                    {
+                        "node": "Check Thresholds",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Every 6 Hours": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "9da2b022-35bb-4637-bf7e-f5d8e3d942c8",
+    "activeVersionId": "9da2b022-35bb-4637-bf7e-f5d8e3d942c8",
+    "versionCounter": 40,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-22T03:19:20.797Z",
+            "createdAt": "2026-03-22T03:19:20.797Z",
+            "role": "workflow:owner",
+            "workflowId": "6yl4HSci6FBLAfhu",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-27T17:39:23.433Z",
+        "createdAt": "2026-03-27T17:39:23.433Z",
+        "versionId": "9da2b022-35bb-4637-bf7e-f5d8e3d942c8",
+        "workflowId": "6yl4HSci6FBLAfhu",
+        "nodes": [
+            {
+                "name": "Every 6 Hours",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    0,
+                    0
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 */6 * * *"
+                            }
+                        ]
+                    }
+                },
+                "id": "268067c8-4677-4543-b8ee-fd42e1630167"
+            },
+            {
+                "name": "Collect LiteLLM Spend",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    220,
+                    -100
+                ],
+                "parameters": {
+                    "method": "GET",
+                    "url": "http://litellm.railway.internal:4000/health",
+                    "authentication": "genericCredentialType",
+                    "options": {
+                        "timeout": 10000,
+                        "response": {
+                            "response": {
+                                "fullResponse": false
+                            }
+                        }
+                    },
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "dbefe067-d576-4c26-85a8-2e18cc41a405",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "JOEzshTgTJqyjYRg",
+                        "name": "litellm-auth"
+                    }
+                },
+                "continueOnFail": true
+            },
+            {
+                "name": "Collect LiteLLM Models",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    220,
+                    100
+                ],
+                "parameters": {
+                    "method": "GET",
+                    "url": "http://litellm.railway.internal:4000/models",
+                    "authentication": "genericCredentialType",
+                    "options": {
+                        "timeout": 10000
+                    },
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "c404e78d-c965-4ff5-afd4-1dbbf42fe5a8",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "JOEzshTgTJqyjYRg",
+                        "name": "litellm-auth"
+                    }
+                },
+                "continueOnFail": true
+            },
+            {
+                "name": "Check All Services",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    220,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const services = [\n  {name: 'openclaw', url: 'http://openclaw.railway.internal:18789/health'},\n  {name: 'paperclip', url: 'http://paperclip.railway.internal:3100/health'},\n  {name: 'n8n', url: 'http://n8n.railway.internal:5678/healthz'},\n  {name: 'litellm', url: 'http://litellm.railway.internal:4000/health'},\n  {name: 'telemetry-api', url: 'http://telemetry-api.railway.internal:8090/health'},\n  {name: 'guardspine-internal', url: 'http://guardspine-internal.railway.internal:8000/health'},\n  {name: 'decision-engine', url: 'http://decision-engine.railway.internal:8091/health'},\n  {name: 'memory-mcp', url: 'http://memory-mcp.railway.internal:8080/health'}\n];\nreturn services.map((service) => ({ json: service }));"
+                },
+                "id": "7c9ec8f0-cd23-4e5e-ba82-3bd4d85e29bb"
+            },
+            {
+                "name": "Aggregate Metrics",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    500,
+                    0
+                ],
+                "parameters": {
+                    "jsCode": "const now = new Date().toISOString();\nconst spendRaw = $('Collect LiteLLM Spend').first().json || {};\nconst modelRaw = $('Collect LiteLLM Models').first().json || {};\nconst serviceItems = $('Fetch Service Health').all().map(i => i.json || {});\n\nconst spendEntries = Array.isArray(spendRaw) ? spendRaw : (Array.isArray(spendRaw.data) ? spendRaw.data : (Array.isArray(spendRaw.response) ? spendRaw.response : []));\nconst models = Array.isArray(modelRaw.data) ? modelRaw.data : (Array.isArray(modelRaw.models) ? modelRaw.models : (Array.isArray(modelRaw) ? modelRaw : []));\nconst healthyEndpoints = Array.isArray(spendRaw.healthy_endpoints) ? spendRaw.healthy_endpoints.length : Number(spendRaw.healthy_count || 0);\nconst unhealthyEndpoints = Array.isArray(spendRaw.unhealthy_endpoints) ? spendRaw.unhealthy_endpoints.length : Number(spendRaw.unhealthy_count || 0);\n\nconst serviceHealth = serviceItems.map(item => ({\n  name: item.name || 'unknown',\n  url: item.url || null,\n  ok: item.statusCode ? item.statusCode < 400 : !(item.error || item.status === 'error'),\n  statusCode: item.statusCode || null\n}));\n\nreturn [{json: {\n  timestamp: now,\n  litellm: {\n    total_models: models.length,\n    model_names: models.map(m => m.model_name || m.id || m.name).filter(Boolean),\n    unhealthy_endpoints: unhealthyEndpoints,\n    healthy_endpoints: healthyEndpoints,\n    spend_tracking_available: false,\n    spend_source: 'litellm_health_fallback'\n  },\n  spend_entries: spendEntries,\n  service_health: serviceHealth,\n  services_checked: serviceHealth.length\n}}];"
+                },
+                "id": "e43db933-5858-448a-a0a8-001a5faa72db"
+            },
+            {
+                "name": "Check Thresholds",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    720,
+                    0
+                ],
+                "parameters": {
+                    "jsCode": "const metrics = $json;\nconst alerts = [];\nconst spendEntries = Array.isArray(metrics.spend_entries) ? metrics.spend_entries : [];\nconst todaySpend = spendEntries.reduce((sum, e) => sum + Number(e.spend || e.amount || 0), 0);\nconst downServices = (metrics.service_health || []).filter(s => s.ok === false);\n\nif (!metrics.metrics_valid) {\n  alerts.push({severity: 'MEDIUM', service: 'capacity-monitor', message: 'Metric validation failed: ' + (metrics.validation_errors || []).join(', ')});\n}\nif (downServices.length > 0) {\n  alerts.push({severity: 'HIGH', service: 'railway', message: 'Services down: ' + downServices.map(s => s.name + (s.statusCode ? ' (' + s.statusCode + ')' : '')).join(', ')});\n}\nif (metrics.litellm.unhealthy_endpoints > 0) {\n  alerts.push({severity: 'HIGH', service: 'litellm', message: metrics.litellm.unhealthy_endpoints + ' unhealthy LiteLLM endpoints detected'});\n}\nif (todaySpend > 8) {\n  alerts.push({severity: 'HIGH', service: 'litellm', message: 'Daily LLM spend: $' + todaySpend.toFixed(2) + ' (threshold: $8.00)'});\n}\n\nreturn [{json: {\n  ...metrics,\n  alerts,\n  has_alerts: alerts.length > 0,\n  daily_spend_usd: todaySpend,\n  down_services: downServices.map(s => s.name)\n}}];"
+                },
+                "id": "6dbd2c37-7b50-438c-91fc-e33bbe685331"
+            },
+            {
+                "name": "Has Alerts?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    940,
+                    0
+                ],
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": "",
+                            "typeValidation": "strict"
+                        },
+                        "conditions": [
+                            {
+                                "id": "alert-check",
+                                "leftValue": "={{ $json.has_alerts }}",
+                                "rightValue": true,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "true"
+                                }
+                            }
+                        ],
+                        "combinator": "and"
+                    }
+                },
+                "id": "cb58fae7-7a04-4119-983a-10d2bfebb604"
+            },
+            {
+                "name": "Send Alert",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1160,
+                    -50
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "authentication": "genericCredentialType",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({channel: 'C0AJMK54QCF', text: '\ud83d\udea8 *Capacity Alert*\\n' + $json.alerts.map(a => '\u2022 [' + a.severity + '] ' + a.service + ': ' + a.message).join('\\n')}) }}",
+                    "options": {},
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "id": "702a1bfd-8c67-4c6b-8b70-33f9037f3913",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                }
+            },
+            {
+                "name": "Log Metrics",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1160,
+                    100
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "authentication": "noAuth",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({stream_key: 'capacity-monitor', execution_id: 'cap-' + Date.now(), event_type: 'capacity_snapshot', payload: {daily_spend_usd: $json.daily_spend_usd, litellm_models: $json.litellm.total_models, down_services: $json.down_services, alerts_count: $json.alerts.length, metrics_valid: $json.metrics_valid}, meta: {workflow: 'M32-Capacity-Monitor'}}) }}",
+                    "options": {}
+                },
+                "id": "d9c3f26e-b76f-435f-8252-40f3fc47f210"
+            },
+            {
+                "name": "Fetch Service Health",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    760,
+                    420
+                ],
+                "parameters": {
+                    "method": "GET",
+                    "url": "={{ $json.url }}",
+                    "authentication": "none",
+                    "options": {
+                        "timeout": 5000,
+                        "ignoreResponseCode": true
+                    }
+                },
+                "id": "ada29275-b4b8-49ea-8008-5fa9f5cc974a"
+            },
+            {
+                "name": "Validate Metrics",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1250,
+                    280
+                ],
+                "parameters": {
+                    "jsCode": "const metrics = $json;\nconst validation_errors = [];\nif (!metrics.timestamp) validation_errors.push('missing_timestamp');\nif (!metrics.litellm || typeof metrics.litellm.total_models !== 'number') validation_errors.push('missing_litellm_models');\nif (!Array.isArray(metrics.service_health)) validation_errors.push('missing_service_health');\nreturn [{json:{...metrics, validation_errors, metrics_valid: validation_errors.length === 0}}];"
+                },
+                "id": "68ce9847-0bec-42d2-b6f4-4bf7d9e5b321"
+            }
+        ],
+        "connections": {
+            "Every 6 Hours": {
+                "main": [
+                    [
+                        {
+                            "node": "Collect LiteLLM Spend",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Collect LiteLLM Models",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Check All Services",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Collect LiteLLM Spend": {
+                "main": [
+                    [
+                        {
+                            "node": "Aggregate Metrics",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Collect LiteLLM Models": {
+                "main": [
+                    [
+                        {
+                            "node": "Aggregate Metrics",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Check All Services": {
+                "main": [
+                    [
+                        {
+                            "node": "Fetch Service Health",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Aggregate Metrics": {
+                "main": [
+                    [
+                        {
+                            "node": "Validate Metrics",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Check Thresholds": {
+                "main": [
+                    [
+                        {
+                            "node": "Has Alerts?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Has Alerts?": {
+                "main": [
+                    [
+                        {
+                            "node": "Send Alert",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Log Metrics",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Send Alert": {
+                "main": [
+                    [
+                        {
+                            "node": "Log Metrics",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Fetch Service Health": {
+                "main": [
+                    [
+                        {
+                            "node": "Aggregate Metrics",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Validate Metrics": {
+                "main": [
+                    [
+                        {
+                            "node": "Check Thresholds",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-27T17:39:23.507Z",
+                "id": 1772,
+                "workflowId": "6yl4HSci6FBLAfhu",
+                "versionId": "9da2b022-35bb-4637-bf7e-f5d8e3d942c8",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-27T17:40:09.224Z",
+                "id": 1780,
+                "workflowId": "6yl4HSci6FBLAfhu",
+                "versionId": "9da2b022-35bb-4637-bf7e-f5d8e3d942c8",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-27T17:39:23.466Z",
+                "id": 1771,
+                "workflowId": "6yl4HSci6FBLAfhu",
+                "versionId": "9da2b022-35bb-4637-bf7e-f5d8e3d942c8",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-27T17:40:09.206Z",
+                "id": 1779,
+                "workflowId": "6yl4HSci6FBLAfhu",
+                "versionId": "9da2b022-35bb-4637-bf7e-f5d8e3d942c8",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

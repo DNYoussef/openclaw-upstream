@@ -1,0 +1,305 @@
+{
+    "updatedAt": "2026-03-24T13:31:50.015Z",
+    "createdAt": "2026-03-24T13:30:46.127Z",
+    "id": "YxAsqrLF4WtPJZ4w",
+    "name": "W36 - Outreach Draft Delivery to Pipeline",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Schedule",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                300
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 8,12,16 * * 1-5"
+                        }
+                    ]
+                }
+            },
+            "id": "4712c058-b8f0-48ce-b430-147c014166a5"
+        },
+        {
+            "name": "Trigger Outreach Scanner",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                470,
+                300
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://openclaw.railway.internal:18789/webhook/outreach-pipeline",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "{\"action\": \"draft_followups\"}",
+                "options": {
+                    "timeout": 60000
+                },
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "sS3WHLXNPKSkpIC2",
+                    "name": "openclaw-gateway-auth"
+                }
+            },
+            "id": "06c3ca60-3137-4171-92e4-4a8d11bbbbfc"
+        },
+        {
+            "name": "Post to Pipeline",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                690,
+                300
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ channel: 'C0AKXAYJ41W', text: 'Outreach scan complete: ' + JSON.stringify($json).slice(0, 200) }) }}",
+                "options": {
+                    "timeout": 15000
+                },
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth"
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            },
+            "id": "2ad7ef79-15bd-4ba3-873b-d705f1dd09ad"
+        }
+    ],
+    "connections": {
+        "Schedule": {
+            "main": [
+                [
+                    {
+                        "node": "Trigger Outreach Scanner",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Trigger Outreach Scanner": {
+            "main": [
+                [
+                    {
+                        "node": "Post to Pipeline",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Schedule": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "b94e0e81-ee5c-4fac-bf17-d068b270ccd1",
+    "activeVersionId": "b94e0e81-ee5c-4fac-bf17-d068b270ccd1",
+    "versionCounter": 8,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-24T13:30:46.131Z",
+            "createdAt": "2026-03-24T13:30:46.131Z",
+            "role": "workflow:owner",
+            "workflowId": "YxAsqrLF4WtPJZ4w",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-24T13:31:50.016Z",
+        "createdAt": "2026-03-24T13:31:50.016Z",
+        "versionId": "b94e0e81-ee5c-4fac-bf17-d068b270ccd1",
+        "workflowId": "YxAsqrLF4WtPJZ4w",
+        "nodes": [
+            {
+                "name": "Schedule",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    250,
+                    300
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "cronExpression",
+                                "expression": "0 8,12,16 * * 1-5"
+                            }
+                        ]
+                    }
+                },
+                "id": "4712c058-b8f0-48ce-b430-147c014166a5"
+            },
+            {
+                "name": "Trigger Outreach Scanner",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    470,
+                    300
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://openclaw.railway.internal:18789/webhook/outreach-pipeline",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "{\"action\": \"draft_followups\"}",
+                    "options": {
+                        "timeout": 60000
+                    },
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "sS3WHLXNPKSkpIC2",
+                        "name": "openclaw-gateway-auth"
+                    }
+                },
+                "id": "06c3ca60-3137-4171-92e4-4a8d11bbbbfc"
+            },
+            {
+                "name": "Post to Pipeline",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    690,
+                    300
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({ channel: 'C0AKXAYJ41W', text: 'Outreach scan complete: ' + JSON.stringify($json).slice(0, 200) }) }}",
+                    "options": {
+                        "timeout": 15000
+                    },
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth"
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                },
+                "id": "2ad7ef79-15bd-4ba3-873b-d705f1dd09ad"
+            }
+        ],
+        "connections": {
+            "Schedule": {
+                "main": [
+                    [
+                        {
+                            "node": "Trigger Outreach Scanner",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Trigger Outreach Scanner": {
+                "main": [
+                    [
+                        {
+                            "node": "Post to Pipeline",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-24T13:31:50.078Z",
+                "id": 1760,
+                "workflowId": "YxAsqrLF4WtPJZ4w",
+                "versionId": "b94e0e81-ee5c-4fac-bf17-d068b270ccd1",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

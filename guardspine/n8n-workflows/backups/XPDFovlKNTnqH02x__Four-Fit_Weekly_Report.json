@@ -1,0 +1,507 @@
+{
+    "updatedAt": "2026-03-28T13:15:50.257Z",
+    "createdAt": "2026-03-28T02:59:00.144Z",
+    "id": "XPDFovlKNTnqH02x",
+    "name": "Four-Fit: Weekly Report",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                250,
+                300
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "weeks",
+                            "weeksInterval": 1,
+                            "triggerAtDay": [
+                                1
+                            ],
+                            "triggerAtHour": 9,
+                            "triggerAtMinute": 0
+                        }
+                    ]
+                }
+            },
+            "id": "f4e60e03-84b7-42b0-b9d0-b100708e6b29"
+        },
+        {
+            "name": "Check Monthly Week",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                500,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const now = new Date();\nconst dayOfMonth = now.getDate();\nconst isFirstMonday = dayOfMonth <= 7;\nconst startOfYear = new Date(now.getFullYear(), 0, 1);\nconst weekNumber = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);\n\nreturn [{ json: {\n  report_date: now.toISOString(),\n  is_monthly_week: isFirstMonday,\n  week_number: weekNumber,\n  month_label: now.toLocaleString('default', { month: 'long', year: 'numeric' }),\n  date_label: now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })\n} }];"
+            },
+            "id": "cdeb44c1-c23f-4fbb-9812-e53a87800e2f"
+        },
+        {
+            "name": "Format Weekly Brief",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                750,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const input = $input.first().json;\n\nconst weeklyBrief = {\n  ...input,\n  brief_type: input.is_monthly_week ? 'monthly' : 'weekly',\n  sections: {\n    new_evidence: { title: 'New Evidence This Week', items: [], summary: 'Ingested from W-FIT-OBSERVE \u2014 check evidence_events table' },\n    anomalies: { title: 'Anomalies and Signals', items: [], summary: 'No anomalies flagged this week' },\n    experiment_updates: { title: 'Experiment Updates', items: [], summary: 'See W-FIT-EXPERIMENT for full tracker' }\n  }\n};\n\nreturn [{ json: weeklyBrief }];"
+            },
+            "id": "d3b6ed6d-4a12-42a7-89fa-28c6dd6e3f24"
+        },
+        {
+            "name": "Is Monthly Week",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                1000,
+                300
+            ],
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.is_monthly_week }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "63145e2d-c0ce-482e-91ff-700fc339bade"
+        },
+        {
+            "name": "Format Monthly Report",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1250,
+                150
+            ],
+            "parameters": {
+                "jsCode": "const input = $input.first().json;\n\nconst report = [\n  '\ud83d\udcca *Four-Fit Monthly Report \u2014 ' + input.month_label + '*',\n  '',\n  '\ud83d\udcc5 ' + input.date_label,\n  '',\n  '*1. NEW EVIDENCE THIS WEEK*',\n  input.sections.new_evidence.summary,\n  '',\n  '*2. ANOMALIES AND SIGNALS*',\n  input.sections.anomalies.summary,\n  '',\n  '*3. EXPERIMENT UPDATES*',\n  input.sections.experiment_updates.summary,\n  '',\n  '*4. FIT SCORECARD* (from W-FIT-SCORE)',\n  '\u2192 Run /webhook/four-fit/score for latest scores',\n  '',\n  '*5. CONTRADICTIONS* (from W-FIT-DIAGNOSE)',\n  '\u2192 Run /webhook/four-fit/diagnose for detection',\n  '',\n  '*6. HYPOTHESIS UPDATES*',\n  '\u2192 Review hypotheses table for status changes',\n  '',\n  '*7. STRATEGY RECOMMENDATIONS*',\n  '\u2192 Address weakest fit dimension before scaling channels',\n  '',\n  '_Monthly Four-Fit report auto-generated by W-FIT-REPORT_'\n].join('\\n');\n\nreturn [{ json: { ...input, slack_message: report, report_type: 'monthly' } }];"
+            },
+            "id": "d3bd59eb-ca9b-4ca7-be59-a2153362e30c"
+        },
+        {
+            "name": "Format Weekly Only",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1250,
+                450
+            ],
+            "parameters": {
+                "jsCode": "const input = $input.first().json;\n\nconst report = [\n  '\ud83d\udccb *Four-Fit Weekly Brief \u2014 ' + input.date_label + '*',\n  '',\n  '*NEW EVIDENCE*',\n  input.sections.new_evidence.summary,\n  '',\n  '*ANOMALIES*',\n  input.sections.anomalies.summary,\n  '',\n  '*EXPERIMENT UPDATES*',\n  input.sections.experiment_updates.summary,\n  '',\n  '_Week ' + input.week_number + ' \u2014 Next monthly scorecard on first Monday of next month_'\n].join('\\n');\n\nreturn [{ json: { ...input, slack_message: report, report_type: 'weekly' } }];"
+            },
+            "id": "c700cefd-6812-4b04-abf0-cc655b50080f"
+        },
+        {
+            "name": "Send Report to David",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1500,
+                300
+            ],
+            "id": "15b0f6f7-dc25-4900-aac5-327a717bc060",
+            "parameters": {
+                "method": "POST",
+                "url": "https://slack.com/api/chat.postMessage",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "contentType": "json",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "channel",
+                            "value": "D0AMT6KMGNP"
+                        },
+                        {
+                            "name": "text",
+                            "value": "={{ $json.slack_message }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "To6ERybK9OzH9rtu",
+                    "name": "slack-bot-auth"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Check Monthly Week",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Monthly Week": {
+            "main": [
+                [
+                    {
+                        "node": "Format Weekly Brief",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Weekly Brief": {
+            "main": [
+                [
+                    {
+                        "node": "Is Monthly Week",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Monthly Week": {
+            "main": [
+                [
+                    {
+                        "node": "Format Monthly Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Format Weekly Only",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Monthly Report": {
+            "main": [
+                [
+                    {
+                        "node": "Send Report to David",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Weekly Only": {
+            "main": [
+                [
+                    {
+                        "node": "Send Report to David",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": {
+        "node:Schedule Trigger": {
+            "recurrenceRules": []
+        }
+    },
+    "meta": null,
+    "pinData": null,
+    "versionId": "7ab5f591-81e2-47e1-a187-699af83cd3a9",
+    "activeVersionId": "7ab5f591-81e2-47e1-a187-699af83cd3a9",
+    "versionCounter": 5,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-28T02:59:00.145Z",
+            "createdAt": "2026-03-28T02:59:00.145Z",
+            "role": "workflow:owner",
+            "workflowId": "XPDFovlKNTnqH02x",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-28T13:15:50.258Z",
+        "createdAt": "2026-03-28T13:15:50.258Z",
+        "versionId": "7ab5f591-81e2-47e1-a187-699af83cd3a9",
+        "workflowId": "XPDFovlKNTnqH02x",
+        "nodes": [
+            {
+                "name": "Schedule Trigger",
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "typeVersion": 1.2,
+                "position": [
+                    250,
+                    300
+                ],
+                "parameters": {
+                    "rule": {
+                        "interval": [
+                            {
+                                "field": "weeks",
+                                "weeksInterval": 1,
+                                "triggerAtDay": [
+                                    1
+                                ],
+                                "triggerAtHour": 9,
+                                "triggerAtMinute": 0
+                            }
+                        ]
+                    }
+                },
+                "id": "f4e60e03-84b7-42b0-b9d0-b100708e6b29"
+            },
+            {
+                "name": "Check Monthly Week",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    500,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const now = new Date();\nconst dayOfMonth = now.getDate();\nconst isFirstMonday = dayOfMonth <= 7;\nconst startOfYear = new Date(now.getFullYear(), 0, 1);\nconst weekNumber = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);\n\nreturn [{ json: {\n  report_date: now.toISOString(),\n  is_monthly_week: isFirstMonday,\n  week_number: weekNumber,\n  month_label: now.toLocaleString('default', { month: 'long', year: 'numeric' }),\n  date_label: now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })\n} }];"
+                },
+                "id": "cdeb44c1-c23f-4fbb-9812-e53a87800e2f"
+            },
+            {
+                "name": "Format Weekly Brief",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    750,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "const input = $input.first().json;\n\nconst weeklyBrief = {\n  ...input,\n  brief_type: input.is_monthly_week ? 'monthly' : 'weekly',\n  sections: {\n    new_evidence: { title: 'New Evidence This Week', items: [], summary: 'Ingested from W-FIT-OBSERVE \u2014 check evidence_events table' },\n    anomalies: { title: 'Anomalies and Signals', items: [], summary: 'No anomalies flagged this week' },\n    experiment_updates: { title: 'Experiment Updates', items: [], summary: 'See W-FIT-EXPERIMENT for full tracker' }\n  }\n};\n\nreturn [{ json: weeklyBrief }];"
+                },
+                "id": "d3b6ed6d-4a12-42a7-89fa-28c6dd6e3f24"
+            },
+            {
+                "name": "Is Monthly Week",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    1000,
+                    300
+                ],
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": "",
+                            "typeValidation": "strict"
+                        },
+                        "conditions": [
+                            {
+                                "leftValue": "={{ $json.is_monthly_week }}",
+                                "rightValue": true,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "true"
+                                }
+                            }
+                        ],
+                        "combinator": "and"
+                    }
+                },
+                "id": "63145e2d-c0ce-482e-91ff-700fc339bade"
+            },
+            {
+                "name": "Format Monthly Report",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1250,
+                    150
+                ],
+                "parameters": {
+                    "jsCode": "const input = $input.first().json;\n\nconst report = [\n  '\ud83d\udcca *Four-Fit Monthly Report \u2014 ' + input.month_label + '*',\n  '',\n  '\ud83d\udcc5 ' + input.date_label,\n  '',\n  '*1. NEW EVIDENCE THIS WEEK*',\n  input.sections.new_evidence.summary,\n  '',\n  '*2. ANOMALIES AND SIGNALS*',\n  input.sections.anomalies.summary,\n  '',\n  '*3. EXPERIMENT UPDATES*',\n  input.sections.experiment_updates.summary,\n  '',\n  '*4. FIT SCORECARD* (from W-FIT-SCORE)',\n  '\u2192 Run /webhook/four-fit/score for latest scores',\n  '',\n  '*5. CONTRADICTIONS* (from W-FIT-DIAGNOSE)',\n  '\u2192 Run /webhook/four-fit/diagnose for detection',\n  '',\n  '*6. HYPOTHESIS UPDATES*',\n  '\u2192 Review hypotheses table for status changes',\n  '',\n  '*7. STRATEGY RECOMMENDATIONS*',\n  '\u2192 Address weakest fit dimension before scaling channels',\n  '',\n  '_Monthly Four-Fit report auto-generated by W-FIT-REPORT_'\n].join('\\n');\n\nreturn [{ json: { ...input, slack_message: report, report_type: 'monthly' } }];"
+                },
+                "id": "d3bd59eb-ca9b-4ca7-be59-a2153362e30c"
+            },
+            {
+                "name": "Format Weekly Only",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1250,
+                    450
+                ],
+                "parameters": {
+                    "jsCode": "const input = $input.first().json;\n\nconst report = [\n  '\ud83d\udccb *Four-Fit Weekly Brief \u2014 ' + input.date_label + '*',\n  '',\n  '*NEW EVIDENCE*',\n  input.sections.new_evidence.summary,\n  '',\n  '*ANOMALIES*',\n  input.sections.anomalies.summary,\n  '',\n  '*EXPERIMENT UPDATES*',\n  input.sections.experiment_updates.summary,\n  '',\n  '_Week ' + input.week_number + ' \u2014 Next monthly scorecard on first Monday of next month_'\n].join('\\n');\n\nreturn [{ json: { ...input, slack_message: report, report_type: 'weekly' } }];"
+                },
+                "id": "c700cefd-6812-4b04-abf0-cc655b50080f"
+            },
+            {
+                "name": "Send Report to David",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1500,
+                    300
+                ],
+                "id": "15b0f6f7-dc25-4900-aac5-327a717bc060",
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://slack.com/api/chat.postMessage",
+                    "authentication": "genericCredentialType",
+                    "genericAuthType": "httpHeaderAuth",
+                    "sendBody": true,
+                    "contentType": "json",
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "channel",
+                                "value": "D0AMT6KMGNP"
+                            },
+                            {
+                                "name": "text",
+                                "value": "={{ $json.slack_message }}"
+                            }
+                        ]
+                    },
+                    "options": {}
+                },
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "To6ERybK9OzH9rtu",
+                        "name": "slack-bot-auth"
+                    }
+                }
+            }
+        ],
+        "connections": {
+            "Schedule Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "Check Monthly Week",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Check Monthly Week": {
+                "main": [
+                    [
+                        {
+                            "node": "Format Weekly Brief",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Format Weekly Brief": {
+                "main": [
+                    [
+                        {
+                            "node": "Is Monthly Week",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Is Monthly Week": {
+                "main": [
+                    [
+                        {
+                            "node": "Format Monthly Report",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Format Weekly Only",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Format Monthly Report": {
+                "main": [
+                    [
+                        {
+                            "node": "Send Report to David",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Format Weekly Only": {
+                "main": [
+                    [
+                        {
+                            "node": "Send Report to David",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-28T13:15:50.303Z",
+                "id": 1807,
+                "workflowId": "XPDFovlKNTnqH02x",
+                "versionId": "7ab5f591-81e2-47e1-a187-699af83cd3a9",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}
