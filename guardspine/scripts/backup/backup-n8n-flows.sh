@@ -105,9 +105,9 @@ print(safe[:80])
   WF_JSON=$(echo "$WF_JSON" | python -c "
 import json, sys, re
 
-# Patterns for secret-looking string VALUES (provider prefixes, long hex, etc.)
+# Patterns for secret-looking string VALUES (provider prefixes, Bearer tokens, etc.)
 SECRET_VALUE_RE = re.compile(
-    r'^(ntn_|secret_|sk-|sk_|xox[bpas]-|ghp_|gho_|glpat-|AKIA|eyJ)',
+    r'^(Bearer\s+)?(ntn_|secret_|sk-|sk_|xox[bpas]-|ghp_|gho_|glpat-|AKIA|eyJ)',
     re.IGNORECASE,
 )
 
@@ -120,7 +120,21 @@ SECRET_KEY_PARTS = (
     'credentials',
 )
 
+# n8n header parameter keys that signal the sibling 'value' is a secret
+AUTH_HEADER_NAMES = {'authorization', 'x-api-key', 'x-n8n-api-key'}
+
 data = json.load(sys.stdin)
+
+def redact_header_params(params_list):
+    \"\"\"Redact value fields in n8n headerParameters where name is an auth header.\"\"\"
+    result = []
+    for p in params_list:
+        if isinstance(p, dict) and p.get('name', '').lower() in AUTH_HEADER_NAMES:
+            p = dict(p)
+            if isinstance(p.get('value'), str) and len(p['value']) > 0:
+                p['value'] = '***REDACTED***'
+        result.append(p)
+    return result
 
 def redact(obj, parent_key=''):
     if isinstance(obj, dict):
@@ -133,6 +147,9 @@ def redact(obj, parent_key=''):
             elif is_secret_key and isinstance(v, dict):
                 # Redact all string values inside credential sub-objects
                 result[k] = {sk: ('***REDACTED***' if isinstance(sv, str) and len(sv) > 0 else sv) for sk, sv in v.items()}
+            elif lk == 'parameters' and isinstance(v, list):
+                # n8n headerParameters.parameters is a list of {name, value}
+                result[k] = redact_header_params(v)
             else:
                 result[k] = redact(v, parent_key=k)
         return result
