@@ -99,6 +99,57 @@ print(safe[:80])
   FILENAME="${WF_ID}__${WF_NAME}.json"
   FILEPATH="$EXPORT_DIR/$FILENAME"
 
+  # Redact credential values to avoid pushing secrets to GitHub.
+  # n8n stores credentials in nodes[].credentials (references) and may
+  # inline sensitive values in node parameters. Strip known secret patterns.
+  WF_JSON=$(echo "$WF_JSON" | python -c "
+import json, sys, re
+
+# Patterns for secret-looking string VALUES (provider prefixes, long hex, etc.)
+SECRET_VALUE_RE = re.compile(
+    r'^(ntn_|secret_|sk-|sk_|xox[bpas]-|ghp_|gho_|glpat-|AKIA|eyJ)',
+    re.IGNORECASE,
+)
+
+# Keys whose values should always be redacted
+SECRET_KEY_PARTS = (
+    'password', 'secret', 'token', 'apikey', 'api_key',
+    'authorization', 'accesstoken', 'access_token',
+    'refreshtoken', 'refresh_token', 'privatekey',
+    'private_key', 'client_secret', 'webhook_secret',
+    'credentials',
+)
+
+data = json.load(sys.stdin)
+
+def redact(obj, parent_key=''):
+    if isinstance(obj, dict):
+        result = {}
+        for k, v in obj.items():
+            lk = k.lower()
+            is_secret_key = any(s in lk for s in SECRET_KEY_PARTS)
+            if is_secret_key and isinstance(v, str) and len(v) > 0:
+                result[k] = '***REDACTED***'
+            elif is_secret_key and isinstance(v, dict):
+                # Redact all string values inside credential sub-objects
+                result[k] = {sk: ('***REDACTED***' if isinstance(sv, str) and len(sv) > 0 else sv) for sk, sv in v.items()}
+            else:
+                result[k] = redact(v, parent_key=k)
+        return result
+    elif isinstance(obj, list):
+        return [redact(item, parent_key=parent_key) for item in obj]
+    elif isinstance(obj, str) and SECRET_VALUE_RE.match(obj):
+        return '***REDACTED***'
+    return obj
+
+data = redact(data)
+print(json.dumps(data))
+" 2>&1) || {
+    log "ERROR: Credential redaction failed for $WF_ID, skipping (refusing to write unredacted secrets)"
+    FAILED=$((FAILED + 1))
+    continue
+  }
+
   # Pretty-print and write
   echo "$WF_JSON" | python -m json.tool > "$FILEPATH" 2>/dev/null || {
     # Fallback: write raw JSON if pretty-print fails
