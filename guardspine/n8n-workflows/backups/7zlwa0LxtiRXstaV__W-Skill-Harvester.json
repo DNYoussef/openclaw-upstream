@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-23T15:56:40.288Z",
+    "updatedAt": "2026-03-30T14:34:00.841Z",
     "createdAt": "2026-03-22T02:20:43.277Z",
     "id": "7zlwa0LxtiRXstaV",
     "name": "W-Skill-Harvester",
@@ -148,7 +148,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "jsonBody": "={{ JSON.stringify({text: 'Skill harvested: ' + $json.skill_name + '\\n\\n' + $json.skill_content, metadata: {type: 'auto_skill', skill_name: $json.skill_name, source_issue: $json.issue_title, created: $json.created_date, project: 'guardspine'}}) }}",
-                "options": {}
+                "options": {},
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "id": "7a2ceb07-f6c2-4ce8-b3e3-2a4a2ef6c4ff"
         },
@@ -314,9 +323,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "d15b73c3-24da-49c0-bfa8-0500032b3224",
-    "activeVersionId": "d15b73c3-24da-49c0-bfa8-0500032b3224",
-    "versionCounter": 27,
+    "versionId": "155d944e-ea95-4009-be97-19f2b0419442",
+    "activeVersionId": "155d944e-ea95-4009-be97-19f2b0419442",
+    "versionCounter": 34,
     "triggerCount": 1,
     "shared": [
         {
@@ -339,9 +348,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-23T15:56:40.289Z",
-        "createdAt": "2026-03-23T15:56:40.289Z",
-        "versionId": "d15b73c3-24da-49c0-bfa8-0500032b3224",
+        "updatedAt": "2026-03-30T14:34:00.842Z",
+        "createdAt": "2026-03-30T14:34:00.842Z",
+        "versionId": "155d944e-ea95-4009-be97-19f2b0419442",
         "workflowId": "7zlwa0LxtiRXstaV",
         "nodes": [
             {
@@ -485,7 +494,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "jsonBody": "={{ JSON.stringify({text: 'Skill harvested: ' + $json.skill_name + '\\n\\n' + $json.skill_content, metadata: {type: 'auto_skill', skill_name: $json.skill_name, source_issue: $json.issue_title, created: $json.created_date, project: 'guardspine'}}) }}",
-                    "options": {}
+                    "options": {},
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "id": "7a2ceb07-f6c2-4ce8-b3e3-2a4a2ef6c4ff"
             },
@@ -645,18 +663,34 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-23T15:56:40.337Z",
-                "id": 1708,
+                "createdAt": "2026-03-30T14:34:00.935Z",
+                "id": 1843,
                 "workflowId": "7zlwa0LxtiRXstaV",
-                "versionId": "d15b73c3-24da-49c0-bfa8-0500032b3224",
+                "versionId": "155d944e-ea95-4009-be97-19f2b0419442",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-23T15:56:40.313Z",
-                "id": 1707,
+                "createdAt": "2026-03-30T14:34:01.136Z",
+                "id": 1845,
                 "workflowId": "7zlwa0LxtiRXstaV",
-                "versionId": "d15b73c3-24da-49c0-bfa8-0500032b3224",
+                "versionId": "155d944e-ea95-4009-be97-19f2b0419442",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:00.881Z",
+                "id": 1842,
+                "workflowId": "7zlwa0LxtiRXstaV",
+                "versionId": "155d944e-ea95-4009-be97-19f2b0419442",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:01.038Z",
+                "id": 1844,
+                "workflowId": "7zlwa0LxtiRXstaV",
+                "versionId": "155d944e-ea95-4009-be97-19f2b0419442",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

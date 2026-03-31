@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:24.405Z",
+    "updatedAt": "2026-03-30T14:34:11.891Z",
     "createdAt": "2026-03-21T06:14:53.215Z",
     "id": "UL8izCx2fgUzDsZR",
     "name": "M15 - Revenue Forecast",
@@ -50,7 +50,16 @@
                 "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M15 - Revenue Forecast\"}}"
+                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M15 - Revenue Forecast\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log",
             "type": "n8n-nodes-base.httpRequest",
@@ -155,9 +164,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "27629702-c1ce-4e0f-a05e-5bd296396bd3",
-    "activeVersionId": "27629702-c1ce-4e0f-a05e-5bd296396bd3",
-    "versionCounter": 46,
+    "versionId": "6a9f26e3-7a2b-479a-9b24-8d44b3402f1e",
+    "activeVersionId": "6a9f26e3-7a2b-479a-9b24-8d44b3402f1e",
+    "versionCounter": 53,
     "triggerCount": 1,
     "shared": [
         {
@@ -180,9 +189,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:24.406Z",
-        "createdAt": "2026-03-21T18:42:24.406Z",
-        "versionId": "27629702-c1ce-4e0f-a05e-5bd296396bd3",
+        "updatedAt": "2026-03-30T14:34:11.891Z",
+        "createdAt": "2026-03-30T14:34:11.891Z",
+        "versionId": "6a9f26e3-7a2b-479a-9b24-8d44b3402f1e",
         "workflowId": "UL8izCx2fgUzDsZR",
         "nodes": [
             {
@@ -228,7 +237,16 @@
                     "method": "POST",
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M15 - Revenue Forecast\"}}"
+                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M15 - Revenue Forecast\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log",
                 "type": "n8n-nodes-base.httpRequest",
@@ -327,11 +345,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:24.483Z",
-                "id": 1401,
+                "createdAt": "2026-03-30T14:34:11.941Z",
+                "id": 1951,
                 "workflowId": "UL8izCx2fgUzDsZR",
-                "versionId": "27629702-c1ce-4e0f-a05e-5bd296396bd3",
+                "versionId": "6a9f26e3-7a2b-479a-9b24-8d44b3402f1e",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:12.135Z",
+                "id": 1953,
+                "workflowId": "UL8izCx2fgUzDsZR",
+                "versionId": "6a9f26e3-7a2b-479a-9b24-8d44b3402f1e",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:11.920Z",
+                "id": 1950,
+                "workflowId": "UL8izCx2fgUzDsZR",
+                "versionId": "6a9f26e3-7a2b-479a-9b24-8d44b3402f1e",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:12.037Z",
+                "id": 1952,
+                "workflowId": "UL8izCx2fgUzDsZR",
+                "versionId": "6a9f26e3-7a2b-479a-9b24-8d44b3402f1e",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

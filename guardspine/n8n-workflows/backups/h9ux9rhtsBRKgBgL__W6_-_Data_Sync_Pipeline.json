@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-23T17:23:39.454Z",
+    "updatedAt": "2026-03-30T14:34:17.030Z",
     "createdAt": "2026-03-20T17:30:01.417Z",
     "id": "h9ux9rhtsBRKgBgL",
     "name": "W6 - Data Sync Pipeline",
@@ -77,6 +77,15 @@
                             "value": "50"
                         }
                     ]
+                },
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
                 }
             },
             "name": "Fetch Telemetry Events",
@@ -122,7 +131,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"data_sync_result\", \"payload\": {\"paperclip_count\": \"={{ $json.paperclip_count }}\", \"telemetry_count\": \"={{ $json.telemetry_count }}\", \"missing_from_telemetry\": \"={{ $json.missing_from_telemetry }}\", \"orphaned_in_telemetry\": \"={{ $json.orphaned_in_telemetry }}\", \"in_sync\": \"={{ $json.in_sync }}\", \"missing_ids\": \"={{ JSON.stringify($json.missing_ids) }}\", \"orphaned_ids\": \"={{ JSON.stringify($json.orphaned_ids) }}\"}}"
+                "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"data_sync_result\", \"payload\": {\"paperclip_count\": \"={{ $json.paperclip_count }}\", \"telemetry_count\": \"={{ $json.telemetry_count }}\", \"missing_from_telemetry\": \"={{ $json.missing_from_telemetry }}\", \"orphaned_in_telemetry\": \"={{ $json.orphaned_in_telemetry }}\", \"in_sync\": \"={{ $json.in_sync }}\", \"missing_ids\": \"={{ JSON.stringify($json.missing_ids) }}\", \"orphaned_ids\": \"={{ JSON.stringify($json.orphaned_ids) }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Sync Result",
             "type": "n8n-nodes-base.httpRequest",
@@ -151,7 +169,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W6 - Data Sync Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W6 - Data Sync Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -312,15 +339,15 @@
     "staticData": {
         "node:Every 6 Hours": {
             "recurrenceRules": [
-                6
+                0
             ]
         }
     },
     "meta": null,
     "pinData": null,
-    "versionId": "88e03872-e010-4a5f-9d63-35630b3a7e6d",
-    "activeVersionId": "88e03872-e010-4a5f-9d63-35630b3a7e6d",
-    "versionCounter": 118,
+    "versionId": "83539372-0368-40ea-935b-2be4ea41acd1",
+    "activeVersionId": "83539372-0368-40ea-935b-2be4ea41acd1",
+    "versionCounter": 128,
     "triggerCount": 1,
     "shared": [
         {
@@ -343,9 +370,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-23T17:23:39.455Z",
-        "createdAt": "2026-03-23T17:23:39.455Z",
-        "versionId": "88e03872-e010-4a5f-9d63-35630b3a7e6d",
+        "updatedAt": "2026-03-30T14:34:17.031Z",
+        "createdAt": "2026-03-30T14:34:17.031Z",
+        "versionId": "83539372-0368-40ea-935b-2be4ea41acd1",
         "workflowId": "h9ux9rhtsBRKgBgL",
         "nodes": [
             {
@@ -418,6 +445,15 @@
                                 "value": "50"
                             }
                         ]
+                    },
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
                     }
                 },
                 "name": "Fetch Telemetry Events",
@@ -463,7 +499,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"data_sync_result\", \"payload\": {\"paperclip_count\": \"={{ $json.paperclip_count }}\", \"telemetry_count\": \"={{ $json.telemetry_count }}\", \"missing_from_telemetry\": \"={{ $json.missing_from_telemetry }}\", \"orphaned_in_telemetry\": \"={{ $json.orphaned_in_telemetry }}\", \"in_sync\": \"={{ $json.in_sync }}\", \"missing_ids\": \"={{ JSON.stringify($json.missing_ids) }}\", \"orphaned_ids\": \"={{ JSON.stringify($json.orphaned_ids) }}\"}}"
+                    "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"data_sync_result\", \"payload\": {\"paperclip_count\": \"={{ $json.paperclip_count }}\", \"telemetry_count\": \"={{ $json.telemetry_count }}\", \"missing_from_telemetry\": \"={{ $json.missing_from_telemetry }}\", \"orphaned_in_telemetry\": \"={{ $json.orphaned_in_telemetry }}\", \"in_sync\": \"={{ $json.in_sync }}\", \"missing_ids\": \"={{ JSON.stringify($json.missing_ids) }}\", \"orphaned_ids\": \"={{ JSON.stringify($json.orphaned_ids) }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Sync Result",
                 "type": "n8n-nodes-base.httpRequest",
@@ -492,7 +537,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W6 - Data Sync Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W6 - Data Sync Pipeline\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -651,18 +705,34 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-23T17:23:39.493Z",
-                "id": 1750,
+                "createdAt": "2026-03-30T14:34:17.076Z",
+                "id": 2003,
                 "workflowId": "h9ux9rhtsBRKgBgL",
-                "versionId": "88e03872-e010-4a5f-9d63-35630b3a7e6d",
+                "versionId": "83539372-0368-40ea-935b-2be4ea41acd1",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-23T17:23:39.479Z",
-                "id": 1749,
+                "createdAt": "2026-03-30T14:34:17.289Z",
+                "id": 2005,
                 "workflowId": "h9ux9rhtsBRKgBgL",
-                "versionId": "88e03872-e010-4a5f-9d63-35630b3a7e6d",
+                "versionId": "83539372-0368-40ea-935b-2be4ea41acd1",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:17.057Z",
+                "id": 2002,
+                "workflowId": "h9ux9rhtsBRKgBgL",
+                "versionId": "83539372-0368-40ea-935b-2be4ea41acd1",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:17.192Z",
+                "id": 2004,
+                "workflowId": "h9ux9rhtsBRKgBgL",
+                "versionId": "83539372-0368-40ea-935b-2be4ea41acd1",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

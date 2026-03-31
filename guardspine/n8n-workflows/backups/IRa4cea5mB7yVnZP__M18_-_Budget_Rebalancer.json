@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:21.847Z",
+    "updatedAt": "2026-03-30T14:34:05.718Z",
     "createdAt": "2026-03-21T06:14:53.555Z",
     "id": "IRa4cea5mB7yVnZP",
     "name": "M18 - Budget Rebalancer",
@@ -50,7 +50,16 @@
                 "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M18 - Budget Rebalancer\"}}"
+                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M18 - Budget Rebalancer\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log",
             "type": "n8n-nodes-base.httpRequest",
@@ -155,9 +164,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "886b2b7d-aa90-4d8e-a775-d761b777da83",
-    "activeVersionId": "886b2b7d-aa90-4d8e-a775-d761b777da83",
-    "versionCounter": 46,
+    "versionId": "f87d8351-d2a6-453c-9575-732e44c62d2d",
+    "activeVersionId": "f87d8351-d2a6-453c-9575-732e44c62d2d",
+    "versionCounter": 53,
     "triggerCount": 1,
     "shared": [
         {
@@ -180,9 +189,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:21.847Z",
-        "createdAt": "2026-03-21T18:42:21.847Z",
-        "versionId": "886b2b7d-aa90-4d8e-a775-d761b777da83",
+        "updatedAt": "2026-03-30T14:34:05.719Z",
+        "createdAt": "2026-03-30T14:34:05.719Z",
+        "versionId": "f87d8351-d2a6-453c-9575-732e44c62d2d",
         "workflowId": "IRa4cea5mB7yVnZP",
         "nodes": [
             {
@@ -228,7 +237,16 @@
                     "method": "POST",
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M18 - Budget Rebalancer\"}}"
+                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M18 - Budget Rebalancer\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log",
                 "type": "n8n-nodes-base.httpRequest",
@@ -327,11 +345,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:21.892Z",
-                "id": 1367,
+                "createdAt": "2026-03-30T14:34:05.764Z",
+                "id": 1891,
                 "workflowId": "IRa4cea5mB7yVnZP",
-                "versionId": "886b2b7d-aa90-4d8e-a775-d761b777da83",
+                "versionId": "f87d8351-d2a6-453c-9575-732e44c62d2d",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:05.964Z",
+                "id": 1893,
+                "workflowId": "IRa4cea5mB7yVnZP",
+                "versionId": "f87d8351-d2a6-453c-9575-732e44c62d2d",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:05.741Z",
+                "id": 1890,
+                "workflowId": "IRa4cea5mB7yVnZP",
+                "versionId": "f87d8351-d2a6-453c-9575-732e44c62d2d",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:05.844Z",
+                "id": 1892,
+                "workflowId": "IRa4cea5mB7yVnZP",
+                "versionId": "f87d8351-d2a6-453c-9575-732e44c62d2d",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

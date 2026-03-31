@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:23.130Z",
+    "updatedAt": "2026-03-30T14:34:08.202Z",
     "createdAt": "2026-03-20T17:29:59.218Z",
     "id": "MhgAfp7Cd2tq92He",
     "name": "W27 - Git Backup",
@@ -70,7 +70,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "={\"service\": \"backup\", \"event_type\": \"workflow_snapshot\", \"payload\": {\"workflow_count\": {{ $json.workflow_count }}, \"active_count\": {{ $json.active_count }}, \"workflows\": {{ JSON.stringify($json.workflows) }}, \"backup_timestamp\": \"{{ $json.backup_timestamp }}\"}}"
+                "jsonBody": "={\"service\": \"backup\", \"event_type\": \"workflow_snapshot\", \"payload\": {\"workflow_count\": {{ $json.workflow_count }}, \"active_count\": {{ $json.active_count }}, \"workflows\": {{ JSON.stringify($json.workflows) }}, \"backup_timestamp\": \"{{ $json.backup_timestamp }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Backup",
             "type": "n8n-nodes-base.httpRequest",
@@ -99,7 +108,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W27 - Git Backup\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W27 - Git Backup\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -237,9 +255,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "52b593c4-da1b-43ff-a930-31f17ee408cd",
-    "activeVersionId": "52b593c4-da1b-43ff-a930-31f17ee408cd",
-    "versionCounter": 48,
+    "versionId": "feaf199d-1a30-4cb6-b4ab-493577c4e7f6",
+    "activeVersionId": "feaf199d-1a30-4cb6-b4ab-493577c4e7f6",
+    "versionCounter": 55,
     "triggerCount": 1,
     "shared": [
         {
@@ -262,9 +280,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:23.131Z",
-        "createdAt": "2026-03-21T18:42:23.131Z",
-        "versionId": "52b593c4-da1b-43ff-a930-31f17ee408cd",
+        "updatedAt": "2026-03-30T14:34:08.202Z",
+        "createdAt": "2026-03-30T14:34:08.202Z",
+        "versionId": "feaf199d-1a30-4cb6-b4ab-493577c4e7f6",
         "workflowId": "MhgAfp7Cd2tq92He",
         "nodes": [
             {
@@ -330,7 +348,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "={\"service\": \"backup\", \"event_type\": \"workflow_snapshot\", \"payload\": {\"workflow_count\": {{ $json.workflow_count }}, \"active_count\": {{ $json.active_count }}, \"workflows\": {{ JSON.stringify($json.workflows) }}, \"backup_timestamp\": \"{{ $json.backup_timestamp }}\"}}"
+                    "jsonBody": "={\"service\": \"backup\", \"event_type\": \"workflow_snapshot\", \"payload\": {\"workflow_count\": {{ $json.workflow_count }}, \"active_count\": {{ $json.active_count }}, \"workflows\": {{ JSON.stringify($json.workflows) }}, \"backup_timestamp\": \"{{ $json.backup_timestamp }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Backup",
                 "type": "n8n-nodes-base.httpRequest",
@@ -359,7 +386,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W27 - Git Backup\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W27 - Git Backup\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -491,11 +527,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:23.179Z",
-                "id": 1385,
+                "createdAt": "2026-03-30T14:34:08.320Z",
+                "id": 1915,
                 "workflowId": "MhgAfp7Cd2tq92He",
-                "versionId": "52b593c4-da1b-43ff-a930-31f17ee408cd",
+                "versionId": "feaf199d-1a30-4cb6-b4ab-493577c4e7f6",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:08.518Z",
+                "id": 1917,
+                "workflowId": "MhgAfp7Cd2tq92He",
+                "versionId": "feaf199d-1a30-4cb6-b4ab-493577c4e7f6",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:08.229Z",
+                "id": 1914,
+                "workflowId": "MhgAfp7Cd2tq92He",
+                "versionId": "feaf199d-1a30-4cb6-b4ab-493577c4e7f6",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:08.430Z",
+                "id": 1916,
+                "workflowId": "MhgAfp7Cd2tq92He",
+                "versionId": "feaf199d-1a30-4cb6-b4ab-493577c4e7f6",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

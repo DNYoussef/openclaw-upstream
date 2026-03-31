@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-23T16:17:29.444Z",
+    "updatedAt": "2026-03-30T14:33:58.302Z",
     "createdAt": "2026-03-21T14:09:25.470Z",
     "id": "1f8J2nTUI3Hw0L6i",
     "name": "H12 - Model Lab Heartbeat",
@@ -88,6 +88,15 @@
                 "jsonBody": "{\"query_name\":\"recent_telemetry\",\"params\":{\"limit\":100}}",
                 "options": {
                     "timeout": 15000
+                },
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
                 }
             }
         },
@@ -415,9 +424,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "adbb3765-2647-4953-a3ba-62279628842c",
-    "activeVersionId": "adbb3765-2647-4953-a3ba-62279628842c",
-    "versionCounter": 48,
+    "versionId": "b4c0f169-a789-445c-8584-f740111fe5f9",
+    "activeVersionId": "b4c0f169-a789-445c-8584-f740111fe5f9",
+    "versionCounter": 55,
     "triggerCount": 1,
     "shared": [
         {
@@ -440,9 +449,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-23T16:17:29.444Z",
-        "createdAt": "2026-03-23T16:17:29.444Z",
-        "versionId": "adbb3765-2647-4953-a3ba-62279628842c",
+        "updatedAt": "2026-03-30T14:33:58.303Z",
+        "createdAt": "2026-03-30T14:33:58.303Z",
+        "versionId": "b4c0f169-a789-445c-8584-f740111fe5f9",
         "workflowId": "1f8J2nTUI3Hw0L6i",
         "nodes": [
             {
@@ -526,6 +535,15 @@
                     "jsonBody": "{\"query_name\":\"recent_telemetry\",\"params\":{\"limit\":100}}",
                     "options": {
                         "timeout": 15000
+                    },
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
                     }
                 }
             },
@@ -847,18 +865,34 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-23T16:17:29.494Z",
-                "id": 1740,
+                "createdAt": "2026-03-30T14:33:58.377Z",
+                "id": 1819,
                 "workflowId": "1f8J2nTUI3Hw0L6i",
-                "versionId": "adbb3765-2647-4953-a3ba-62279628842c",
+                "versionId": "b4c0f169-a789-445c-8584-f740111fe5f9",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-23T16:17:29.478Z",
-                "id": 1739,
+                "createdAt": "2026-03-30T14:33:58.545Z",
+                "id": 1821,
                 "workflowId": "1f8J2nTUI3Hw0L6i",
-                "versionId": "adbb3765-2647-4953-a3ba-62279628842c",
+                "versionId": "b4c0f169-a789-445c-8584-f740111fe5f9",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:33:58.360Z",
+                "id": 1818,
+                "workflowId": "1f8J2nTUI3Hw0L6i",
+                "versionId": "b4c0f169-a789-445c-8584-f740111fe5f9",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:33:58.458Z",
+                "id": 1820,
+                "workflowId": "1f8J2nTUI3Hw0L6i",
+                "versionId": "b4c0f169-a789-445c-8584-f740111fe5f9",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

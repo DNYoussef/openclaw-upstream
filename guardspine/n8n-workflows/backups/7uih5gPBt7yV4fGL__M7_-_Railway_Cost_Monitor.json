@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-22T18:16:39.747Z",
+    "updatedAt": "2026-03-30T14:34:00.406Z",
     "createdAt": "2026-03-21T06:14:33.634Z",
     "id": "7uih5gPBt7yV4fGL",
     "name": "M7 - Railway Cost Monitor",
@@ -33,6 +33,15 @@
                 "method": "GET",
                 "options": {
                     "timeout": 10000
+                },
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
                 }
             },
             "name": "Execute",
@@ -50,7 +59,16 @@
                 "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M7 - Railway Cost Monitor\"}}"
+                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M7 - Railway Cost Monitor\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log",
             "type": "n8n-nodes-base.httpRequest",
@@ -155,9 +173,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "cc6c509a-5dc7-4cb8-a258-b193696411e2",
-    "activeVersionId": "cc6c509a-5dc7-4cb8-a258-b193696411e2",
-    "versionCounter": 49,
+    "versionId": "880d9897-90cf-4b4f-9c09-3c4bd7a1678c",
+    "activeVersionId": "880d9897-90cf-4b4f-9c09-3c4bd7a1678c",
+    "versionCounter": 56,
     "triggerCount": 1,
     "shared": [
         {
@@ -180,9 +198,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-22T18:16:39.747Z",
-        "createdAt": "2026-03-22T18:16:39.747Z",
-        "versionId": "cc6c509a-5dc7-4cb8-a258-b193696411e2",
+        "updatedAt": "2026-03-30T14:34:00.407Z",
+        "createdAt": "2026-03-30T14:34:00.407Z",
+        "versionId": "880d9897-90cf-4b4f-9c09-3c4bd7a1678c",
         "workflowId": "7uih5gPBt7yV4fGL",
         "nodes": [
             {
@@ -211,6 +229,15 @@
                     "method": "GET",
                     "options": {
                         "timeout": 10000
+                    },
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
                     }
                 },
                 "name": "Execute",
@@ -228,7 +255,16 @@
                     "method": "POST",
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M7 - Railway Cost Monitor\"}}"
+                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M7 - Railway Cost Monitor\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log",
                 "type": "n8n-nodes-base.httpRequest",
@@ -327,18 +363,34 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-22T18:16:39.791Z",
-                "id": 1615,
+                "createdAt": "2026-03-30T14:34:00.464Z",
+                "id": 1839,
                 "workflowId": "7uih5gPBt7yV4fGL",
-                "versionId": "cc6c509a-5dc7-4cb8-a258-b193696411e2",
+                "versionId": "880d9897-90cf-4b4f-9c09-3c4bd7a1678c",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-22T18:16:39.777Z",
-                "id": 1614,
+                "createdAt": "2026-03-30T14:34:00.664Z",
+                "id": 1841,
                 "workflowId": "7uih5gPBt7yV4fGL",
-                "versionId": "cc6c509a-5dc7-4cb8-a258-b193696411e2",
+                "versionId": "880d9897-90cf-4b4f-9c09-3c4bd7a1678c",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:00.446Z",
+                "id": 1838,
+                "workflowId": "7uih5gPBt7yV4fGL",
+                "versionId": "880d9897-90cf-4b4f-9c09-3c4bd7a1678c",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:00.564Z",
+                "id": 1840,
+                "workflowId": "7uih5gPBt7yV4fGL",
+                "versionId": "880d9897-90cf-4b4f-9c09-3c4bd7a1678c",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

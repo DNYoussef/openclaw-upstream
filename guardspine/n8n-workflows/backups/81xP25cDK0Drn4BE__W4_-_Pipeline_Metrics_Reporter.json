@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:19.562Z",
+    "updatedAt": "2026-03-30T14:34:01.281Z",
     "createdAt": "2026-03-20T17:30:00.796Z",
     "id": "81xP25cDK0Drn4BE",
     "name": "W4 - Pipeline Metrics Reporter",
@@ -29,7 +29,16 @@
         },
         {
             "parameters": {
-                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_outreach?weeks=4&limit=10"
+                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_outreach?weeks=4&limit=10",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Query Outreach KPIs",
             "type": "n8n-nodes-base.httpRequest",
@@ -42,7 +51,16 @@
         },
         {
             "parameters": {
-                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10"
+                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Query Automation KPIs",
             "type": "n8n-nodes-base.httpRequest",
@@ -73,7 +91,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"pipeline\", \"event_type\": \"weekly_report\", \"payload\": {\"report\": \"={{ $json.report }}\", \"week\": \"={{ $json.week }}\"}}"
+                "jsonBody": "{\"service\": \"pipeline\", \"event_type\": \"weekly_report\", \"payload\": {\"report\": \"={{ $json.report }}\", \"week\": \"={{ $json.week }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Emit Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -102,7 +129,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W4 - Pipeline Metrics Reporter\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W4 - Pipeline Metrics Reporter\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -256,9 +292,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "ef1e6ed9-525c-474b-87fa-6672d6491fce",
-    "activeVersionId": "ef1e6ed9-525c-474b-87fa-6672d6491fce",
-    "versionCounter": 48,
+    "versionId": "efb8122a-4b1f-48fc-bd89-cd5e9ebe9cd7",
+    "activeVersionId": "efb8122a-4b1f-48fc-bd89-cd5e9ebe9cd7",
+    "versionCounter": 55,
     "triggerCount": 1,
     "shared": [
         {
@@ -281,9 +317,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:19.562Z",
-        "createdAt": "2026-03-21T18:42:19.562Z",
-        "versionId": "ef1e6ed9-525c-474b-87fa-6672d6491fce",
+        "updatedAt": "2026-03-30T14:34:01.282Z",
+        "createdAt": "2026-03-30T14:34:01.282Z",
+        "versionId": "efb8122a-4b1f-48fc-bd89-cd5e9ebe9cd7",
         "workflowId": "81xP25cDK0Drn4BE",
         "nodes": [
             {
@@ -308,7 +344,16 @@
             },
             {
                 "parameters": {
-                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_outreach?weeks=4&limit=10"
+                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_outreach?weeks=4&limit=10",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Query Outreach KPIs",
                 "type": "n8n-nodes-base.httpRequest",
@@ -321,7 +366,16 @@
             },
             {
                 "parameters": {
-                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10"
+                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Query Automation KPIs",
                 "type": "n8n-nodes-base.httpRequest",
@@ -352,7 +406,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"pipeline\", \"event_type\": \"weekly_report\", \"payload\": {\"report\": \"={{ $json.report }}\", \"week\": \"={{ $json.week }}\"}}"
+                    "jsonBody": "{\"service\": \"pipeline\", \"event_type\": \"weekly_report\", \"payload\": {\"report\": \"={{ $json.report }}\", \"week\": \"={{ $json.week }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Emit Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -381,7 +444,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W4 - Pipeline Metrics Reporter\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W4 - Pipeline Metrics Reporter\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -529,11 +601,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:19.603Z",
-                "id": 1341,
+                "createdAt": "2026-03-30T14:34:01.325Z",
+                "id": 1847,
                 "workflowId": "81xP25cDK0Drn4BE",
-                "versionId": "ef1e6ed9-525c-474b-87fa-6672d6491fce",
+                "versionId": "efb8122a-4b1f-48fc-bd89-cd5e9ebe9cd7",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:01.534Z",
+                "id": 1849,
+                "workflowId": "81xP25cDK0Drn4BE",
+                "versionId": "efb8122a-4b1f-48fc-bd89-cd5e9ebe9cd7",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:01.310Z",
+                "id": 1846,
+                "workflowId": "81xP25cDK0Drn4BE",
+                "versionId": "efb8122a-4b1f-48fc-bd89-cd5e9ebe9cd7",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:01.426Z",
+                "id": 1848,
+                "workflowId": "81xP25cDK0Drn4BE",
+                "versionId": "efb8122a-4b1f-48fc-bd89-cd5e9ebe9cd7",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

@@ -1,0 +1,697 @@
+{
+    "updatedAt": "2026-03-30T14:34:09.937Z",
+    "createdAt": "2026-03-30T13:23:50.341Z",
+    "id": "Ooan2x0eMmWW7uBa",
+    "name": "W5-CMO - Handoff Sheet Generator",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Handoff Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                250,
+                300
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "cmo/handoff-sheet",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "019a8e2f-a36b-4865-82f0-de7916bc6319"
+        },
+        {
+            "name": "Manual Trigger",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                250,
+                500
+            ],
+            "parameters": {},
+            "id": "63d21b7e-9da7-4213-8d4f-1fac0268d031"
+        },
+        {
+            "name": "Lookup Prospect in DB",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                500,
+                400
+            ],
+            "parameters": {
+                "jsCode": "// Extract prospect email from W4 trigger or manual input\nconst input = $json || {};\nconst email = (input.prospect_email || input.email || '').toLowerCase().trim();\n\nif (!email) {\n  return [{ json: { error: true, message: 'No prospect_email provided' } }];\n}\n\n// Pass email forward for HTTP lookup\nreturn [{ json: {\n  error: false,\n  prospect_email: email,\n  signal_type: input.signal_type || 'green',\n  signal_notes: input.signal_notes || '',\n  response_snippet: input.response_snippet || '',\n  funnel_stage: input.funnel_stage || 'green_signal',\n  received_at: input.last_response_at || new Date().toISOString()\n}}];"
+            },
+            "id": "c3808bd1-f6ee-49c8-ac5d-14f2a6c0a68a"
+        },
+        {
+            "name": "Valid Email?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                750,
+                400
+            ],
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": ""
+                    },
+                    "conditions": [
+                        {
+                            "id": "w5-cond-valid",
+                            "leftValue": "={{ $json.error }}",
+                            "rightValue": false,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "3267236a-8835-4bf5-94e5-8c940f8cec07"
+        },
+        {
+            "name": "Query Outreach DB",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1000,
+                300
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://telemetry-api.railway.internal:8090/query",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ query: 'prospect_lookup', filters: { email: $json.prospect_email } }) }}",
+                "options": {
+                    "timeout": 10000
+                },
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
+            },
+            "id": "0a73b8d5-f56e-4df5-aa6e-cb9134314abb"
+        },
+        {
+            "name": "Build Handoff Sheet",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1250,
+                300
+            ],
+            "parameters": {
+                "jsCode": "// Build pre-call handoff sheet from prospect data + discovery tree + persona cards\n// This is the core value of W5\n\nconst signalData = $('Lookup Prospect in DB').item.json;\nconst dbResult = $json || {};\n\n// Prospect data (from DB lookup or signal data)\nconst prospect = dbResult.prospect || {};\nconst name = prospect.name || signalData.prospect_email;\nconst company = prospect.company || 'Unknown';\nconst title = prospect.title || 'Unknown';\nconst lane = prospect.lane || 'buyer';\nconst persona = prospect.persona || '';\nconst pain_bucket = prospect.pain_bucket || '';\nconst struggling_moment = prospect.struggling_moment_hypothesis || '';\nconst research_notes = prospect.research_notes || '';\nconst ai_adoption = prospect.ai_adoption_signal || '';\nconst governance_signal = prospect.governance_signal || '';\nconst response_snippet = signalData.response_snippet || prospect.response_snippet || '';\n\n// === PERSONA CARD MATCHING ===\nconst personaCards = {\n  'appsec': {\n    persona: 'AppSec Lead / Security Engineering Manager',\n    discovery_opener: 'How has PR volume or review surface changed since your team adopted AI coding tools?',\n    pitch_variant: 'GuardSpine helps your team stop treating every PR like it deserves the same amount of attention. We surface the changes that actually deserve stronger review.',\n    urgency_lever: 'Every week without governance, the review debt compounds. The gap does not shrink on its own.',\n    best_next_step: 'A narrow pilot on one repo or one class of changes.',\n    best_message: 'You keep velocity; we add proof. We govern the diff, not the origin myth.'\n  },\n  'cto': {\n    persona: 'CTO / VP Engineering',\n    discovery_opener: 'When you approved AI coding assistants across the org, what was the plan for governing the output?',\n    pitch_variant: 'GuardSpine preserves speed, not taxes it. Low-risk changes stay fast. Riskier ones do not slide through.',\n    urgency_lever: 'Engineering orgs with governance attract better talent. Engineers hate ungoverned chaos.',\n    best_next_step: 'Technical validation call with platform owner and one security stakeholder.',\n    best_message: 'You should not have to choose between AI-assisted speed and a trustworthy approval trail.'\n  },\n  'ciso': {\n    persona: 'CISO / VP Security',\n    discovery_opener: 'If your board asked tomorrow -- what is our governance posture on AI-generated code changes? -- what would you tell them?',\n    pitch_variant: 'GuardSpine turns a weak approval trail into a defensible one. Risky change handled like a risky change, evidence preserved.',\n    urgency_lever: 'Your next board meeting is coming. Walk in with pilot results, not we are evaluating.',\n    best_next_step: 'Working session around one real control gap or one recent uncomfortable change.',\n    best_message: 'Durable evidence, defensible narrative.'\n  },\n  'grc': {\n    persona: 'GRC / Compliance Manager',\n    discovery_opener: 'When was the last time audit or security asked for proof around a change and it was annoying to produce?',\n    pitch_variant: 'GuardSpine creates evidence during normal work so your team is not reconstructing the story of a change from screenshots and scattered systems later.',\n    urgency_lever: 'The mandate is coming. The question is whether you have evidence before they ask, or you scramble after.',\n    best_next_step: 'Map one audit control to GuardSpine evidence output.',\n    best_message: 'Evidence during work, not after the fact.'\n  },\n  'platform': {\n    persona: 'Platform / DevOps Engineering Manager',\n    discovery_opener: 'How many different CI checks, custom scripts, and manual processes make up your current code governance?',\n    pitch_variant: 'GuardSpine replaces the patchwork of custom CI checks with a single governance layer that classifies risk and routes changes appropriately.',\n    urgency_lever: 'Every custom script is tech debt someone will have to maintain. One layer beats twelve patches.',\n    best_next_step: 'Audit current CI governance patchwork together.',\n    best_message: 'One governance layer, not twelve custom scripts.'\n  },\n  'developer': {\n    persona: 'Senior Developer / Tech Lead',\n    discovery_opener: 'Has AI changed the size, volume, or noisiness of the diffs your team reviews?',\n    pitch_variant: 'GuardSpine highlights the few parts of a diff touching permissions, secrets, or control paths. Selective, not noisy. Sharper flashlight.',\n    urgency_lever: 'Your best reviewers are drowning in noise. This gives them back their attention.',\n    best_next_step: 'Install codeguard-action on one repo. Two minutes.',\n    best_message: 'Sharper flashlight, not more bureaucracy.'\n  },\n  'startup_ceo': {\n    persona: 'Startup CEO / Founder',\n    discovery_opener: 'What governance story will your next enterprise buyer or investor expect to hear?',\n    pitch_variant: 'GuardSpine gives you the answer to the governance question your next enterprise buyer will ask. Install in two minutes. Evidence accumulates immediately.',\n    urgency_lever: 'Enterprise buyers ask the governance question. Having the answer closes deals.',\n    best_next_step: 'Install on your main repo. Show evidence to next enterprise prospect.',\n    best_message: 'Two-minute install. Enterprise-ready governance story.'\n  }\n};\n\n// === PAIN BUCKET MAPPING ===\nconst painBuckets = {\n  'review_velocity_gap': {\n    label: 'Review Velocity Gap',\n    description: 'Contributors producing faster than governance can check.',\n    discovery_branch: [\n      'How many people are pushing changes versus how many are doing meaningful review?',\n      'Where do your best reviewers spend time today that feels wasteful?'\n    ]\n  },\n  'evidence_chain_gap': {\n    label: 'Evidence Chain Gap',\n    description: 'Changes happening without auditable trails.',\n    discovery_branch: [\n      'How much time did the last evidence pull take?',\n      'How often does proof live across GitHub, tickets, Slack, and memory?'\n    ]\n  },\n  'semantic_governance_gap': {\n    label: 'Semantic Governance Gap',\n    description: 'Process compliance is solid but nobody is verifying what artifacts mean.',\n    discovery_branch: [\n      'How often do you see an approved PR where the risky part could easily be missed?',\n      'How much of your trust is the process versus the specific people involved?'\n    ]\n  },\n  'authorization_provenance_gap': {\n    label: 'Authorization Provenance Gap',\n    description: 'Changes happening but the who-authorized-what trail is broken.',\n    discovery_branch: [\n      'How often do you see an approved PR where the risky part could easily be missed?',\n      'How much of your trust is the process versus the specific people involved?'\n    ]\n  },\n  'regulatory_readiness_gap': {\n    label: 'Regulatory Readiness Gap',\n    description: 'The mandate is coming and the current stack cannot produce the evidence required.',\n    discovery_branch: [\n      'Who will ask the hard question first: board, audit, customer, or internal security?',\n      'What answer do you have today that you actually feel good about?'\n    ]\n  }\n};\n\n// === OBJECTION BRIDGES (top 5 most common) ===\nconst objectionBridges = [\n  {\n    trigger: 'We already have GitHub, branch protections, codeowners, and scanners.',\n    bridge: 'GitHub tells you what changed. We tell you what it means that it changed.',\n    counter: 'GitHub can show the PR was approved. Can it show whether the change was governed in proportion to its risk?'\n  },\n  {\n    trigger: 'This sounds like more friction for developers.',\n    bridge: 'The goal is not more friction everywhere. It is to put extra scrutiny only where the cost of missing something is real.',\n    counter: 'How do you currently distinguish a routine change from one that deserves stronger review?'\n  },\n  {\n    trigger: 'We will build it ourselves.',\n    bridge: 'Your engineers are world-class. Should they be building governance plumbing or shipping product?',\n    counter: 'What is the opportunity cost of your best engineers spending time on governance tooling?'\n  },\n  {\n    trigger: 'We are fine / We are all set.',\n    bridge: 'Are your engineers using AI coding assistants? Then you are deploying AI-generated artifacts. The question is who is governing them.',\n    counter: 'When was the last PR where the risky part was buried in a large diff?'\n  },\n  {\n    trigger: 'What is the price?',\n    bridge: 'Our pilot is free for 2 weeks on one repo. But what is the cost of a single audit finding from ungoverned AI artifacts?',\n    counter: 'If GuardSpine prevents one evidence scramble or one audit finding, what is that worth?'\n  }\n];\n\n// Match persona card\nconst personaKey = (persona || title || '').toLowerCase();\nlet matchedPersona = personaCards['appsec']; // default\nif (personaKey.includes('cto') || personaKey.includes('vp eng') || personaKey.includes('vice president')) {\n  matchedPersona = personaCards['cto'];\n} else if (personaKey.includes('ciso') || personaKey.includes('security officer')) {\n  matchedPersona = personaCards['ciso'];\n} else if (personaKey.includes('grc') || personaKey.includes('compliance') || personaKey.includes('audit')) {\n  matchedPersona = personaCards['grc'];\n} else if (personaKey.includes('platform') || personaKey.includes('devops') || personaKey.includes('sre')) {\n  matchedPersona = personaCards['platform'];\n} else if (personaKey.includes('developer') || personaKey.includes('tech lead') || personaKey.includes('senior eng')) {\n  matchedPersona = personaCards['developer'];\n} else if (personaKey.includes('ceo') || personaKey.includes('founder') || personaKey.includes('co-founder')) {\n  matchedPersona = personaCards['startup_ceo'];\n} else if (personaKey.includes('appsec') || personaKey.includes('application security') || personaKey.includes('security eng')) {\n  matchedPersona = personaCards['appsec'];\n}\n\n// Match pain bucket\nconst matchedPain = painBuckets[pain_bucket] || null;\n\n// Build the handoff sheet\nconst now = new Date();\nconst handoffSheet = {\n  generated_at: now.toISOString(),\n  generated_by: 'W5-CMO Handoff Sheet Generator',\n\n  // Section 1: Prospect Profile\n  prospect: {\n    name,\n    company,\n    title,\n    email: signalData.prospect_email,\n    lane,\n    persona: matchedPersona.persona,\n    funnel_stage: signalData.funnel_stage\n  },\n\n  // Section 2: Signal Context\n  signal: {\n    type: signalData.signal_type,\n    response_snippet,\n    received_at: signalData.received_at,\n    notes: signalData.signal_notes\n  },\n\n  // Section 3: Research Intel\n  intel: {\n    pain_bucket: matchedPain ? matchedPain.label : 'Not yet identified',\n    pain_description: matchedPain ? matchedPain.description : 'Explore during discovery call',\n    struggling_moment: struggling_moment || 'Not yet identified -- use discovery opener below',\n    ai_adoption_signal: ai_adoption || 'Unknown',\n    governance_signal: governance_signal || 'Unknown',\n    research_notes: research_notes || 'None captured yet'\n  },\n\n  // Section 4: Call Playbook\n  playbook: {\n    discovery_opener: matchedPersona.discovery_opener,\n    follow_up_questions: matchedPain ? matchedPain.discovery_branch : [\n      'Walk me through the last code change that made someone uncomfortable.',\n      'Tell me about the last PR that was technically approved but nobody felt fully confident about.'\n    ],\n    pitch_variant: matchedPersona.pitch_variant,\n    urgency_lever: matchedPersona.urgency_lever,\n    best_message: matchedPersona.best_message,\n    best_next_step: matchedPersona.best_next_step,\n    transition_line: 'So the issue is not that changes are happening. It is that risky changes are moving faster than your current governance layer can handle comfortably. That is the gap we work on.'\n  },\n\n  // Section 5: Objection Prep\n  objection_bridges: objectionBridges,\n\n  // Section 6: One-Liners Arsenal\n  one_liners: {\n    vanta: 'Great -- Vanta governs your process. Who governs your artifacts?',\n    github: 'GitHub tells you what changed. We tell you what it means that it changed.',\n    build_it: 'Your engineers are world-class. Should they be building governance plumbing or shipping product?',\n    fine: 'Are your engineers using AI coding assistants? Then you are deploying AI-generated artifacts.',\n    why_now: 'Because the gap between this is not urgent and this is an audit finding is about 90 days.',\n    board: 'If your board asks what is our AI governance posture next quarter -- what do you say?'\n  },\n\n  // Section 7: Action Items\n  actions: {\n    before_call: [\n      'Review their LinkedIn for recent posts about AI/security/governance',\n      'Check GitHub org for public repos and AI tool usage signals',\n      `Personalize discovery opener for ${company} context`\n    ],\n    during_call: [\n      'Listen for which pain pattern dominates (review_overload / weak_approval / evidence_scramble / regulatory)',\n      'Use matching recap from discovery tree step 3',\n      'Get temperature check before proposing pilot'\n    ],\n    after_call: [\n      'Update outreach.db: pain_bucket_confirmed, struggling_moment_actual',\n      'If warm: propose narrow pilot scope (1 repo, 1 policy family)',\n      'Send follow-up within 2 hours with call summary'\n    ]\n  }\n};\n\n// Generate markdown version for email/display\nconst md = [\n  `# Pre-Call Handoff Sheet: ${name}`,\n  `**Company:** ${company} | **Title:** ${title} | **Lane:** ${lane}`,\n  `**Generated:** ${now.toISOString().split('T')[0]}`,\n  '',\n  '## Signal',\n  `- Type: **${signalData.signal_type.toUpperCase()}**`,\n  `- Response: \"${response_snippet.substring(0, 150)}\"`,\n  '',\n  '## Intel',\n  `- Pain bucket: ${handoffSheet.intel.pain_bucket}`,\n  `- Struggling moment: ${handoffSheet.intel.struggling_moment}`,\n  `- AI adoption: ${handoffSheet.intel.ai_adoption_signal}`,\n  '',\n  '## Call Playbook',\n  `**Open with:** \"${matchedPersona.discovery_opener}\"`,\n  '',\n  '**Follow-up questions:**',\n  ...handoffSheet.playbook.follow_up_questions.map(q => `- ${q}`),\n  '',\n  `**Pitch:** ${matchedPersona.pitch_variant}`,\n  '',\n  `**Urgency:** ${matchedPersona.urgency_lever}`,\n  '',\n  `**Best next step:** ${matchedPersona.best_next_step}`,\n  '',\n  '## Top Objection Bridges',\n  ...objectionBridges.slice(0, 3).map(o => `- \"${o.trigger}\" --> ${o.bridge}`),\n  '',\n  '## Before the Call',\n  ...handoffSheet.actions.before_call.map(a => `- [ ] ${a}`),\n  '',\n  '---',\n  '*Generated by W5-CMO Handoff Sheet Generator*'\n].join('\\n');\n\nhandoffSheet.markdown = md;\n\nreturn [{ json: handoffSheet }];"
+            },
+            "id": "5153664b-1322-4346-9574-80183796ddc0"
+        },
+        {
+            "name": "Email Handoff to David",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1500,
+                200
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "service",
+                            "value": "cmo-handoff-generator"
+                        },
+                        {
+                            "name": "event_type",
+                            "value": "handoff_sheet_generated"
+                        },
+                        {
+                            "name": "payload",
+                            "value": "={{ JSON.stringify({ prospect: $json.prospect, signal: $json.signal, generated_at: $json.generated_at }) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 5000
+                },
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
+            },
+            "id": "64d55c10-3465-4a63-a2a1-1a063506287a"
+        },
+        {
+            "name": "Seal Evidence",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1750,
+                200
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ source: 'W5-CMO-Handoff', scope: 'handoff_sheet', payload: { prospect: $json.prospect.name, company: $json.prospect.company, signal: $json.signal.type, generated_at: $json.generated_at } }) }}",
+                "options": {
+                    "timeout": 5000
+                }
+            },
+            "id": "c9a4b3c7-7141-4034-ac9c-2c6e241a42fc"
+        },
+        {
+            "name": "Respond with Sheet",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                2000,
+                200
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify({ status: 'ok', handoff_sheet: $('Build Handoff Sheet').item.json }) }}"
+            },
+            "id": "ba18a2bd-6538-455b-827c-1e0e960df2cd"
+        },
+        {
+            "name": "Respond Error",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                1000,
+                500
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify({ status: 'error', message: $json.message || 'No prospect email provided' }) }}",
+                "options": {
+                    "responseCode": 400
+                }
+            },
+            "id": "6b26869a-5841-4c8d-aa02-be4180fd2f5b"
+        }
+    ],
+    "connections": {
+        "Handoff Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Lookup Prospect in DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Manual Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Lookup Prospect in DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Lookup Prospect in DB": {
+            "main": [
+                [
+                    {
+                        "node": "Valid Email?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Valid Email?": {
+            "main": [
+                [
+                    {
+                        "node": "Query Outreach DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Respond Error",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Outreach DB": {
+            "main": [
+                [
+                    {
+                        "node": "Build Handoff Sheet",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Handoff Sheet": {
+            "main": [
+                [
+                    {
+                        "node": "Email Handoff to David",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Email Handoff to David": {
+            "main": [
+                [
+                    {
+                        "node": "Seal Evidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Seal Evidence": {
+            "main": [
+                [
+                    {
+                        "node": "Respond with Sheet",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "0f27f6c9-fdfa-48f2-803c-50c3166318a8",
+    "activeVersionId": "0f27f6c9-fdfa-48f2-803c-50c3166318a8",
+    "versionCounter": 10,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-30T13:23:50.342Z",
+            "createdAt": "2026-03-30T13:23:50.342Z",
+            "role": "workflow:owner",
+            "workflowId": "Ooan2x0eMmWW7uBa",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-30T14:34:09.938Z",
+        "createdAt": "2026-03-30T14:34:09.938Z",
+        "versionId": "0f27f6c9-fdfa-48f2-803c-50c3166318a8",
+        "workflowId": "Ooan2x0eMmWW7uBa",
+        "nodes": [
+            {
+                "name": "Handoff Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [
+                    250,
+                    300
+                ],
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "cmo/handoff-sheet",
+                    "responseMode": "responseNode",
+                    "options": {}
+                },
+                "id": "019a8e2f-a36b-4865-82f0-de7916bc6319"
+            },
+            {
+                "name": "Manual Trigger",
+                "type": "n8n-nodes-base.manualTrigger",
+                "typeVersion": 1,
+                "position": [
+                    250,
+                    500
+                ],
+                "parameters": {},
+                "id": "63d21b7e-9da7-4213-8d4f-1fac0268d031"
+            },
+            {
+                "name": "Lookup Prospect in DB",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    500,
+                    400
+                ],
+                "parameters": {
+                    "jsCode": "// Extract prospect email from W4 trigger or manual input\nconst input = $json || {};\nconst email = (input.prospect_email || input.email || '').toLowerCase().trim();\n\nif (!email) {\n  return [{ json: { error: true, message: 'No prospect_email provided' } }];\n}\n\n// Pass email forward for HTTP lookup\nreturn [{ json: {\n  error: false,\n  prospect_email: email,\n  signal_type: input.signal_type || 'green',\n  signal_notes: input.signal_notes || '',\n  response_snippet: input.response_snippet || '',\n  funnel_stage: input.funnel_stage || 'green_signal',\n  received_at: input.last_response_at || new Date().toISOString()\n}}];"
+                },
+                "id": "c3808bd1-f6ee-49c8-ac5d-14f2a6c0a68a"
+            },
+            {
+                "name": "Valid Email?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    750,
+                    400
+                ],
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": ""
+                        },
+                        "conditions": [
+                            {
+                                "id": "w5-cond-valid",
+                                "leftValue": "={{ $json.error }}",
+                                "rightValue": false,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "equals",
+                                    "singleValue": true
+                                }
+                            }
+                        ],
+                        "combinator": "and"
+                    }
+                },
+                "id": "3267236a-8835-4bf5-94e5-8c940f8cec07"
+            },
+            {
+                "name": "Query Outreach DB",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1000,
+                    300
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://telemetry-api.railway.internal:8090/query",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({ query: 'prospect_lookup', filters: { email: $json.prospect_email } }) }}",
+                    "options": {
+                        "timeout": 10000
+                    },
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
+                },
+                "id": "0a73b8d5-f56e-4df5-aa6e-cb9134314abb"
+            },
+            {
+                "name": "Build Handoff Sheet",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1250,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "// Build pre-call handoff sheet from prospect data + discovery tree + persona cards\n// This is the core value of W5\n\nconst signalData = $('Lookup Prospect in DB').item.json;\nconst dbResult = $json || {};\n\n// Prospect data (from DB lookup or signal data)\nconst prospect = dbResult.prospect || {};\nconst name = prospect.name || signalData.prospect_email;\nconst company = prospect.company || 'Unknown';\nconst title = prospect.title || 'Unknown';\nconst lane = prospect.lane || 'buyer';\nconst persona = prospect.persona || '';\nconst pain_bucket = prospect.pain_bucket || '';\nconst struggling_moment = prospect.struggling_moment_hypothesis || '';\nconst research_notes = prospect.research_notes || '';\nconst ai_adoption = prospect.ai_adoption_signal || '';\nconst governance_signal = prospect.governance_signal || '';\nconst response_snippet = signalData.response_snippet || prospect.response_snippet || '';\n\n// === PERSONA CARD MATCHING ===\nconst personaCards = {\n  'appsec': {\n    persona: 'AppSec Lead / Security Engineering Manager',\n    discovery_opener: 'How has PR volume or review surface changed since your team adopted AI coding tools?',\n    pitch_variant: 'GuardSpine helps your team stop treating every PR like it deserves the same amount of attention. We surface the changes that actually deserve stronger review.',\n    urgency_lever: 'Every week without governance, the review debt compounds. The gap does not shrink on its own.',\n    best_next_step: 'A narrow pilot on one repo or one class of changes.',\n    best_message: 'You keep velocity; we add proof. We govern the diff, not the origin myth.'\n  },\n  'cto': {\n    persona: 'CTO / VP Engineering',\n    discovery_opener: 'When you approved AI coding assistants across the org, what was the plan for governing the output?',\n    pitch_variant: 'GuardSpine preserves speed, not taxes it. Low-risk changes stay fast. Riskier ones do not slide through.',\n    urgency_lever: 'Engineering orgs with governance attract better talent. Engineers hate ungoverned chaos.',\n    best_next_step: 'Technical validation call with platform owner and one security stakeholder.',\n    best_message: 'You should not have to choose between AI-assisted speed and a trustworthy approval trail.'\n  },\n  'ciso': {\n    persona: 'CISO / VP Security',\n    discovery_opener: 'If your board asked tomorrow -- what is our governance posture on AI-generated code changes? -- what would you tell them?',\n    pitch_variant: 'GuardSpine turns a weak approval trail into a defensible one. Risky change handled like a risky change, evidence preserved.',\n    urgency_lever: 'Your next board meeting is coming. Walk in with pilot results, not we are evaluating.',\n    best_next_step: 'Working session around one real control gap or one recent uncomfortable change.',\n    best_message: 'Durable evidence, defensible narrative.'\n  },\n  'grc': {\n    persona: 'GRC / Compliance Manager',\n    discovery_opener: 'When was the last time audit or security asked for proof around a change and it was annoying to produce?',\n    pitch_variant: 'GuardSpine creates evidence during normal work so your team is not reconstructing the story of a change from screenshots and scattered systems later.',\n    urgency_lever: 'The mandate is coming. The question is whether you have evidence before they ask, or you scramble after.',\n    best_next_step: 'Map one audit control to GuardSpine evidence output.',\n    best_message: 'Evidence during work, not after the fact.'\n  },\n  'platform': {\n    persona: 'Platform / DevOps Engineering Manager',\n    discovery_opener: 'How many different CI checks, custom scripts, and manual processes make up your current code governance?',\n    pitch_variant: 'GuardSpine replaces the patchwork of custom CI checks with a single governance layer that classifies risk and routes changes appropriately.',\n    urgency_lever: 'Every custom script is tech debt someone will have to maintain. One layer beats twelve patches.',\n    best_next_step: 'Audit current CI governance patchwork together.',\n    best_message: 'One governance layer, not twelve custom scripts.'\n  },\n  'developer': {\n    persona: 'Senior Developer / Tech Lead',\n    discovery_opener: 'Has AI changed the size, volume, or noisiness of the diffs your team reviews?',\n    pitch_variant: 'GuardSpine highlights the few parts of a diff touching permissions, secrets, or control paths. Selective, not noisy. Sharper flashlight.',\n    urgency_lever: 'Your best reviewers are drowning in noise. This gives them back their attention.',\n    best_next_step: 'Install codeguard-action on one repo. Two minutes.',\n    best_message: 'Sharper flashlight, not more bureaucracy.'\n  },\n  'startup_ceo': {\n    persona: 'Startup CEO / Founder',\n    discovery_opener: 'What governance story will your next enterprise buyer or investor expect to hear?',\n    pitch_variant: 'GuardSpine gives you the answer to the governance question your next enterprise buyer will ask. Install in two minutes. Evidence accumulates immediately.',\n    urgency_lever: 'Enterprise buyers ask the governance question. Having the answer closes deals.',\n    best_next_step: 'Install on your main repo. Show evidence to next enterprise prospect.',\n    best_message: 'Two-minute install. Enterprise-ready governance story.'\n  }\n};\n\n// === PAIN BUCKET MAPPING ===\nconst painBuckets = {\n  'review_velocity_gap': {\n    label: 'Review Velocity Gap',\n    description: 'Contributors producing faster than governance can check.',\n    discovery_branch: [\n      'How many people are pushing changes versus how many are doing meaningful review?',\n      'Where do your best reviewers spend time today that feels wasteful?'\n    ]\n  },\n  'evidence_chain_gap': {\n    label: 'Evidence Chain Gap',\n    description: 'Changes happening without auditable trails.',\n    discovery_branch: [\n      'How much time did the last evidence pull take?',\n      'How often does proof live across GitHub, tickets, Slack, and memory?'\n    ]\n  },\n  'semantic_governance_gap': {\n    label: 'Semantic Governance Gap',\n    description: 'Process compliance is solid but nobody is verifying what artifacts mean.',\n    discovery_branch: [\n      'How often do you see an approved PR where the risky part could easily be missed?',\n      'How much of your trust is the process versus the specific people involved?'\n    ]\n  },\n  'authorization_provenance_gap': {\n    label: 'Authorization Provenance Gap',\n    description: 'Changes happening but the who-authorized-what trail is broken.',\n    discovery_branch: [\n      'How often do you see an approved PR where the risky part could easily be missed?',\n      'How much of your trust is the process versus the specific people involved?'\n    ]\n  },\n  'regulatory_readiness_gap': {\n    label: 'Regulatory Readiness Gap',\n    description: 'The mandate is coming and the current stack cannot produce the evidence required.',\n    discovery_branch: [\n      'Who will ask the hard question first: board, audit, customer, or internal security?',\n      'What answer do you have today that you actually feel good about?'\n    ]\n  }\n};\n\n// === OBJECTION BRIDGES (top 5 most common) ===\nconst objectionBridges = [\n  {\n    trigger: 'We already have GitHub, branch protections, codeowners, and scanners.',\n    bridge: 'GitHub tells you what changed. We tell you what it means that it changed.',\n    counter: 'GitHub can show the PR was approved. Can it show whether the change was governed in proportion to its risk?'\n  },\n  {\n    trigger: 'This sounds like more friction for developers.',\n    bridge: 'The goal is not more friction everywhere. It is to put extra scrutiny only where the cost of missing something is real.',\n    counter: 'How do you currently distinguish a routine change from one that deserves stronger review?'\n  },\n  {\n    trigger: 'We will build it ourselves.',\n    bridge: 'Your engineers are world-class. Should they be building governance plumbing or shipping product?',\n    counter: 'What is the opportunity cost of your best engineers spending time on governance tooling?'\n  },\n  {\n    trigger: 'We are fine / We are all set.',\n    bridge: 'Are your engineers using AI coding assistants? Then you are deploying AI-generated artifacts. The question is who is governing them.',\n    counter: 'When was the last PR where the risky part was buried in a large diff?'\n  },\n  {\n    trigger: 'What is the price?',\n    bridge: 'Our pilot is free for 2 weeks on one repo. But what is the cost of a single audit finding from ungoverned AI artifacts?',\n    counter: 'If GuardSpine prevents one evidence scramble or one audit finding, what is that worth?'\n  }\n];\n\n// Match persona card\nconst personaKey = (persona || title || '').toLowerCase();\nlet matchedPersona = personaCards['appsec']; // default\nif (personaKey.includes('cto') || personaKey.includes('vp eng') || personaKey.includes('vice president')) {\n  matchedPersona = personaCards['cto'];\n} else if (personaKey.includes('ciso') || personaKey.includes('security officer')) {\n  matchedPersona = personaCards['ciso'];\n} else if (personaKey.includes('grc') || personaKey.includes('compliance') || personaKey.includes('audit')) {\n  matchedPersona = personaCards['grc'];\n} else if (personaKey.includes('platform') || personaKey.includes('devops') || personaKey.includes('sre')) {\n  matchedPersona = personaCards['platform'];\n} else if (personaKey.includes('developer') || personaKey.includes('tech lead') || personaKey.includes('senior eng')) {\n  matchedPersona = personaCards['developer'];\n} else if (personaKey.includes('ceo') || personaKey.includes('founder') || personaKey.includes('co-founder')) {\n  matchedPersona = personaCards['startup_ceo'];\n} else if (personaKey.includes('appsec') || personaKey.includes('application security') || personaKey.includes('security eng')) {\n  matchedPersona = personaCards['appsec'];\n}\n\n// Match pain bucket\nconst matchedPain = painBuckets[pain_bucket] || null;\n\n// Build the handoff sheet\nconst now = new Date();\nconst handoffSheet = {\n  generated_at: now.toISOString(),\n  generated_by: 'W5-CMO Handoff Sheet Generator',\n\n  // Section 1: Prospect Profile\n  prospect: {\n    name,\n    company,\n    title,\n    email: signalData.prospect_email,\n    lane,\n    persona: matchedPersona.persona,\n    funnel_stage: signalData.funnel_stage\n  },\n\n  // Section 2: Signal Context\n  signal: {\n    type: signalData.signal_type,\n    response_snippet,\n    received_at: signalData.received_at,\n    notes: signalData.signal_notes\n  },\n\n  // Section 3: Research Intel\n  intel: {\n    pain_bucket: matchedPain ? matchedPain.label : 'Not yet identified',\n    pain_description: matchedPain ? matchedPain.description : 'Explore during discovery call',\n    struggling_moment: struggling_moment || 'Not yet identified -- use discovery opener below',\n    ai_adoption_signal: ai_adoption || 'Unknown',\n    governance_signal: governance_signal || 'Unknown',\n    research_notes: research_notes || 'None captured yet'\n  },\n\n  // Section 4: Call Playbook\n  playbook: {\n    discovery_opener: matchedPersona.discovery_opener,\n    follow_up_questions: matchedPain ? matchedPain.discovery_branch : [\n      'Walk me through the last code change that made someone uncomfortable.',\n      'Tell me about the last PR that was technically approved but nobody felt fully confident about.'\n    ],\n    pitch_variant: matchedPersona.pitch_variant,\n    urgency_lever: matchedPersona.urgency_lever,\n    best_message: matchedPersona.best_message,\n    best_next_step: matchedPersona.best_next_step,\n    transition_line: 'So the issue is not that changes are happening. It is that risky changes are moving faster than your current governance layer can handle comfortably. That is the gap we work on.'\n  },\n\n  // Section 5: Objection Prep\n  objection_bridges: objectionBridges,\n\n  // Section 6: One-Liners Arsenal\n  one_liners: {\n    vanta: 'Great -- Vanta governs your process. Who governs your artifacts?',\n    github: 'GitHub tells you what changed. We tell you what it means that it changed.',\n    build_it: 'Your engineers are world-class. Should they be building governance plumbing or shipping product?',\n    fine: 'Are your engineers using AI coding assistants? Then you are deploying AI-generated artifacts.',\n    why_now: 'Because the gap between this is not urgent and this is an audit finding is about 90 days.',\n    board: 'If your board asks what is our AI governance posture next quarter -- what do you say?'\n  },\n\n  // Section 7: Action Items\n  actions: {\n    before_call: [\n      'Review their LinkedIn for recent posts about AI/security/governance',\n      'Check GitHub org for public repos and AI tool usage signals',\n      `Personalize discovery opener for ${company} context`\n    ],\n    during_call: [\n      'Listen for which pain pattern dominates (review_overload / weak_approval / evidence_scramble / regulatory)',\n      'Use matching recap from discovery tree step 3',\n      'Get temperature check before proposing pilot'\n    ],\n    after_call: [\n      'Update outreach.db: pain_bucket_confirmed, struggling_moment_actual',\n      'If warm: propose narrow pilot scope (1 repo, 1 policy family)',\n      'Send follow-up within 2 hours with call summary'\n    ]\n  }\n};\n\n// Generate markdown version for email/display\nconst md = [\n  `# Pre-Call Handoff Sheet: ${name}`,\n  `**Company:** ${company} | **Title:** ${title} | **Lane:** ${lane}`,\n  `**Generated:** ${now.toISOString().split('T')[0]}`,\n  '',\n  '## Signal',\n  `- Type: **${signalData.signal_type.toUpperCase()}**`,\n  `- Response: \"${response_snippet.substring(0, 150)}\"`,\n  '',\n  '## Intel',\n  `- Pain bucket: ${handoffSheet.intel.pain_bucket}`,\n  `- Struggling moment: ${handoffSheet.intel.struggling_moment}`,\n  `- AI adoption: ${handoffSheet.intel.ai_adoption_signal}`,\n  '',\n  '## Call Playbook',\n  `**Open with:** \"${matchedPersona.discovery_opener}\"`,\n  '',\n  '**Follow-up questions:**',\n  ...handoffSheet.playbook.follow_up_questions.map(q => `- ${q}`),\n  '',\n  `**Pitch:** ${matchedPersona.pitch_variant}`,\n  '',\n  `**Urgency:** ${matchedPersona.urgency_lever}`,\n  '',\n  `**Best next step:** ${matchedPersona.best_next_step}`,\n  '',\n  '## Top Objection Bridges',\n  ...objectionBridges.slice(0, 3).map(o => `- \"${o.trigger}\" --> ${o.bridge}`),\n  '',\n  '## Before the Call',\n  ...handoffSheet.actions.before_call.map(a => `- [ ] ${a}`),\n  '',\n  '---',\n  '*Generated by W5-CMO Handoff Sheet Generator*'\n].join('\\n');\n\nhandoffSheet.markdown = md;\n\nreturn [{ json: handoffSheet }];"
+                },
+                "id": "5153664b-1322-4346-9574-80183796ddc0"
+            },
+            {
+                "name": "Email Handoff to David",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1500,
+                    200
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "sendBody": true,
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "service",
+                                "value": "cmo-handoff-generator"
+                            },
+                            {
+                                "name": "event_type",
+                                "value": "handoff_sheet_generated"
+                            },
+                            {
+                                "name": "payload",
+                                "value": "={{ JSON.stringify({ prospect: $json.prospect, signal: $json.signal, generated_at: $json.generated_at }) }}"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 5000
+                    },
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
+                },
+                "id": "64d55c10-3465-4a63-a2a1-1a063506287a"
+            },
+            {
+                "name": "Seal Evidence",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1750,
+                    200
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify({ source: 'W5-CMO-Handoff', scope: 'handoff_sheet', payload: { prospect: $json.prospect.name, company: $json.prospect.company, signal: $json.signal.type, generated_at: $json.generated_at } }) }}",
+                    "options": {
+                        "timeout": 5000
+                    }
+                },
+                "id": "c9a4b3c7-7141-4034-ac9c-2c6e241a42fc"
+            },
+            {
+                "name": "Respond with Sheet",
+                "type": "n8n-nodes-base.respondToWebhook",
+                "typeVersion": 1.1,
+                "position": [
+                    2000,
+                    200
+                ],
+                "parameters": {
+                    "respondWith": "json",
+                    "responseBody": "={{ JSON.stringify({ status: 'ok', handoff_sheet: $('Build Handoff Sheet').item.json }) }}"
+                },
+                "id": "ba18a2bd-6538-455b-827c-1e0e960df2cd"
+            },
+            {
+                "name": "Respond Error",
+                "type": "n8n-nodes-base.respondToWebhook",
+                "typeVersion": 1.1,
+                "position": [
+                    1000,
+                    500
+                ],
+                "parameters": {
+                    "respondWith": "json",
+                    "responseBody": "={{ JSON.stringify({ status: 'error', message: $json.message || 'No prospect email provided' }) }}",
+                    "options": {
+                        "responseCode": 400
+                    }
+                },
+                "id": "6b26869a-5841-4c8d-aa02-be4180fd2f5b"
+            }
+        ],
+        "connections": {
+            "Handoff Webhook": {
+                "main": [
+                    [
+                        {
+                            "node": "Lookup Prospect in DB",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Manual Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "Lookup Prospect in DB",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Lookup Prospect in DB": {
+                "main": [
+                    [
+                        {
+                            "node": "Valid Email?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Valid Email?": {
+                "main": [
+                    [
+                        {
+                            "node": "Query Outreach DB",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Respond Error",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Query Outreach DB": {
+                "main": [
+                    [
+                        {
+                            "node": "Build Handoff Sheet",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Build Handoff Sheet": {
+                "main": [
+                    [
+                        {
+                            "node": "Email Handoff to David",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Email Handoff to David": {
+                "main": [
+                    [
+                        {
+                            "node": "Seal Evidence",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Seal Evidence": {
+                "main": [
+                    [
+                        {
+                            "node": "Respond with Sheet",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-30T14:34:09.999Z",
+                "id": 1931,
+                "workflowId": "Ooan2x0eMmWW7uBa",
+                "versionId": "0f27f6c9-fdfa-48f2-803c-50c3166318a8",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:10.193Z",
+                "id": 1933,
+                "workflowId": "Ooan2x0eMmWW7uBa",
+                "versionId": "0f27f6c9-fdfa-48f2-803c-50c3166318a8",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:09.978Z",
+                "id": 1930,
+                "workflowId": "Ooan2x0eMmWW7uBa",
+                "versionId": "0f27f6c9-fdfa-48f2-803c-50c3166318a8",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:10.091Z",
+                "id": 1932,
+                "workflowId": "Ooan2x0eMmWW7uBa",
+                "versionId": "0f27f6c9-fdfa-48f2-803c-50c3166318a8",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:26.351Z",
+    "updatedAt": "2026-03-30T14:34:15.936Z",
     "createdAt": "2026-03-20T17:29:58.937Z",
     "id": "eeIRgX25oL1L8Ff9",
     "name": "W26 - Auto Updater",
@@ -120,7 +120,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "={\"service\": \"updater\", \"event_type\": \"updates_available\", \"payload\": {\"updates_available\": {{ $json.updates_available }}, \"has_breaking\": {{ $json.has_breaking }}, \"updates\": {{ JSON.stringify($json.updates) }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                "jsonBody": "={\"service\": \"updater\", \"event_type\": \"updates_available\", \"payload\": {\"updates_available\": {{ $json.updates_available }}, \"has_breaking\": {{ $json.has_breaking }}, \"updates\": {{ JSON.stringify($json.updates) }}, \"checked_at\": \"{{ $json.checked_at }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Updates Available",
             "type": "n8n-nodes-base.httpRequest",
@@ -138,7 +147,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "={\"service\": \"updater\", \"event_type\": \"system_current\", \"payload\": {\"updates_available\": 0, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                "jsonBody": "={\"service\": \"updater\", \"event_type\": \"system_current\", \"payload\": {\"updates_available\": 0, \"checked_at\": \"{{ $json.checked_at }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log System Current",
             "type": "n8n-nodes-base.httpRequest",
@@ -167,7 +185,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W26 - Auto Updater\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W26 - Auto Updater\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -356,9 +383,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "4c9a4e55-5460-4d2a-ba29-199c40f6c12e",
-    "activeVersionId": "4c9a4e55-5460-4d2a-ba29-199c40f6c12e",
-    "versionCounter": 48,
+    "versionId": "badd6013-be76-4a1f-9233-8e3f6e261e90",
+    "activeVersionId": "badd6013-be76-4a1f-9233-8e3f6e261e90",
+    "versionCounter": 55,
     "triggerCount": 1,
     "shared": [
         {
@@ -381,9 +408,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:26.352Z",
-        "createdAt": "2026-03-21T18:42:26.352Z",
-        "versionId": "4c9a4e55-5460-4d2a-ba29-199c40f6c12e",
+        "updatedAt": "2026-03-30T14:34:15.937Z",
+        "createdAt": "2026-03-30T14:34:15.937Z",
+        "versionId": "badd6013-be76-4a1f-9233-8e3f6e261e90",
         "workflowId": "eeIRgX25oL1L8Ff9",
         "nodes": [
             {
@@ -499,7 +526,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "={\"service\": \"updater\", \"event_type\": \"updates_available\", \"payload\": {\"updates_available\": {{ $json.updates_available }}, \"has_breaking\": {{ $json.has_breaking }}, \"updates\": {{ JSON.stringify($json.updates) }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                    "jsonBody": "={\"service\": \"updater\", \"event_type\": \"updates_available\", \"payload\": {\"updates_available\": {{ $json.updates_available }}, \"has_breaking\": {{ $json.has_breaking }}, \"updates\": {{ JSON.stringify($json.updates) }}, \"checked_at\": \"{{ $json.checked_at }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Updates Available",
                 "type": "n8n-nodes-base.httpRequest",
@@ -517,7 +553,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "={\"service\": \"updater\", \"event_type\": \"system_current\", \"payload\": {\"updates_available\": 0, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                    "jsonBody": "={\"service\": \"updater\", \"event_type\": \"system_current\", \"payload\": {\"updates_available\": 0, \"checked_at\": \"{{ $json.checked_at }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log System Current",
                 "type": "n8n-nodes-base.httpRequest",
@@ -546,7 +591,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W26 - Auto Updater\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W26 - Auto Updater\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -729,11 +783,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:26.410Z",
-                "id": 1425,
+                "createdAt": "2026-03-30T14:34:15.981Z",
+                "id": 1991,
                 "workflowId": "eeIRgX25oL1L8Ff9",
-                "versionId": "4c9a4e55-5460-4d2a-ba29-199c40f6c12e",
+                "versionId": "badd6013-be76-4a1f-9233-8e3f6e261e90",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:16.140Z",
+                "id": 1993,
+                "workflowId": "eeIRgX25oL1L8Ff9",
+                "versionId": "badd6013-be76-4a1f-9233-8e3f6e261e90",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:15.962Z",
+                "id": 1990,
+                "workflowId": "eeIRgX25oL1L8Ff9",
+                "versionId": "badd6013-be76-4a1f-9233-8e3f6e261e90",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:16.059Z",
+                "id": 1992,
+                "workflowId": "eeIRgX25oL1L8Ff9",
+                "versionId": "badd6013-be76-4a1f-9233-8e3f6e261e90",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

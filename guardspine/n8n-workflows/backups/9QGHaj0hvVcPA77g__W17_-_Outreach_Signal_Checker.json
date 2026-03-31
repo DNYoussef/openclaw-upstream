@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-22T02:50:21.679Z",
+    "updatedAt": "2026-03-30T14:34:01.678Z",
     "createdAt": "2026-03-20T17:29:56.402Z",
     "id": "9QGHaj0hvVcPA77g",
     "name": "W17 - Outreach Signal Checker",
@@ -34,7 +34,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}"
+                "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Fetch Recent Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -65,7 +74,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "={\"service\": \"outreach-monitor\", \"event_type\": \"signal_check\", \"payload\": {\"new_signals\": {{ $json.new_signals }}, \"signal_details\": {{ JSON.stringify($json.signal_details) }}, \"events_scanned\": {{ $json.events_scanned }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                "jsonBody": "={\"service\": \"outreach-monitor\", \"event_type\": \"signal_check\", \"payload\": {\"new_signals\": {{ $json.new_signals }}, \"signal_details\": {{ JSON.stringify($json.signal_details) }}, \"events_scanned\": {{ $json.events_scanned }}, \"checked_at\": \"{{ $json.checked_at }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Signal Check",
             "type": "n8n-nodes-base.httpRequest",
@@ -94,7 +112,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W17 - Outreach Signal Checker\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W17 - Outreach Signal Checker\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -232,9 +259,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "488ea8e2-09de-4647-840d-d0df21640a93",
-    "activeVersionId": "488ea8e2-09de-4647-840d-d0df21640a93",
-    "versionCounter": 52,
+    "versionId": "3bb7a5ce-43fc-4eb3-896a-bed1f36f5ab0",
+    "activeVersionId": "3bb7a5ce-43fc-4eb3-896a-bed1f36f5ab0",
+    "versionCounter": 59,
     "triggerCount": 1,
     "shared": [
         {
@@ -257,9 +284,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:19.742Z",
-        "createdAt": "2026-03-21T18:42:19.742Z",
-        "versionId": "488ea8e2-09de-4647-840d-d0df21640a93",
+        "updatedAt": "2026-03-30T14:34:01.679Z",
+        "createdAt": "2026-03-30T14:34:01.679Z",
+        "versionId": "3bb7a5ce-43fc-4eb3-896a-bed1f36f5ab0",
         "workflowId": "9QGHaj0hvVcPA77g",
         "nodes": [
             {
@@ -289,7 +316,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}"
+                    "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Fetch Recent Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -320,7 +356,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "={\"service\": \"outreach-monitor\", \"event_type\": \"signal_check\", \"payload\": {\"new_signals\": {{ $json.new_signals }}, \"signal_details\": {{ JSON.stringify($json.signal_details) }}, \"events_scanned\": {{ $json.events_scanned }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                    "jsonBody": "={\"service\": \"outreach-monitor\", \"event_type\": \"signal_check\", \"payload\": {\"new_signals\": {{ $json.new_signals }}, \"signal_details\": {{ JSON.stringify($json.signal_details) }}, \"events_scanned\": {{ $json.events_scanned }}, \"checked_at\": \"{{ $json.checked_at }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Signal Check",
                 "type": "n8n-nodes-base.httpRequest",
@@ -349,7 +394,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W17 - Outreach Signal Checker\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W17 - Outreach Signal Checker\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -481,26 +535,34 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:19.874Z",
-                "id": 1343,
+                "createdAt": "2026-03-30T14:34:01.713Z",
+                "id": 1851,
                 "workflowId": "9QGHaj0hvVcPA77g",
-                "versionId": "488ea8e2-09de-4647-840d-d0df21640a93",
+                "versionId": "3bb7a5ce-43fc-4eb3-896a-bed1f36f5ab0",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-22T02:50:21.776Z",
-                "id": 1541,
+                "createdAt": "2026-03-30T14:34:01.899Z",
+                "id": 1853,
                 "workflowId": "9QGHaj0hvVcPA77g",
-                "versionId": "488ea8e2-09de-4647-840d-d0df21640a93",
+                "versionId": "3bb7a5ce-43fc-4eb3-896a-bed1f36f5ab0",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-22T02:50:21.604Z",
-                "id": 1540,
+                "createdAt": "2026-03-30T14:34:01.698Z",
+                "id": 1850,
                 "workflowId": "9QGHaj0hvVcPA77g",
-                "versionId": "488ea8e2-09de-4647-840d-d0df21640a93",
+                "versionId": "3bb7a5ce-43fc-4eb3-896a-bed1f36f5ab0",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:01.789Z",
+                "id": 1852,
+                "workflowId": "9QGHaj0hvVcPA77g",
+                "versionId": "3bb7a5ce-43fc-4eb3-896a-bed1f36f5ab0",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

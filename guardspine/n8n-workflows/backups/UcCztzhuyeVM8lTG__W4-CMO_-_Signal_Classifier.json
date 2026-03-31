@@ -1,0 +1,1213 @@
+{
+    "updatedAt": "2026-03-30T14:34:12.308Z",
+    "createdAt": "2026-03-30T13:23:50.131Z",
+    "id": "UcCztzhuyeVM8lTG",
+    "name": "W4-CMO - Signal Classifier",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "name": "Email Response Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                250,
+                300
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "cmo/signal-classify",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "7972faa4-31b9-486f-b1f0-d0966d00969c"
+        },
+        {
+            "name": "Manual Classify Trigger",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                250,
+                500
+            ],
+            "parameters": {},
+            "id": "6ac4d7d1-0958-4a34-8045-f7af22193520"
+        },
+        {
+            "name": "Validate Input",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                500,
+                400
+            ],
+            "parameters": {
+                "jsCode": "// Validate incoming email response data\nconst input = $json || {};\n\nconst prospect_email = input.from || input.prospect_email || input.email || '';\nconst subject = input.subject || '';\nconst body = input.body || input.text || input.snippet || '';\nconst prospect_name = input.prospect_name || input.name || '';\nconst received_at = input.received_at || input.date || new Date().toISOString();\n\nif (!prospect_email && !body) {\n  return [{ json: {\n    error: true,\n    message: 'Missing required fields: need at least email or body text',\n    received: input\n  }}];\n}\n\nreturn [{ json: {\n  error: false,\n  prospect_email: prospect_email.toLowerCase().trim(),\n  prospect_name,\n  subject,\n  body,\n  received_at,\n  raw_input: input\n}}];"
+            },
+            "id": "92cf904a-9df8-4ad0-95c9-1eec5bfdf130"
+        },
+        {
+            "name": "Input Valid?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                750,
+                400
+            ],
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": ""
+                    },
+                    "conditions": [
+                        {
+                            "id": "w4-cond-valid",
+                            "leftValue": "={{ $json.error }}",
+                            "rightValue": false,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "id": "193fa0a3-ab6e-475e-bdc7-0df20aaf27b3"
+        },
+        {
+            "name": "Classify Signal",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1000,
+                300
+            ],
+            "parameters": {
+                "jsCode": "// Signal Classifier: green / yellow / red\n// Based on CMO Revenue Engine spec and Sales Handbook patterns\n\nconst { body, subject, prospect_email, prospect_name, received_at } = $json;\n\nconst text = (subject + ' ' + body).toLowerCase();\n\n// === RED signals: not interested, unsubscribe, hostile ===\nconst RED_PATTERNS = [\n  /\\bunsubscribe\\b/,\n  /\\bremove me\\b/,\n  /\\bstop (emailing|contacting|messaging)\\b/,\n  /\\bnot interested\\b/,\n  /\\bno thanks\\b/,\n  /\\bno thank you\\b/,\n  /\\bplease (don'?t|do not) (contact|email|reach out)\\b/,\n  /\\bwrong person\\b/,\n  /\\bnot relevant\\b/,\n  /\\bopt.?out\\b/,\n  /\\bspam\\b/,\n  /\\breport(ing|ed)? (as )?spam\\b/,\n  /\\bstop\\b.*\\bplease\\b/,\n  /\\bleave me alone\\b/,\n  /\\bnot (the right|a good) fit\\b/,\n  /\\bwe'?re (all )?set\\b/,\n  /\\bwe (already )?have (a |everything )?(solution|tool|vendor)\\b/\n];\n\n// === GREEN signals: interested, wants to talk ===\nconst GREEN_PATTERNS = [\n  /\\blet'?s (talk|chat|connect|discuss|set up|schedule|hop on)\\b/,\n  /\\bi'?d (love|like) to (learn|hear|see|discuss|chat|talk|know)\\b/,\n  /\\bsound(s)? (interesting|great|good|promising|compelling)\\b/,\n  /\\btell me more\\b/,\n  /\\bbook(ed)? (a )?(time|call|meeting|demo)\\b/,\n  /\\bschedule (a )?(time|call|meeting|demo)\\b/,\n  /\\bfree (this|next) week\\b/,\n  /\\bopen (to|for) (a )?(call|chat|meeting|conversation|discussion)\\b/,\n  /\\bsend (me |over )?(more )?(info|details|a demo|documentation|pricing)\\b/,\n  /\\bwhat (does it|would it) (cost|look like)\\b/,\n  /\\bhow (does|would) (it|this|guardspine) work\\b/,\n  /\\bwe (are |'re )?(dealing|struggling|facing) (with )?\\b/,\n  /\\bthis (is|hits|addresses) (exactly )?\\b.*(pain|problem|challenge|issue)\\b/,\n  /\\bintroduce (you|your team) to\\b/,\n  /\\bloop(ing)? in\\b.*(cto|ciso|vp|head|lead|director|manager)\\b/,\n  /\\bcan (you|we) (do a |run a )?demo\\b/,\n  /\\bcal\\.com\\b/,\n  /\\bcalendly\\b/,\n  /\\bhere'?s my (calendar|availability)\\b/,\n  /\\bpilot\\b/,\n  /\\btrial\\b/,\n  /\\bpoc\\b/\n];\n\n// === YELLOW signals: needs more info, timing issue, polite deferral ===\nconst YELLOW_PATTERNS = [\n  /\\bnot (right )?now\\b/,\n  /\\bmaybe (later|next|in a few)\\b/,\n  /\\bcheck back (in|later|next)\\b/,\n  /\\bbusy (right now|this|at the moment)\\b/,\n  /\\binteresting but\\b/,\n  /\\bneed(s)? (to )?(think|consider|evaluate|review|discuss internally)\\b/,\n  /\\bwho (else |also )?(uses|is using) (this|guardspine|it)\\b/,\n  /\\b(any|have) case stud(y|ies)\\b/,\n  /\\bwhat('s| is) (the )?(pricing|cost)\\b/,\n  /\\bforwarded? (this |it )?(to|along)\\b/,\n  /\\bloop(ed|ing)? in\\b/,\n  /\\bcc'?d\\b/,\n  /\\btiming (is|isn'?t)\\b/,\n  /\\bbudget (cycle|season|freeze)\\b/,\n  /\\bq[1-4] (would be|might be|is) better\\b/,\n  /\\bnext quarter\\b/,\n  /\\bafter (the|our) \\b/,\n  /\\bsend (me )?more (info|details|about)\\b/,\n  /\\bwhat (sets you|makes you|differentiates)\\b/\n];\n\nlet signal = 'yellow'; // default to yellow if ambiguous\nlet confidence = 0.5;\nlet matched_patterns = [];\n\n// Check RED first (highest priority)\nlet red_matches = 0;\nfor (const pattern of RED_PATTERNS) {\n  if (pattern.test(text)) {\n    red_matches++;\n    matched_patterns.push({ type: 'red', pattern: pattern.source });\n  }\n}\n\n// Check GREEN\nlet green_matches = 0;\nfor (const pattern of GREEN_PATTERNS) {\n  if (pattern.test(text)) {\n    green_matches++;\n    matched_patterns.push({ type: 'green', pattern: pattern.source });\n  }\n}\n\n// Check YELLOW\nlet yellow_matches = 0;\nfor (const pattern of YELLOW_PATTERNS) {\n  if (pattern.test(text)) {\n    yellow_matches++;\n    matched_patterns.push({ type: 'yellow', pattern: pattern.source });\n  }\n}\n\n// Decision logic\nif (red_matches > 0 && green_matches === 0) {\n  signal = 'red';\n  confidence = Math.min(0.95, 0.6 + (red_matches * 0.1));\n} else if (green_matches > 0 && red_matches === 0) {\n  signal = 'green';\n  confidence = Math.min(0.95, 0.6 + (green_matches * 0.1));\n} else if (green_matches > red_matches) {\n  // Mixed signals, green wins but lower confidence\n  signal = 'green';\n  confidence = 0.5;\n} else if (red_matches > green_matches) {\n  signal = 'red';\n  confidence = 0.5;\n} else if (yellow_matches > 0) {\n  signal = 'yellow';\n  confidence = Math.min(0.85, 0.5 + (yellow_matches * 0.1));\n}\n\n// Short body with no strong signals = yellow (needs human review)\nif (body.length < 30 && matched_patterns.length === 0) {\n  signal = 'yellow';\n  confidence = 0.3;\n  matched_patterns.push({ type: 'yellow', pattern: 'short_ambiguous_body' });\n}\n\nreturn [{ json: {\n  signal,\n  confidence,\n  matched_patterns,\n  match_counts: { green: green_matches, yellow: yellow_matches, red: red_matches },\n  prospect_email,\n  prospect_name,\n  subject,\n  body_preview: body.substring(0, 500),\n  received_at,\n  classified_at: new Date().toISOString()\n}}];"
+            },
+            "id": "54ac4475-fb15-4c18-ac8a-c9dc85e447d5"
+        },
+        {
+            "name": "Route by Signal",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                1250,
+                300
+            ],
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "outputKey": "green",
+                            "conditions": {
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.signal }}",
+                                        "rightValue": "green",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "outputKey": "yellow",
+                            "conditions": {
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.signal }}",
+                                        "rightValue": "yellow",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "outputKey": "red",
+                            "conditions": {
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.signal }}",
+                                        "rightValue": "red",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "1a586d6d-41c1-4943-8d44-f07cd4d0d771"
+        },
+        {
+            "name": "Update DB - Green",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1500,
+                150
+            ],
+            "parameters": {
+                "jsCode": "// Prepare green signal DB update payload\nconst data = $json;\nreturn [{ json: {\n  prospect_email: data.prospect_email,\n  signal_type: 'green',\n  signal_notes: `Classified green (confidence: ${data.confidence}). Patterns: ${data.matched_patterns.map(p => p.pattern).join(', ')}`,\n  funnel_stage: 'green_signal',\n  last_response_at: data.received_at,\n  response_snippet: data.body_preview.substring(0, 200),\n  response_received: 1\n}}];"
+            },
+            "id": "144f39ba-89f4-445e-9e6a-ef407365ce55"
+        },
+        {
+            "name": "Update DB - Yellow",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1500,
+                350
+            ],
+            "parameters": {
+                "jsCode": "// Prepare yellow signal DB update payload\nconst data = $json;\nreturn [{ json: {\n  prospect_email: data.prospect_email,\n  signal_type: 'yellow',\n  signal_notes: `Classified yellow (confidence: ${data.confidence}). Patterns: ${data.matched_patterns.map(p => p.pattern).join(', ')}`,\n  funnel_stage: 'follow_up',\n  last_response_at: data.received_at,\n  response_snippet: data.body_preview.substring(0, 200),\n  response_received: 1\n}}];"
+            },
+            "id": "19b6adbf-e475-4610-a933-5ac0cd3bf6ca"
+        },
+        {
+            "name": "Update DB - Red",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1500,
+                550
+            ],
+            "parameters": {
+                "jsCode": "// Prepare red signal DB update payload\nconst data = $json;\nreturn [{ json: {\n  prospect_email: data.prospect_email,\n  signal_type: 'red',\n  signal_notes: `Classified red (confidence: ${data.confidence}). Patterns: ${data.matched_patterns.map(p => p.pattern).join(', ')}`,\n  funnel_stage: 'closed_lost',\n  last_response_at: data.received_at,\n  response_snippet: data.body_preview.substring(0, 200),\n  response_received: 1\n}}];"
+            },
+            "id": "31781b2f-6341-4649-be04-e5aa66b04bfe"
+        },
+        {
+            "name": "Log to Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1750,
+                150
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "service",
+                            "value": "cmo-signal-classifier"
+                        },
+                        {
+                            "name": "event_type",
+                            "value": "signal_classified"
+                        },
+                        {
+                            "name": "payload",
+                            "value": "={{ JSON.stringify($json) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 5000
+                },
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
+            },
+            "id": "3f60fce4-e6ae-4382-963a-aaacf57cc427"
+        },
+        {
+            "name": "Trigger W5 Handoff",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                2000,
+                150
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://n8n-production-7528.up.railway.app/webhook/cmo/handoff-sheet",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($('Update DB - Green').item.json) }}",
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "id": "8ef3be72-f4d7-4547-808a-f42ca579b932"
+        },
+        {
+            "name": "Log Yellow Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1750,
+                350
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "service",
+                            "value": "cmo-signal-classifier"
+                        },
+                        {
+                            "name": "event_type",
+                            "value": "signal_classified_yellow"
+                        },
+                        {
+                            "name": "payload",
+                            "value": "={{ JSON.stringify($json) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 5000
+                },
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
+            },
+            "id": "5b618a1b-e4c2-4e64-a35f-a5ac48e9630c"
+        },
+        {
+            "name": "Log Red Telemetry",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1750,
+                550
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "service",
+                            "value": "cmo-signal-classifier"
+                        },
+                        {
+                            "name": "event_type",
+                            "value": "signal_classified_red"
+                        },
+                        {
+                            "name": "payload",
+                            "value": "={{ JSON.stringify($json) }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 5000
+                },
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
+            },
+            "id": "d9fef370-f166-4942-9053-5616a10e3f79"
+        },
+        {
+            "name": "Respond OK",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                2250,
+                150
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify({ status: 'ok', signal: $('Classify Signal').item.json.signal, confidence: $('Classify Signal').item.json.confidence, handoff_triggered: true }) }}"
+            },
+            "id": "cfcb8372-bb52-4351-99a6-54f70b36a51c"
+        },
+        {
+            "name": "Respond Yellow",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                2000,
+                350
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify({ status: 'ok', signal: 'yellow', confidence: $('Classify Signal').item.json.confidence, action: 'queued_for_review' }) }}"
+            },
+            "id": "4e7f3b6b-d098-408d-b95e-83a3af3eade5"
+        },
+        {
+            "name": "Respond Red",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                2000,
+                550
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify({ status: 'ok', signal: 'red', confidence: $('Classify Signal').item.json.confidence, action: 'marked_closed' }) }}"
+            },
+            "id": "a2a1f412-6233-4756-8dc7-b846a54faf36"
+        },
+        {
+            "name": "Respond Error",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                1000,
+                500
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify({ status: 'error', message: $json.message }) }}",
+                "options": {
+                    "responseCode": 400
+                }
+            },
+            "id": "72d000a4-f38e-4915-aa75-17d46c40fcc3"
+        }
+    ],
+    "connections": {
+        "Email Response Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Input",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Manual Classify Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Input",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Input": {
+            "main": [
+                [
+                    {
+                        "node": "Input Valid?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Input Valid?": {
+            "main": [
+                [
+                    {
+                        "node": "Classify Signal",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Respond Error",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Classify Signal": {
+            "main": [
+                [
+                    {
+                        "node": "Route by Signal",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route by Signal": {
+            "main": [
+                [
+                    {
+                        "node": "Update DB - Green",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Update DB - Yellow",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Update DB - Red",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update DB - Green": {
+            "main": [
+                [
+                    {
+                        "node": "Log to Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log to Telemetry": {
+            "main": [
+                [
+                    {
+                        "node": "Trigger W5 Handoff",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Trigger W5 Handoff": {
+            "main": [
+                [
+                    {
+                        "node": "Respond OK",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update DB - Yellow": {
+            "main": [
+                [
+                    {
+                        "node": "Log Yellow Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Yellow Telemetry": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Yellow",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update DB - Red": {
+            "main": [
+                [
+                    {
+                        "node": "Log Red Telemetry",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Red Telemetry": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Red",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "callerPolicy": "workflowsFromSameOwner",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "3bdc8cc2-ea52-4ab4-9dd8-3321e903484c",
+    "activeVersionId": "3bdc8cc2-ea52-4ab4-9dd8-3321e903484c",
+    "versionCounter": 10,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-03-30T13:23:50.133Z",
+            "createdAt": "2026-03-30T13:23:50.133Z",
+            "role": "workflow:owner",
+            "workflowId": "UcCztzhuyeVM8lTG",
+            "projectId": "kB8NPQtVR0jcijW7",
+            "project": {
+                "updatedAt": "2026-03-05T20:34:46.166Z",
+                "createdAt": "2026-03-05T20:09:12.295Z",
+                "id": "kB8NPQtVR0jcijW7",
+                "name": "David Youssef <dydavidyoussef@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-03-30T14:34:12.309Z",
+        "createdAt": "2026-03-30T14:34:12.309Z",
+        "versionId": "3bdc8cc2-ea52-4ab4-9dd8-3321e903484c",
+        "workflowId": "UcCztzhuyeVM8lTG",
+        "nodes": [
+            {
+                "name": "Email Response Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [
+                    250,
+                    300
+                ],
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "cmo/signal-classify",
+                    "responseMode": "responseNode",
+                    "options": {}
+                },
+                "id": "7972faa4-31b9-486f-b1f0-d0966d00969c"
+            },
+            {
+                "name": "Manual Classify Trigger",
+                "type": "n8n-nodes-base.manualTrigger",
+                "typeVersion": 1,
+                "position": [
+                    250,
+                    500
+                ],
+                "parameters": {},
+                "id": "6ac4d7d1-0958-4a34-8045-f7af22193520"
+            },
+            {
+                "name": "Validate Input",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    500,
+                    400
+                ],
+                "parameters": {
+                    "jsCode": "// Validate incoming email response data\nconst input = $json || {};\n\nconst prospect_email = input.from || input.prospect_email || input.email || '';\nconst subject = input.subject || '';\nconst body = input.body || input.text || input.snippet || '';\nconst prospect_name = input.prospect_name || input.name || '';\nconst received_at = input.received_at || input.date || new Date().toISOString();\n\nif (!prospect_email && !body) {\n  return [{ json: {\n    error: true,\n    message: 'Missing required fields: need at least email or body text',\n    received: input\n  }}];\n}\n\nreturn [{ json: {\n  error: false,\n  prospect_email: prospect_email.toLowerCase().trim(),\n  prospect_name,\n  subject,\n  body,\n  received_at,\n  raw_input: input\n}}];"
+                },
+                "id": "92cf904a-9df8-4ad0-95c9-1eec5bfdf130"
+            },
+            {
+                "name": "Input Valid?",
+                "type": "n8n-nodes-base.if",
+                "typeVersion": 2,
+                "position": [
+                    750,
+                    400
+                ],
+                "parameters": {
+                    "conditions": {
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": ""
+                        },
+                        "conditions": [
+                            {
+                                "id": "w4-cond-valid",
+                                "leftValue": "={{ $json.error }}",
+                                "rightValue": false,
+                                "operator": {
+                                    "type": "boolean",
+                                    "operation": "equals",
+                                    "singleValue": true
+                                }
+                            }
+                        ],
+                        "combinator": "and"
+                    }
+                },
+                "id": "193fa0a3-ab6e-475e-bdc7-0df20aaf27b3"
+            },
+            {
+                "name": "Classify Signal",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1000,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "// Signal Classifier: green / yellow / red\n// Based on CMO Revenue Engine spec and Sales Handbook patterns\n\nconst { body, subject, prospect_email, prospect_name, received_at } = $json;\n\nconst text = (subject + ' ' + body).toLowerCase();\n\n// === RED signals: not interested, unsubscribe, hostile ===\nconst RED_PATTERNS = [\n  /\\bunsubscribe\\b/,\n  /\\bremove me\\b/,\n  /\\bstop (emailing|contacting|messaging)\\b/,\n  /\\bnot interested\\b/,\n  /\\bno thanks\\b/,\n  /\\bno thank you\\b/,\n  /\\bplease (don'?t|do not) (contact|email|reach out)\\b/,\n  /\\bwrong person\\b/,\n  /\\bnot relevant\\b/,\n  /\\bopt.?out\\b/,\n  /\\bspam\\b/,\n  /\\breport(ing|ed)? (as )?spam\\b/,\n  /\\bstop\\b.*\\bplease\\b/,\n  /\\bleave me alone\\b/,\n  /\\bnot (the right|a good) fit\\b/,\n  /\\bwe'?re (all )?set\\b/,\n  /\\bwe (already )?have (a |everything )?(solution|tool|vendor)\\b/\n];\n\n// === GREEN signals: interested, wants to talk ===\nconst GREEN_PATTERNS = [\n  /\\blet'?s (talk|chat|connect|discuss|set up|schedule|hop on)\\b/,\n  /\\bi'?d (love|like) to (learn|hear|see|discuss|chat|talk|know)\\b/,\n  /\\bsound(s)? (interesting|great|good|promising|compelling)\\b/,\n  /\\btell me more\\b/,\n  /\\bbook(ed)? (a )?(time|call|meeting|demo)\\b/,\n  /\\bschedule (a )?(time|call|meeting|demo)\\b/,\n  /\\bfree (this|next) week\\b/,\n  /\\bopen (to|for) (a )?(call|chat|meeting|conversation|discussion)\\b/,\n  /\\bsend (me |over )?(more )?(info|details|a demo|documentation|pricing)\\b/,\n  /\\bwhat (does it|would it) (cost|look like)\\b/,\n  /\\bhow (does|would) (it|this|guardspine) work\\b/,\n  /\\bwe (are |'re )?(dealing|struggling|facing) (with )?\\b/,\n  /\\bthis (is|hits|addresses) (exactly )?\\b.*(pain|problem|challenge|issue)\\b/,\n  /\\bintroduce (you|your team) to\\b/,\n  /\\bloop(ing)? in\\b.*(cto|ciso|vp|head|lead|director|manager)\\b/,\n  /\\bcan (you|we) (do a |run a )?demo\\b/,\n  /\\bcal\\.com\\b/,\n  /\\bcalendly\\b/,\n  /\\bhere'?s my (calendar|availability)\\b/,\n  /\\bpilot\\b/,\n  /\\btrial\\b/,\n  /\\bpoc\\b/\n];\n\n// === YELLOW signals: needs more info, timing issue, polite deferral ===\nconst YELLOW_PATTERNS = [\n  /\\bnot (right )?now\\b/,\n  /\\bmaybe (later|next|in a few)\\b/,\n  /\\bcheck back (in|later|next)\\b/,\n  /\\bbusy (right now|this|at the moment)\\b/,\n  /\\binteresting but\\b/,\n  /\\bneed(s)? (to )?(think|consider|evaluate|review|discuss internally)\\b/,\n  /\\bwho (else |also )?(uses|is using) (this|guardspine|it)\\b/,\n  /\\b(any|have) case stud(y|ies)\\b/,\n  /\\bwhat('s| is) (the )?(pricing|cost)\\b/,\n  /\\bforwarded? (this |it )?(to|along)\\b/,\n  /\\bloop(ed|ing)? in\\b/,\n  /\\bcc'?d\\b/,\n  /\\btiming (is|isn'?t)\\b/,\n  /\\bbudget (cycle|season|freeze)\\b/,\n  /\\bq[1-4] (would be|might be|is) better\\b/,\n  /\\bnext quarter\\b/,\n  /\\bafter (the|our) \\b/,\n  /\\bsend (me )?more (info|details|about)\\b/,\n  /\\bwhat (sets you|makes you|differentiates)\\b/\n];\n\nlet signal = 'yellow'; // default to yellow if ambiguous\nlet confidence = 0.5;\nlet matched_patterns = [];\n\n// Check RED first (highest priority)\nlet red_matches = 0;\nfor (const pattern of RED_PATTERNS) {\n  if (pattern.test(text)) {\n    red_matches++;\n    matched_patterns.push({ type: 'red', pattern: pattern.source });\n  }\n}\n\n// Check GREEN\nlet green_matches = 0;\nfor (const pattern of GREEN_PATTERNS) {\n  if (pattern.test(text)) {\n    green_matches++;\n    matched_patterns.push({ type: 'green', pattern: pattern.source });\n  }\n}\n\n// Check YELLOW\nlet yellow_matches = 0;\nfor (const pattern of YELLOW_PATTERNS) {\n  if (pattern.test(text)) {\n    yellow_matches++;\n    matched_patterns.push({ type: 'yellow', pattern: pattern.source });\n  }\n}\n\n// Decision logic\nif (red_matches > 0 && green_matches === 0) {\n  signal = 'red';\n  confidence = Math.min(0.95, 0.6 + (red_matches * 0.1));\n} else if (green_matches > 0 && red_matches === 0) {\n  signal = 'green';\n  confidence = Math.min(0.95, 0.6 + (green_matches * 0.1));\n} else if (green_matches > red_matches) {\n  // Mixed signals, green wins but lower confidence\n  signal = 'green';\n  confidence = 0.5;\n} else if (red_matches > green_matches) {\n  signal = 'red';\n  confidence = 0.5;\n} else if (yellow_matches > 0) {\n  signal = 'yellow';\n  confidence = Math.min(0.85, 0.5 + (yellow_matches * 0.1));\n}\n\n// Short body with no strong signals = yellow (needs human review)\nif (body.length < 30 && matched_patterns.length === 0) {\n  signal = 'yellow';\n  confidence = 0.3;\n  matched_patterns.push({ type: 'yellow', pattern: 'short_ambiguous_body' });\n}\n\nreturn [{ json: {\n  signal,\n  confidence,\n  matched_patterns,\n  match_counts: { green: green_matches, yellow: yellow_matches, red: red_matches },\n  prospect_email,\n  prospect_name,\n  subject,\n  body_preview: body.substring(0, 500),\n  received_at,\n  classified_at: new Date().toISOString()\n}}];"
+                },
+                "id": "54ac4475-fb15-4c18-ac8a-c9dc85e447d5"
+            },
+            {
+                "name": "Route by Signal",
+                "type": "n8n-nodes-base.switch",
+                "typeVersion": 3,
+                "position": [
+                    1250,
+                    300
+                ],
+                "parameters": {
+                    "rules": {
+                        "values": [
+                            {
+                                "outputKey": "green",
+                                "conditions": {
+                                    "conditions": [
+                                        {
+                                            "leftValue": "={{ $json.signal }}",
+                                            "rightValue": "green",
+                                            "operator": {
+                                                "type": "string",
+                                                "operation": "equals"
+                                            }
+                                        }
+                                    ],
+                                    "combinator": "and"
+                                }
+                            },
+                            {
+                                "outputKey": "yellow",
+                                "conditions": {
+                                    "conditions": [
+                                        {
+                                            "leftValue": "={{ $json.signal }}",
+                                            "rightValue": "yellow",
+                                            "operator": {
+                                                "type": "string",
+                                                "operation": "equals"
+                                            }
+                                        }
+                                    ],
+                                    "combinator": "and"
+                                }
+                            },
+                            {
+                                "outputKey": "red",
+                                "conditions": {
+                                    "conditions": [
+                                        {
+                                            "leftValue": "={{ $json.signal }}",
+                                            "rightValue": "red",
+                                            "operator": {
+                                                "type": "string",
+                                                "operation": "equals"
+                                            }
+                                        }
+                                    ],
+                                    "combinator": "and"
+                                }
+                            }
+                        ]
+                    },
+                    "options": {}
+                },
+                "id": "1a586d6d-41c1-4943-8d44-f07cd4d0d771"
+            },
+            {
+                "name": "Update DB - Green",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1500,
+                    150
+                ],
+                "parameters": {
+                    "jsCode": "// Prepare green signal DB update payload\nconst data = $json;\nreturn [{ json: {\n  prospect_email: data.prospect_email,\n  signal_type: 'green',\n  signal_notes: `Classified green (confidence: ${data.confidence}). Patterns: ${data.matched_patterns.map(p => p.pattern).join(', ')}`,\n  funnel_stage: 'green_signal',\n  last_response_at: data.received_at,\n  response_snippet: data.body_preview.substring(0, 200),\n  response_received: 1\n}}];"
+                },
+                "id": "144f39ba-89f4-445e-9e6a-ef407365ce55"
+            },
+            {
+                "name": "Update DB - Yellow",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1500,
+                    350
+                ],
+                "parameters": {
+                    "jsCode": "// Prepare yellow signal DB update payload\nconst data = $json;\nreturn [{ json: {\n  prospect_email: data.prospect_email,\n  signal_type: 'yellow',\n  signal_notes: `Classified yellow (confidence: ${data.confidence}). Patterns: ${data.matched_patterns.map(p => p.pattern).join(', ')}`,\n  funnel_stage: 'follow_up',\n  last_response_at: data.received_at,\n  response_snippet: data.body_preview.substring(0, 200),\n  response_received: 1\n}}];"
+                },
+                "id": "19b6adbf-e475-4610-a933-5ac0cd3bf6ca"
+            },
+            {
+                "name": "Update DB - Red",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1500,
+                    550
+                ],
+                "parameters": {
+                    "jsCode": "// Prepare red signal DB update payload\nconst data = $json;\nreturn [{ json: {\n  prospect_email: data.prospect_email,\n  signal_type: 'red',\n  signal_notes: `Classified red (confidence: ${data.confidence}). Patterns: ${data.matched_patterns.map(p => p.pattern).join(', ')}`,\n  funnel_stage: 'closed_lost',\n  last_response_at: data.received_at,\n  response_snippet: data.body_preview.substring(0, 200),\n  response_received: 1\n}}];"
+                },
+                "id": "31781b2f-6341-4649-be04-e5aa66b04bfe"
+            },
+            {
+                "name": "Log to Telemetry",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1750,
+                    150
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "sendBody": true,
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "service",
+                                "value": "cmo-signal-classifier"
+                            },
+                            {
+                                "name": "event_type",
+                                "value": "signal_classified"
+                            },
+                            {
+                                "name": "payload",
+                                "value": "={{ JSON.stringify($json) }}"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 5000
+                    },
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
+                },
+                "id": "3f60fce4-e6ae-4382-963a-aaacf57cc427"
+            },
+            {
+                "name": "Trigger W5 Handoff",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    2000,
+                    150
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "https://n8n-production-7528.up.railway.app/webhook/cmo/handoff-sheet",
+                    "sendBody": true,
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($('Update DB - Green').item.json) }}",
+                    "options": {
+                        "timeout": 30000
+                    }
+                },
+                "id": "8ef3be72-f4d7-4547-808a-f42ca579b932"
+            },
+            {
+                "name": "Log Yellow Telemetry",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1750,
+                    350
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "sendBody": true,
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "service",
+                                "value": "cmo-signal-classifier"
+                            },
+                            {
+                                "name": "event_type",
+                                "value": "signal_classified_yellow"
+                            },
+                            {
+                                "name": "payload",
+                                "value": "={{ JSON.stringify($json) }}"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 5000
+                    },
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
+                },
+                "id": "5b618a1b-e4c2-4e64-a35f-a5ac48e9630c"
+            },
+            {
+                "name": "Log Red Telemetry",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1750,
+                    550
+                ],
+                "parameters": {
+                    "method": "POST",
+                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
+                    "sendBody": true,
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "service",
+                                "value": "cmo-signal-classifier"
+                            },
+                            {
+                                "name": "event_type",
+                                "value": "signal_classified_red"
+                            },
+                            {
+                                "name": "payload",
+                                "value": "={{ JSON.stringify($json) }}"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 5000
+                    },
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
+                },
+                "id": "d9fef370-f166-4942-9053-5616a10e3f79"
+            },
+            {
+                "name": "Respond OK",
+                "type": "n8n-nodes-base.respondToWebhook",
+                "typeVersion": 1.1,
+                "position": [
+                    2250,
+                    150
+                ],
+                "parameters": {
+                    "respondWith": "json",
+                    "responseBody": "={{ JSON.stringify({ status: 'ok', signal: $('Classify Signal').item.json.signal, confidence: $('Classify Signal').item.json.confidence, handoff_triggered: true }) }}"
+                },
+                "id": "cfcb8372-bb52-4351-99a6-54f70b36a51c"
+            },
+            {
+                "name": "Respond Yellow",
+                "type": "n8n-nodes-base.respondToWebhook",
+                "typeVersion": 1.1,
+                "position": [
+                    2000,
+                    350
+                ],
+                "parameters": {
+                    "respondWith": "json",
+                    "responseBody": "={{ JSON.stringify({ status: 'ok', signal: 'yellow', confidence: $('Classify Signal').item.json.confidence, action: 'queued_for_review' }) }}"
+                },
+                "id": "4e7f3b6b-d098-408d-b95e-83a3af3eade5"
+            },
+            {
+                "name": "Respond Red",
+                "type": "n8n-nodes-base.respondToWebhook",
+                "typeVersion": 1.1,
+                "position": [
+                    2000,
+                    550
+                ],
+                "parameters": {
+                    "respondWith": "json",
+                    "responseBody": "={{ JSON.stringify({ status: 'ok', signal: 'red', confidence: $('Classify Signal').item.json.confidence, action: 'marked_closed' }) }}"
+                },
+                "id": "a2a1f412-6233-4756-8dc7-b846a54faf36"
+            },
+            {
+                "name": "Respond Error",
+                "type": "n8n-nodes-base.respondToWebhook",
+                "typeVersion": 1.1,
+                "position": [
+                    1000,
+                    500
+                ],
+                "parameters": {
+                    "respondWith": "json",
+                    "responseBody": "={{ JSON.stringify({ status: 'error', message: $json.message }) }}",
+                    "options": {
+                        "responseCode": 400
+                    }
+                },
+                "id": "72d000a4-f38e-4915-aa75-17d46c40fcc3"
+            }
+        ],
+        "connections": {
+            "Email Response Webhook": {
+                "main": [
+                    [
+                        {
+                            "node": "Validate Input",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Manual Classify Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "Validate Input",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Validate Input": {
+                "main": [
+                    [
+                        {
+                            "node": "Input Valid?",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Input Valid?": {
+                "main": [
+                    [
+                        {
+                            "node": "Classify Signal",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Respond Error",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Classify Signal": {
+                "main": [
+                    [
+                        {
+                            "node": "Route by Signal",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Route by Signal": {
+                "main": [
+                    [
+                        {
+                            "node": "Update DB - Green",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Update DB - Yellow",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Update DB - Red",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Update DB - Green": {
+                "main": [
+                    [
+                        {
+                            "node": "Log to Telemetry",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log to Telemetry": {
+                "main": [
+                    [
+                        {
+                            "node": "Trigger W5 Handoff",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Trigger W5 Handoff": {
+                "main": [
+                    [
+                        {
+                            "node": "Respond OK",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Update DB - Yellow": {
+                "main": [
+                    [
+                        {
+                            "node": "Log Yellow Telemetry",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log Yellow Telemetry": {
+                "main": [
+                    [
+                        {
+                            "node": "Respond Yellow",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Update DB - Red": {
+                "main": [
+                    [
+                        {
+                            "node": "Log Red Telemetry",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Log Red Telemetry": {
+                "main": [
+                    [
+                        {
+                            "node": "Respond Red",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "David Youssef",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-03-30T14:34:12.367Z",
+                "id": 1955,
+                "workflowId": "UcCztzhuyeVM8lTG",
+                "versionId": "3bdc8cc2-ea52-4ab4-9dd8-3321e903484c",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:12.573Z",
+                "id": 1957,
+                "workflowId": "UcCztzhuyeVM8lTG",
+                "versionId": "3bdc8cc2-ea52-4ab4-9dd8-3321e903484c",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:12.347Z",
+                "id": 1954,
+                "workflowId": "UcCztzhuyeVM8lTG",
+                "versionId": "3bdc8cc2-ea52-4ab4-9dd8-3321e903484c",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:12.485Z",
+                "id": 1956,
+                "workflowId": "UcCztzhuyeVM8lTG",
+                "versionId": "3bdc8cc2-ea52-4ab4-9dd8-3321e903484c",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            }
+        ]
+    }
+}

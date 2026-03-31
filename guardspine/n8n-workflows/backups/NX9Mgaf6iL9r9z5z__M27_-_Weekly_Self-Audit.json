@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T22:09:59.667Z",
+    "updatedAt": "2026-03-30T14:34:09.098Z",
     "createdAt": "2026-03-21T06:15:13.802Z",
     "id": "NX9Mgaf6iL9r9z5z",
     "name": "M27 - Weekly Self-Audit",
@@ -50,7 +50,16 @@
                 "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M27 - Weekly Self-Audit\"}}"
+                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M27 - Weekly Self-Audit\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log",
             "type": "n8n-nodes-base.httpRequest",
@@ -155,9 +164,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "aa4c214e-c2ba-44ba-ac39-0d8e41c44561",
-    "activeVersionId": "aa4c214e-c2ba-44ba-ac39-0d8e41c44561",
-    "versionCounter": 49,
+    "versionId": "ffcdbd16-d1ec-433e-83bf-11cfe71dc842",
+    "activeVersionId": "ffcdbd16-d1ec-433e-83bf-11cfe71dc842",
+    "versionCounter": 56,
     "triggerCount": 1,
     "shared": [
         {
@@ -180,9 +189,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T22:09:59.668Z",
-        "createdAt": "2026-03-21T22:09:59.668Z",
-        "versionId": "aa4c214e-c2ba-44ba-ac39-0d8e41c44561",
+        "updatedAt": "2026-03-30T14:34:09.098Z",
+        "createdAt": "2026-03-30T14:34:09.098Z",
+        "versionId": "ffcdbd16-d1ec-433e-83bf-11cfe71dc842",
         "workflowId": "NX9Mgaf6iL9r9z5z",
         "nodes": [
             {
@@ -228,7 +237,16 @@
                     "method": "POST",
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M27 - Weekly Self-Audit\"}}"
+                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M27 - Weekly Self-Audit\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log",
                 "type": "n8n-nodes-base.httpRequest",
@@ -327,18 +345,34 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T22:09:59.725Z",
-                "id": 1507,
+                "createdAt": "2026-03-30T14:34:09.144Z",
+                "id": 1923,
                 "workflowId": "NX9Mgaf6iL9r9z5z",
-                "versionId": "aa4c214e-c2ba-44ba-ac39-0d8e41c44561",
+                "versionId": "ffcdbd16-d1ec-433e-83bf-11cfe71dc842",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-21T22:09:59.710Z",
-                "id": 1506,
+                "createdAt": "2026-03-30T14:34:09.324Z",
+                "id": 1925,
                 "workflowId": "NX9Mgaf6iL9r9z5z",
-                "versionId": "aa4c214e-c2ba-44ba-ac39-0d8e41c44561",
+                "versionId": "ffcdbd16-d1ec-433e-83bf-11cfe71dc842",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:09.128Z",
+                "id": 1922,
+                "workflowId": "NX9Mgaf6iL9r9z5z",
+                "versionId": "ffcdbd16-d1ec-433e-83bf-11cfe71dc842",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:09.224Z",
+                "id": 1924,
+                "workflowId": "NX9Mgaf6iL9r9z5z",
+                "versionId": "ffcdbd16-d1ec-433e-83bf-11cfe71dc842",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

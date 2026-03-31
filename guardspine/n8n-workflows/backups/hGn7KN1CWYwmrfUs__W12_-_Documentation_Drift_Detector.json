@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:26.827Z",
+    "updatedAt": "2026-03-30T14:34:17.454Z",
     "createdAt": "2026-03-20T17:29:54.870Z",
     "id": "hGn7KN1CWYwmrfUs",
     "name": "W12 - Documentation Drift Detector",
@@ -29,7 +29,16 @@
         },
         {
             "parameters": {
-                "url": "http://telemetry-api.railway.internal:8090/health"
+                "url": "http://telemetry-api.railway.internal:8090/health",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Fetch Service Status",
             "type": "n8n-nodes-base.httpRequest",
@@ -47,7 +56,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"query_name\": \"agent_status\", \"params\": {}}"
+                "jsonBody": "{\"query_name\": \"agent_status\", \"params\": {}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Fetch Agent Status",
             "type": "n8n-nodes-base.httpRequest",
@@ -65,7 +83,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"24 hours\"}}"
+                "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"24 hours\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Fetch Recent Heartbeats",
             "type": "n8n-nodes-base.httpRequest",
@@ -83,7 +110,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}"
+                "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Fetch Workflow Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -135,7 +171,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "={\"service\": \"documentation\", \"event_type\": \"drift_detected\", \"payload\": {\"drift_items\": {{ JSON.stringify($json.drift_items) }}, \"drift_count\": {{ $json.drift_count }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                "jsonBody": "={\"service\": \"documentation\", \"event_type\": \"drift_detected\", \"payload\": {\"drift_items\": {{ JSON.stringify($json.drift_items) }}, \"drift_count\": {{ $json.drift_count }}, \"checked_at\": \"{{ $json.checked_at }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Drift Report",
             "type": "n8n-nodes-base.httpRequest",
@@ -153,7 +198,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "={\"service\": \"documentation\", \"event_type\": \"drift_clean\", \"payload\": {\"checked_at\": \"{{ $json.checked_at }}\", \"services_checked\": {{ $json.services_checked }}, \"agents_checked\": {{ $json.agents_checked }}}}"
+                "jsonBody": "={\"service\": \"documentation\", \"event_type\": \"drift_clean\", \"payload\": {\"checked_at\": \"{{ $json.checked_at }}\", \"services_checked\": {{ $json.services_checked }}, \"agents_checked\": {{ $json.agents_checked }}}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Clean Report",
             "type": "n8n-nodes-base.httpRequest",
@@ -182,7 +236,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W12 - Documentation Drift Detector\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W12 - Documentation Drift Detector\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -382,9 +445,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "6b583e6b-cb73-42a4-82f7-2256d245dc08",
-    "activeVersionId": "6b583e6b-cb73-42a4-82f7-2256d245dc08",
-    "versionCounter": 48,
+    "versionId": "b47d53ba-096c-4588-8add-9e31a7984378",
+    "activeVersionId": "b47d53ba-096c-4588-8add-9e31a7984378",
+    "versionCounter": 55,
     "triggerCount": 1,
     "shared": [
         {
@@ -407,9 +470,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:26.828Z",
-        "createdAt": "2026-03-21T18:42:26.828Z",
-        "versionId": "6b583e6b-cb73-42a4-82f7-2256d245dc08",
+        "updatedAt": "2026-03-30T14:34:17.455Z",
+        "createdAt": "2026-03-30T14:34:17.455Z",
+        "versionId": "b47d53ba-096c-4588-8add-9e31a7984378",
         "workflowId": "hGn7KN1CWYwmrfUs",
         "nodes": [
             {
@@ -434,7 +497,16 @@
             },
             {
                 "parameters": {
-                    "url": "http://telemetry-api.railway.internal:8090/health"
+                    "url": "http://telemetry-api.railway.internal:8090/health",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Fetch Service Status",
                 "type": "n8n-nodes-base.httpRequest",
@@ -452,7 +524,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"query_name\": \"agent_status\", \"params\": {}}"
+                    "jsonBody": "{\"query_name\": \"agent_status\", \"params\": {}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Fetch Agent Status",
                 "type": "n8n-nodes-base.httpRequest",
@@ -470,7 +551,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"24 hours\"}}"
+                    "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"24 hours\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Fetch Recent Heartbeats",
                 "type": "n8n-nodes-base.httpRequest",
@@ -488,7 +578,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}"
+                    "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Fetch Workflow Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -540,7 +639,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "={\"service\": \"documentation\", \"event_type\": \"drift_detected\", \"payload\": {\"drift_items\": {{ JSON.stringify($json.drift_items) }}, \"drift_count\": {{ $json.drift_count }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                    "jsonBody": "={\"service\": \"documentation\", \"event_type\": \"drift_detected\", \"payload\": {\"drift_items\": {{ JSON.stringify($json.drift_items) }}, \"drift_count\": {{ $json.drift_count }}, \"checked_at\": \"{{ $json.checked_at }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Drift Report",
                 "type": "n8n-nodes-base.httpRequest",
@@ -558,7 +666,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "={\"service\": \"documentation\", \"event_type\": \"drift_clean\", \"payload\": {\"checked_at\": \"{{ $json.checked_at }}\", \"services_checked\": {{ $json.services_checked }}, \"agents_checked\": {{ $json.agents_checked }}}}"
+                    "jsonBody": "={\"service\": \"documentation\", \"event_type\": \"drift_clean\", \"payload\": {\"checked_at\": \"{{ $json.checked_at }}\", \"services_checked\": {{ $json.services_checked }}, \"agents_checked\": {{ $json.agents_checked }}}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Clean Report",
                 "type": "n8n-nodes-base.httpRequest",
@@ -587,7 +704,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W12 - Documentation Drift Detector\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W12 - Documentation Drift Detector\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -781,11 +907,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:26.875Z",
-                "id": 1431,
+                "createdAt": "2026-03-30T14:34:17.497Z",
+                "id": 2007,
                 "workflowId": "hGn7KN1CWYwmrfUs",
-                "versionId": "6b583e6b-cb73-42a4-82f7-2256d245dc08",
+                "versionId": "b47d53ba-096c-4588-8add-9e31a7984378",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:17.711Z",
+                "id": 2009,
+                "workflowId": "hGn7KN1CWYwmrfUs",
+                "versionId": "b47d53ba-096c-4588-8add-9e31a7984378",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:17.484Z",
+                "id": 2006,
+                "workflowId": "hGn7KN1CWYwmrfUs",
+                "versionId": "b47d53ba-096c-4588-8add-9e31a7984378",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:17.612Z",
+                "id": 2008,
+                "workflowId": "hGn7KN1CWYwmrfUs",
+                "versionId": "b47d53ba-096c-4588-8add-9e31a7984378",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:24.694Z",
+    "updatedAt": "2026-03-30T14:34:13.164Z",
     "createdAt": "2026-03-21T06:14:53.336Z",
     "id": "VOoAx8pBklQX5kSz",
     "name": "M16 - Competitive Intel Scanner",
@@ -50,7 +50,16 @@
                 "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M16 - Competitive Intel Scanner\"}}"
+                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M16 - Competitive Intel Scanner\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log",
             "type": "n8n-nodes-base.httpRequest",
@@ -155,9 +164,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "ca0e6d6b-fd12-475d-be67-21e96744dd6b",
-    "activeVersionId": "ca0e6d6b-fd12-475d-be67-21e96744dd6b",
-    "versionCounter": 46,
+    "versionId": "57c9bf50-5311-41e9-8a3a-8a94b23a4c45",
+    "activeVersionId": "57c9bf50-5311-41e9-8a3a-8a94b23a4c45",
+    "versionCounter": 53,
     "triggerCount": 1,
     "shared": [
         {
@@ -180,9 +189,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:24.695Z",
-        "createdAt": "2026-03-21T18:42:24.695Z",
-        "versionId": "ca0e6d6b-fd12-475d-be67-21e96744dd6b",
+        "updatedAt": "2026-03-30T14:34:13.165Z",
+        "createdAt": "2026-03-30T14:34:13.165Z",
+        "versionId": "57c9bf50-5311-41e9-8a3a-8a94b23a4c45",
         "workflowId": "VOoAx8pBklQX5kSz",
         "nodes": [
             {
@@ -228,7 +237,16 @@
                     "method": "POST",
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M16 - Competitive Intel Scanner\"}}"
+                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M16 - Competitive Intel Scanner\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log",
                 "type": "n8n-nodes-base.httpRequest",
@@ -327,11 +345,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:24.734Z",
-                "id": 1405,
+                "createdAt": "2026-03-30T14:34:13.245Z",
+                "id": 1963,
                 "workflowId": "VOoAx8pBklQX5kSz",
-                "versionId": "ca0e6d6b-fd12-475d-be67-21e96744dd6b",
+                "versionId": "57c9bf50-5311-41e9-8a3a-8a94b23a4c45",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:13.498Z",
+                "id": 1965,
+                "workflowId": "VOoAx8pBklQX5kSz",
+                "versionId": "57c9bf50-5311-41e9-8a3a-8a94b23a4c45",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:13.209Z",
+                "id": 1962,
+                "workflowId": "VOoAx8pBklQX5kSz",
+                "versionId": "57c9bf50-5311-41e9-8a3a-8a94b23a4c45",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:13.338Z",
+                "id": 1964,
+                "workflowId": "VOoAx8pBklQX5kSz",
+                "versionId": "57c9bf50-5311-41e9-8a3a-8a94b23a4c45",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

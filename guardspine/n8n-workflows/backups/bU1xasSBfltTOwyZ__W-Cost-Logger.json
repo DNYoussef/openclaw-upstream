@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-27T18:10:18.532Z",
+    "updatedAt": "2026-03-30T14:34:14.035Z",
     "createdAt": "2026-03-27T18:10:18.532Z",
     "id": "bU1xasSBfltTOwyZ",
     "name": "W-Cost-Logger",
@@ -46,6 +46,10 @@
                         {
                             "name": "Content-Type",
                             "value": "application/json"
+                        },
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
                         }
                     ]
                 },
@@ -96,9 +100,9 @@
     "staticData": null,
     "meta": null,
     "pinData": null,
-    "versionId": "64bce31b-e610-48c7-bf0a-b285e6ba5cb8",
-    "activeVersionId": "64bce31b-e610-48c7-bf0a-b285e6ba5cb8",
-    "versionCounter": 5,
+    "versionId": "8eab89ac-44c3-40ee-84ce-f7767b86afff",
+    "activeVersionId": "8eab89ac-44c3-40ee-84ce-f7767b86afff",
+    "versionCounter": 12,
     "triggerCount": 1,
     "shared": [
         {
@@ -121,9 +125,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-27T18:10:18.539Z",
-        "createdAt": "2026-03-27T18:10:18.539Z",
-        "versionId": "64bce31b-e610-48c7-bf0a-b285e6ba5cb8",
+        "updatedAt": "2026-03-30T14:34:14.035Z",
+        "createdAt": "2026-03-30T14:34:14.035Z",
+        "versionId": "8eab89ac-44c3-40ee-84ce-f7767b86afff",
         "workflowId": "bU1xasSBfltTOwyZ",
         "nodes": [
             {
@@ -165,6 +169,10 @@
                             {
                                 "name": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
                             }
                         ]
                     },
@@ -213,11 +221,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-27T18:10:32.627Z",
-                "id": 1781,
+                "createdAt": "2026-03-30T14:34:14.103Z",
+                "id": 1971,
                 "workflowId": "bU1xasSBfltTOwyZ",
-                "versionId": "64bce31b-e610-48c7-bf0a-b285e6ba5cb8",
+                "versionId": "8eab89ac-44c3-40ee-84ce-f7767b86afff",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:14.269Z",
+                "id": 1973,
+                "workflowId": "bU1xasSBfltTOwyZ",
+                "versionId": "8eab89ac-44c3-40ee-84ce-f7767b86afff",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:14.085Z",
+                "id": 1970,
+                "workflowId": "bU1xasSBfltTOwyZ",
+                "versionId": "8eab89ac-44c3-40ee-84ce-f7767b86afff",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:14.196Z",
+                "id": 1972,
+                "workflowId": "bU1xasSBfltTOwyZ",
+                "versionId": "8eab89ac-44c3-40ee-84ce-f7767b86afff",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

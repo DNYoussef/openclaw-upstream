@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-27T19:59:18.943Z",
+    "updatedAt": "2026-03-30T14:33:59.999Z",
     "createdAt": "2026-03-27T19:59:18.943Z",
     "id": "7JWtAeaQS0AXREEA",
     "name": "W43 - Nightly Doc Drift Sync",
@@ -50,6 +50,10 @@
                         {
                             "name": "Content-Type",
                             "value": "application/json"
+                        },
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
                         }
                     ]
                 },
@@ -104,9 +108,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "167ced70-abcf-430c-8037-bc6372cb23f9",
-    "activeVersionId": "167ced70-abcf-430c-8037-bc6372cb23f9",
-    "versionCounter": 4,
+    "versionId": "6dd84afc-ef26-4cce-9d95-583bf0171db4",
+    "activeVersionId": "6dd84afc-ef26-4cce-9d95-583bf0171db4",
+    "versionCounter": 11,
     "triggerCount": 1,
     "shared": [
         {
@@ -129,9 +133,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-27T19:59:18.956Z",
-        "createdAt": "2026-03-27T19:59:18.956Z",
-        "versionId": "167ced70-abcf-430c-8037-bc6372cb23f9",
+        "updatedAt": "2026-03-30T14:33:59.999Z",
+        "createdAt": "2026-03-30T14:33:59.999Z",
+        "versionId": "6dd84afc-ef26-4cce-9d95-583bf0171db4",
         "workflowId": "7JWtAeaQS0AXREEA",
         "nodes": [
             {
@@ -177,6 +181,10 @@
                             {
                                 "name": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
                             }
                         ]
                     },
@@ -225,11 +233,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-27T19:59:19.678Z",
-                "id": 1785,
+                "createdAt": "2026-03-30T14:34:00.052Z",
+                "id": 1835,
                 "workflowId": "7JWtAeaQS0AXREEA",
-                "versionId": "167ced70-abcf-430c-8037-bc6372cb23f9",
+                "versionId": "6dd84afc-ef26-4cce-9d95-583bf0171db4",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:00.249Z",
+                "id": 1837,
+                "workflowId": "7JWtAeaQS0AXREEA",
+                "versionId": "6dd84afc-ef26-4cce-9d95-583bf0171db4",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:00.035Z",
+                "id": 1834,
+                "workflowId": "7JWtAeaQS0AXREEA",
+                "versionId": "6dd84afc-ef26-4cce-9d95-583bf0171db4",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:00.140Z",
+                "id": 1836,
+                "workflowId": "7JWtAeaQS0AXREEA",
+                "versionId": "6dd84afc-ef26-4cce-9d95-583bf0171db4",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

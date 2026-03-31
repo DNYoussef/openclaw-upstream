@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:22.244Z",
+    "updatedAt": "2026-03-30T14:34:06.585Z",
     "createdAt": "2026-03-20T17:29:58.146Z",
     "id": "JWp2K4SSXtg18VF1",
     "name": "W23 - Narrowcast RSS Scanner",
@@ -115,7 +115,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"narrowcast\", \"event_type\": \"signals_found\", \"payload\": {\"total_scanned\": \"={{ $json.total_scanned }}\", \"relevant_found\": \"={{ $json.relevant_found }}\", \"scan_timestamp\": \"={{ $json.scan_timestamp }}\", \"threads\": \"={{ JSON.stringify($json.threads) }}\"}}"
+                "jsonBody": "{\"service\": \"narrowcast\", \"event_type\": \"signals_found\", \"payload\": {\"total_scanned\": \"={{ $json.total_scanned }}\", \"relevant_found\": \"={{ $json.relevant_found }}\", \"scan_timestamp\": \"={{ $json.scan_timestamp }}\", \"threads\": \"={{ JSON.stringify($json.threads) }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Narrowcast Signals",
             "type": "n8n-nodes-base.httpRequest",
@@ -133,7 +142,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"narrowcast\", \"event_type\": \"scan_clean\", \"payload\": {\"total_scanned\": \"={{ $json.total_scanned }}\", \"scan_timestamp\": \"={{ $json.scan_timestamp }}\"}}"
+                "jsonBody": "{\"service\": \"narrowcast\", \"event_type\": \"scan_clean\", \"payload\": {\"total_scanned\": \"={{ $json.total_scanned }}\", \"scan_timestamp\": \"={{ $json.scan_timestamp }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Clean Scan",
             "type": "n8n-nodes-base.httpRequest",
@@ -162,7 +180,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W23 - Narrowcast RSS Scanner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W23 - Narrowcast RSS Scanner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -347,15 +374,15 @@
     "staticData": {
         "node:Every 6 Hours": {
             "recurrenceRules": [
-                6
+                0
             ]
         }
     },
     "meta": null,
     "pinData": null,
-    "versionId": "64473449-42f7-4ce5-8ed6-5f63db6368ce",
-    "activeVersionId": "64473449-42f7-4ce5-8ed6-5f63db6368ce",
-    "versionCounter": 93,
+    "versionId": "ebe8a8bf-bfa5-4820-ad36-aa42ff54a29d",
+    "activeVersionId": "ebe8a8bf-bfa5-4820-ad36-aa42ff54a29d",
+    "versionCounter": 103,
     "triggerCount": 1,
     "shared": [
         {
@@ -378,9 +405,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:22.245Z",
-        "createdAt": "2026-03-21T18:42:22.245Z",
-        "versionId": "64473449-42f7-4ce5-8ed6-5f63db6368ce",
+        "updatedAt": "2026-03-30T14:34:06.586Z",
+        "createdAt": "2026-03-30T14:34:06.586Z",
+        "versionId": "ebe8a8bf-bfa5-4820-ad36-aa42ff54a29d",
         "workflowId": "JWp2K4SSXtg18VF1",
         "nodes": [
             {
@@ -491,7 +518,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"narrowcast\", \"event_type\": \"signals_found\", \"payload\": {\"total_scanned\": \"={{ $json.total_scanned }}\", \"relevant_found\": \"={{ $json.relevant_found }}\", \"scan_timestamp\": \"={{ $json.scan_timestamp }}\", \"threads\": \"={{ JSON.stringify($json.threads) }}\"}}"
+                    "jsonBody": "{\"service\": \"narrowcast\", \"event_type\": \"signals_found\", \"payload\": {\"total_scanned\": \"={{ $json.total_scanned }}\", \"relevant_found\": \"={{ $json.relevant_found }}\", \"scan_timestamp\": \"={{ $json.scan_timestamp }}\", \"threads\": \"={{ JSON.stringify($json.threads) }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Narrowcast Signals",
                 "type": "n8n-nodes-base.httpRequest",
@@ -509,7 +545,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"narrowcast\", \"event_type\": \"scan_clean\", \"payload\": {\"total_scanned\": \"={{ $json.total_scanned }}\", \"scan_timestamp\": \"={{ $json.scan_timestamp }}\"}}"
+                    "jsonBody": "{\"service\": \"narrowcast\", \"event_type\": \"scan_clean\", \"payload\": {\"total_scanned\": \"={{ $json.total_scanned }}\", \"scan_timestamp\": \"={{ $json.scan_timestamp }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Clean Scan",
                 "type": "n8n-nodes-base.httpRequest",
@@ -538,7 +583,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W23 - Narrowcast RSS Scanner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W23 - Narrowcast RSS Scanner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -721,11 +775,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:22.361Z",
-                "id": 1373,
+                "createdAt": "2026-03-30T14:34:06.669Z",
+                "id": 1899,
                 "workflowId": "JWp2K4SSXtg18VF1",
-                "versionId": "64473449-42f7-4ce5-8ed6-5f63db6368ce",
+                "versionId": "ebe8a8bf-bfa5-4820-ad36-aa42ff54a29d",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:06.874Z",
+                "id": 1901,
+                "workflowId": "JWp2K4SSXtg18VF1",
+                "versionId": "ebe8a8bf-bfa5-4820-ad36-aa42ff54a29d",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:06.615Z",
+                "id": 1898,
+                "workflowId": "JWp2K4SSXtg18VF1",
+                "versionId": "ebe8a8bf-bfa5-4820-ad36-aa42ff54a29d",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:06.759Z",
+                "id": 1900,
+                "workflowId": "JWp2K4SSXtg18VF1",
+                "versionId": "ebe8a8bf-bfa5-4820-ad36-aa42ff54a29d",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

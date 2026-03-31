@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:23.646Z",
+    "updatedAt": "2026-03-30T14:34:09.478Z",
     "createdAt": "2026-03-20T17:30:00.245Z",
     "id": "OLzFPzjTVjF65JPW",
     "name": "W3 - Service Health Dashboard",
@@ -29,7 +29,16 @@
         },
         {
             "parameters": {
-                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_health?weeks=4&limit=10"
+                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_health?weeks=4&limit=10",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Query Health KPIs",
             "type": "n8n-nodes-base.httpRequest",
@@ -42,7 +51,16 @@
         },
         {
             "parameters": {
-                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10"
+                "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Query Automation KPIs",
             "type": "n8n-nodes-base.httpRequest",
@@ -93,7 +111,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": \"={{ JSON.stringify($json.alerts) }}\", \"alert_count\": \"={{ $json.alert_count }}\"}}"
+                "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": \"={{ JSON.stringify($json.alerts) }}\", \"alert_count\": \"={{ $json.alert_count }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Emit Health Alert",
             "type": "n8n-nodes-base.httpRequest",
@@ -122,7 +149,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W3 - Service Health Dashboard\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W3 - Service Health Dashboard\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -283,9 +319,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "c6958e28-9c3f-4f1b-95b4-25976522a7dd",
-    "activeVersionId": "c6958e28-9c3f-4f1b-95b4-25976522a7dd",
-    "versionCounter": 48,
+    "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
+    "activeVersionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
+    "versionCounter": 55,
     "triggerCount": 1,
     "shared": [
         {
@@ -308,9 +344,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:23.647Z",
-        "createdAt": "2026-03-21T18:42:23.647Z",
-        "versionId": "c6958e28-9c3f-4f1b-95b4-25976522a7dd",
+        "updatedAt": "2026-03-30T14:34:09.478Z",
+        "createdAt": "2026-03-30T14:34:09.478Z",
+        "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
         "workflowId": "OLzFPzjTVjF65JPW",
         "nodes": [
             {
@@ -335,7 +371,16 @@
             },
             {
                 "parameters": {
-                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_health?weeks=4&limit=10"
+                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_health?weeks=4&limit=10",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Query Health KPIs",
                 "type": "n8n-nodes-base.httpRequest",
@@ -348,7 +393,16 @@
             },
             {
                 "parameters": {
-                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10"
+                    "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Query Automation KPIs",
                 "type": "n8n-nodes-base.httpRequest",
@@ -399,7 +453,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": \"={{ JSON.stringify($json.alerts) }}\", \"alert_count\": \"={{ $json.alert_count }}\"}}"
+                    "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": \"={{ JSON.stringify($json.alerts) }}\", \"alert_count\": \"={{ $json.alert_count }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Emit Health Alert",
                 "type": "n8n-nodes-base.httpRequest",
@@ -428,7 +491,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W3 - Service Health Dashboard\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W3 - Service Health Dashboard\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -583,11 +655,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:23.733Z",
-                "id": 1391,
+                "createdAt": "2026-03-30T14:34:09.568Z",
+                "id": 1927,
                 "workflowId": "OLzFPzjTVjF65JPW",
-                "versionId": "c6958e28-9c3f-4f1b-95b4-25976522a7dd",
+                "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:09.777Z",
+                "id": 1929,
+                "workflowId": "OLzFPzjTVjF65JPW",
+                "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:09.515Z",
+                "id": 1926,
+                "workflowId": "OLzFPzjTVjF65JPW",
+                "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:09.677Z",
+                "id": 1928,
+                "workflowId": "OLzFPzjTVjF65JPW",
+                "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

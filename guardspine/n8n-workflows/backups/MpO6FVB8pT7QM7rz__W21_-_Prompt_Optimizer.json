@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:23.251Z",
+    "updatedAt": "2026-03-30T14:34:08.671Z",
     "createdAt": "2026-03-20T17:29:57.496Z",
     "id": "MpO6FVB8pT7QM7rz",
     "name": "W21 - Prompt Optimizer",
@@ -34,7 +34,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"168 hours\"}}"
+                "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"168 hours\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Fetch Agent Heartbeats",
             "type": "n8n-nodes-base.httpRequest",
@@ -52,7 +61,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"query_name\": \"telemetry_by_service\", \"params\": {\"service\": \"n8n\", \"limit\": 50}}"
+                "jsonBody": "{\"query_name\": \"telemetry_by_service\", \"params\": {\"service\": \"n8n\", \"limit\": 50}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Fetch Recent Errors",
             "type": "n8n-nodes-base.httpRequest",
@@ -104,7 +122,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_alert\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"agents_needing_attention\": \"={{ $json.agents_needing_attention }}\", \"agents_ready_for_optimization\": \"={{ $json.agents_ready_for_optimization }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}"
+                "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_alert\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"agents_needing_attention\": \"={{ $json.agents_needing_attention }}\", \"agents_ready_for_optimization\": \"={{ $json.agents_ready_for_optimization }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Quality Alert",
             "type": "n8n-nodes-base.httpRequest",
@@ -122,7 +149,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_ok\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}"
+                "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_ok\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Quality OK",
             "type": "n8n-nodes-base.httpRequest",
@@ -151,7 +187,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W21 - Prompt Optimizer\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W21 - Prompt Optimizer\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -329,9 +374,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "98a3bd8e-ab48-4bc7-9f19-9fe6e6f8dd08",
-    "activeVersionId": "98a3bd8e-ab48-4bc7-9f19-9fe6e6f8dd08",
-    "versionCounter": 48,
+    "versionId": "abf5af15-3bca-4554-a357-d3ea48b40211",
+    "activeVersionId": "abf5af15-3bca-4554-a357-d3ea48b40211",
+    "versionCounter": 55,
     "triggerCount": 1,
     "shared": [
         {
@@ -354,9 +399,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:23.257Z",
-        "createdAt": "2026-03-21T18:42:23.257Z",
-        "versionId": "98a3bd8e-ab48-4bc7-9f19-9fe6e6f8dd08",
+        "updatedAt": "2026-03-30T14:34:08.672Z",
+        "createdAt": "2026-03-30T14:34:08.672Z",
+        "versionId": "abf5af15-3bca-4554-a357-d3ea48b40211",
         "workflowId": "MpO6FVB8pT7QM7rz",
         "nodes": [
             {
@@ -386,7 +431,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"168 hours\"}}"
+                    "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"168 hours\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Fetch Agent Heartbeats",
                 "type": "n8n-nodes-base.httpRequest",
@@ -404,7 +458,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"query_name\": \"telemetry_by_service\", \"params\": {\"service\": \"n8n\", \"limit\": 50}}"
+                    "jsonBody": "{\"query_name\": \"telemetry_by_service\", \"params\": {\"service\": \"n8n\", \"limit\": 50}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Fetch Recent Errors",
                 "type": "n8n-nodes-base.httpRequest",
@@ -456,7 +519,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_alert\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"agents_needing_attention\": \"={{ $json.agents_needing_attention }}\", \"agents_ready_for_optimization\": \"={{ $json.agents_ready_for_optimization }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}"
+                    "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_alert\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"agents_needing_attention\": \"={{ $json.agents_needing_attention }}\", \"agents_ready_for_optimization\": \"={{ $json.agents_ready_for_optimization }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Quality Alert",
                 "type": "n8n-nodes-base.httpRequest",
@@ -474,7 +546,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_ok\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}"
+                    "jsonBody": "{\"service\": \"agent-quality\", \"event_type\": \"weekly_quality_ok\", \"payload\": {\"week_ending\": \"={{ $json.week_ending }}\", \"agents_analyzed\": \"={{ $json.agents_analyzed }}\", \"workflow_errors_this_week\": \"={{ $json.workflow_errors_this_week }}\", \"dspy_recommendation\": \"={{ $json.dspy_recommendation }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Quality OK",
                 "type": "n8n-nodes-base.httpRequest",
@@ -503,7 +584,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W21 - Prompt Optimizer\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W21 - Prompt Optimizer\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -675,11 +765,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:23.311Z",
-                "id": 1387,
+                "createdAt": "2026-03-30T14:34:08.730Z",
+                "id": 1919,
                 "workflowId": "MpO6FVB8pT7QM7rz",
-                "versionId": "98a3bd8e-ab48-4bc7-9f19-9fe6e6f8dd08",
+                "versionId": "abf5af15-3bca-4554-a357-d3ea48b40211",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:08.923Z",
+                "id": 1921,
+                "workflowId": "MpO6FVB8pT7QM7rz",
+                "versionId": "abf5af15-3bca-4554-a357-d3ea48b40211",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:08.699Z",
+                "id": 1918,
+                "workflowId": "MpO6FVB8pT7QM7rz",
+                "versionId": "abf5af15-3bca-4554-a357-d3ea48b40211",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:08.828Z",
+                "id": 1920,
+                "workflowId": "MpO6FVB8pT7QM7rz",
+                "versionId": "abf5af15-3bca-4554-a357-d3ea48b40211",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:24.562Z",
+    "updatedAt": "2026-03-30T14:34:12.737Z",
     "createdAt": "2026-03-20T17:29:56.667Z",
     "id": "UvPThpVRE0B13Tmi",
     "name": "W18 - DB Retention Cleaner",
@@ -34,7 +34,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 1}}"
+                "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 1}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Verify DB Connectivity",
             "type": "n8n-nodes-base.httpRequest",
@@ -65,7 +74,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "={\"service\": \"maintenance\", \"event_type\": \"retention_audit\", \"payload\": {\"status\": \"{{ $json.status }}\", \"message\": \"{{ $json.message }}\", \"retention_policy\": {{ JSON.stringify($json.retention_policy) }}, \"db_connected\": {{ $json.db_connected }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                "jsonBody": "={\"service\": \"maintenance\", \"event_type\": \"retention_audit\", \"payload\": {\"status\": \"{{ $json.status }}\", \"message\": \"{{ $json.message }}\", \"retention_policy\": {{ JSON.stringify($json.retention_policy) }}, \"db_connected\": {{ $json.db_connected }}, \"checked_at\": \"{{ $json.checked_at }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log Retention Audit",
             "type": "n8n-nodes-base.httpRequest",
@@ -94,7 +112,16 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W18 - DB Retention Cleaner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W18 - DB Retention Cleaner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -232,9 +259,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "4e3d80fd-dcae-4d5b-ae0a-36fb2d1b33b2",
-    "activeVersionId": "4e3d80fd-dcae-4d5b-ae0a-36fb2d1b33b2",
-    "versionCounter": 48,
+    "versionId": "a1ccd75f-1133-424e-9411-89c88da0c3a0",
+    "activeVersionId": "a1ccd75f-1133-424e-9411-89c88da0c3a0",
+    "versionCounter": 55,
     "triggerCount": 1,
     "shared": [
         {
@@ -257,9 +284,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:24.562Z",
-        "createdAt": "2026-03-21T18:42:24.562Z",
-        "versionId": "4e3d80fd-dcae-4d5b-ae0a-36fb2d1b33b2",
+        "updatedAt": "2026-03-30T14:34:12.738Z",
+        "createdAt": "2026-03-30T14:34:12.738Z",
+        "versionId": "a1ccd75f-1133-424e-9411-89c88da0c3a0",
         "workflowId": "UvPThpVRE0B13Tmi",
         "nodes": [
             {
@@ -289,7 +316,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 1}}"
+                    "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 1}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Verify DB Connectivity",
                 "type": "n8n-nodes-base.httpRequest",
@@ -320,7 +356,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "={\"service\": \"maintenance\", \"event_type\": \"retention_audit\", \"payload\": {\"status\": \"{{ $json.status }}\", \"message\": \"{{ $json.message }}\", \"retention_policy\": {{ JSON.stringify($json.retention_policy) }}, \"db_connected\": {{ $json.db_connected }}, \"checked_at\": \"{{ $json.checked_at }}\"}}"
+                    "jsonBody": "={\"service\": \"maintenance\", \"event_type\": \"retention_audit\", \"payload\": {\"status\": \"{{ $json.status }}\", \"message\": \"{{ $json.message }}\", \"retention_policy\": {{ JSON.stringify($json.retention_policy) }}, \"db_connected\": {{ $json.db_connected }}, \"checked_at\": \"{{ $json.checked_at }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log Retention Audit",
                 "type": "n8n-nodes-base.httpRequest",
@@ -349,7 +394,16 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W18 - DB Retention Cleaner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}"
+                    "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W18 - DB Retention Cleaner\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -481,11 +535,35 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:24.603Z",
-                "id": 1403,
+                "createdAt": "2026-03-30T14:34:12.807Z",
+                "id": 1959,
                 "workflowId": "UvPThpVRE0B13Tmi",
-                "versionId": "4e3d80fd-dcae-4d5b-ae0a-36fb2d1b33b2",
+                "versionId": "a1ccd75f-1133-424e-9411-89c88da0c3a0",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:13.007Z",
+                "id": 1961,
+                "workflowId": "UvPThpVRE0B13Tmi",
+                "versionId": "a1ccd75f-1133-424e-9411-89c88da0c3a0",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:12.770Z",
+                "id": 1958,
+                "workflowId": "UvPThpVRE0B13Tmi",
+                "versionId": "a1ccd75f-1133-424e-9411-89c88da0c3a0",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:12.915Z",
+                "id": 1960,
+                "workflowId": "UvPThpVRE0B13Tmi",
+                "versionId": "a1ccd75f-1133-424e-9411-89c88da0c3a0",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]

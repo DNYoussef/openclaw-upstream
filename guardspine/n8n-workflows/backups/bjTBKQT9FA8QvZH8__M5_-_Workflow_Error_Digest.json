@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-23T16:09:25.602Z",
+    "updatedAt": "2026-03-30T14:34:14.773Z",
     "createdAt": "2026-03-21T06:14:33.405Z",
     "id": "bjTBKQT9FA8QvZH8",
     "name": "M5 - Workflow Error Digest",
@@ -61,7 +61,16 @@
                 "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M5 - Workflow Error Digest\"}}"
+                "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M5 - Workflow Error Digest\"}}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "***REDACTED***"
+                        }
+                    ]
+                }
             },
             "name": "Log",
             "type": "n8n-nodes-base.httpRequest",
@@ -166,9 +175,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "8a9c8b18-c98b-4db7-9fbf-ba6e818fa977",
-    "activeVersionId": "8a9c8b18-c98b-4db7-9fbf-ba6e818fa977",
-    "versionCounter": 52,
+    "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
+    "activeVersionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
+    "versionCounter": 59,
     "triggerCount": 1,
     "shared": [
         {
@@ -191,9 +200,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-23T16:09:25.603Z",
-        "createdAt": "2026-03-23T16:09:25.603Z",
-        "versionId": "8a9c8b18-c98b-4db7-9fbf-ba6e818fa977",
+        "updatedAt": "2026-03-30T14:34:14.774Z",
+        "createdAt": "2026-03-30T14:34:14.774Z",
+        "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
         "workflowId": "bjTBKQT9FA8QvZH8",
         "nodes": [
             {
@@ -250,7 +259,16 @@
                     "method": "POST",
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M5 - Workflow Error Digest\"}}"
+                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M5 - Workflow Error Digest\"}}",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "***REDACTED***"
+                            }
+                        ]
+                    }
                 },
                 "name": "Log",
                 "type": "n8n-nodes-base.httpRequest",
@@ -349,18 +367,34 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-23T16:09:25.678Z",
-                "id": 1720,
+                "createdAt": "2026-03-30T14:34:14.828Z",
+                "id": 1979,
                 "workflowId": "bjTBKQT9FA8QvZH8",
-                "versionId": "8a9c8b18-c98b-4db7-9fbf-ba6e818fa977",
+                "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-23T16:09:25.650Z",
-                "id": 1719,
+                "createdAt": "2026-03-30T14:34:15.000Z",
+                "id": 1981,
                 "workflowId": "bjTBKQT9FA8QvZH8",
-                "versionId": "8a9c8b18-c98b-4db7-9fbf-ba6e818fa977",
+                "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:14.800Z",
+                "id": 1978,
+                "workflowId": "bjTBKQT9FA8QvZH8",
+                "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-03-30T14:34:14.907Z",
+                "id": 1980,
+                "workflowId": "bjTBKQT9FA8QvZH8",
+                "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
