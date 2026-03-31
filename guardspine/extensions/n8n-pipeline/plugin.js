@@ -224,8 +224,8 @@ module.exports = function register(api) {
     // but also check cache in case it's actually a name
     const looksLikeId = /^[a-zA-Z0-9_-]+$/.test(nameOrId) && nameOrId.length <= 30;
 
-    // Refresh cache if expired or missing
-    if (!workflowNameCache || Date.now() > workflowCacheExpiry) {
+    // Refresh cache if expired or missing (never initialized = expiry is 0)
+    if (!workflowNameCache || Date.now() >= workflowCacheExpiry) {
       await refreshWorkflowCache();
     }
 
@@ -234,19 +234,21 @@ module.exports = function register(api) {
       return workflowNameCache[nameOrId];
     }
 
-    // If it looks like an ID, return as-is
+    // If it looks like an ID, return as-is (don't try to refresh for ID lookups)
     if (looksLikeId) {
       return nameOrId;
     }
 
-    // Force-refresh cache once in case workflow was just created
-    if (Date.now() <= workflowCacheExpiry) {
-      // Cache is fresh but name not found, try raw
-      return nameOrId;
-    }
-    await refreshWorkflowCache();
-    if (workflowNameCache && workflowNameCache[nameOrId]) {
-      return workflowNameCache[nameOrId];
+    // Name not found and doesn't look like ID. Workflow either doesn't exist,
+    // or was created after our last refresh. One more attempt is safe (rate-limited
+    // to once per 60s to prevent cache stampede if n8n is down).
+    const lastRefreshAge = Date.now() - (workflowCacheExpiry - WORKFLOW_CACHE_TTL_MS);
+    if (lastRefreshAge > 60000) {
+      // Last refresh was >1 min ago, try again
+      await refreshWorkflowCache();
+      if (workflowNameCache && workflowNameCache[nameOrId]) {
+        return workflowNameCache[nameOrId];
+      }
     }
 
     throw new Error(
@@ -1195,6 +1197,8 @@ module.exports = function register(api) {
     const slackChannel = body.channel || process.env.GUARDSPINE_APPROVAL_CHANNEL || "#alerts";
     const telemetryUrl =
       process.env.TELEMETRY_URL || "http://telemetry-api.railway.internal:8090/telemetry";
+    const telemetryToken =
+      process.env.TELEMETRY_SERVICE_TOKEN || process.env.TELEMETRY_API_KEY || "";
 
     // Build a readable summary from the signals
     const items = Array.isArray(parsed)
@@ -1248,6 +1252,7 @@ module.exports = function register(api) {
           timestamp: new Date().toISOString(),
         },
         10000,
+        telemetryToken ? { Authorization: `Bearer ${telemetryToken}` } : undefined,
       );
       console.log("[outreach-alert] Recorded in telemetry");
       return { alerted: true, channel: "telemetry", data: parsed };
@@ -1358,6 +1363,8 @@ module.exports = function register(api) {
 
     const telemetryUrl =
       process.env.TELEMETRY_URL || "http://telemetry-api.railway.internal:8090/telemetry";
+    const telemetryToken =
+      process.env.TELEMETRY_SERVICE_TOKEN || process.env.TELEMETRY_API_KEY || "";
     const litellmUrl = process.env.LITELLM_URL || "http://litellm.railway.internal:4000";
     const evaluated = [];
     let prospectsAdded = 0;
@@ -1436,6 +1443,7 @@ module.exports = function register(api) {
               timestamp: new Date().toISOString(),
             },
             10000,
+            telemetryToken ? { Authorization: `Bearer ${telemetryToken}` } : undefined,
           );
           prospectsAdded++;
           entry.added = true;
