@@ -21,11 +21,79 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime, timezone
 
 import psycopg2
+import psycopg2.pool
 
 log = logging.getLogger("decision-router")
 logging.basicConfig(level=logging.INFO, format="[decision-router] %(levelname)s %(message)s")
 
 DB_URL = os.environ.get("DATABASE_URL", "")
+
+# --- Connection pool (replaces per-request psycopg2.connect) ---
+_db_pool = None
+
+
+def _get_pool():
+    """Lazy-init a connection pool. Returns None if no DB_URL configured."""
+    global _db_pool
+    if _db_pool is not None:
+        return _db_pool
+    if not DB_URL:
+        return None
+    try:
+        # ThreadedConnectionPool: blocks on getconn() when exhausted (FIFO queue)
+        # instead of raising PoolError. Supports concurrent access from multiple threads.
+        _db_pool = psycopg2.pool.ThreadedConnectionPool(
+            minconn=5, maxconn=50, dsn=DB_URL
+        )
+        log.info("Connection pool initialized (min=5, max=50, threaded+blocking)")
+    except Exception as e:
+        log.error("Failed to create connection pool: %s", e)
+        return None
+    return _db_pool
+
+
+def get_db_conn():
+    """Get a pooled connection. Falls back to direct connect if pool fails."""
+    pool = _get_pool()
+    if pool and not pool.closed:
+        try:
+            return pool.getconn()
+        except Exception as e:
+            log.warning("Pool getconn failed, falling back to direct: %s", e)
+    return psycopg2.connect(DB_URL)
+
+
+def release_db_conn(conn):
+    """Return a connection to the pool (or close it if not pooled).
+    
+    Validates connection health before returning to pool. Dead connections
+    are closed and not returned to prevent cascading failures.
+    """
+    pool = _get_pool()
+    if pool and not pool.closed:
+        try:
+            # Quick health check: if connection can execute a simple query, it's alive
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT 1")
+                cur.close()
+            except Exception as health_err:
+                # Connection is dead, don't return it to pool
+                log.warning("Connection unhealthy, closing: %s", health_err)
+                conn.close()
+                return
+            
+            # Connection healthy, return to pool
+            pool.putconn(conn)
+            return
+        except Exception as e:
+            log.warning("Failed to return connection to pool: %s", e)
+    
+    # Not pooled or pool failure: close it
+    try:
+        conn.close()
+    except Exception:
+        pass
 PORT = int(os.environ.get("PORT", "8091"))
 
 # --- Startup dependency checks ---
@@ -673,68 +741,84 @@ def log_case_trace(decision, output):
     elif "equilibria" in result and result["equilibria"]:
         chosen = result["equilibria"][0] if isinstance(result["equilibria"][0], dict) else {}
 
-    conn = psycopg2.connect(DB_URL)
-    cur = conn.cursor()
-    # Existing case_traces schema: id, case_id, ts, route_taken,
-    # inputs_snapshot, tool_passes, decision_artifacts, execution_artifacts,
-    # outcomes, disagreement_analysis, learning_updates, created_at, updated_at
-    cur.execute(
-        """INSERT INTO case_traces
-           (case_id, ts, route_taken,
-            inputs_snapshot, tool_passes, decision_artifacts,
-            execution_artifacts, outcomes,
-            disagreement_analysis, learning_updates)
-           VALUES (%s, NOW(), %s,
-                   %s::jsonb, %s::jsonb, %s::jsonb,
-                   %s::jsonb, %s::jsonb,
-                   %s::jsonb, %s::jsonb)
-           ON CONFLICT (case_id) DO NOTHING""",
-        (
-            decision["decision_id"],
-            decision.get("decision_type", ""),
-            json.dumps({k: v for k, v in decision.items()
-                        if k not in ("payoff_matrix",) and not isinstance(v, bytes)}),
-            json.dumps(tool_passes),
-            json.dumps({
-                "governance_status": "approved",
-                "chosen_action": chosen,
-                "domain": decision.get("domain", ""),
-                "decision_type": decision.get("decision_type", ""),
-            }),
-            json.dumps({
-                "workflow_id": None,
-                "owner_role": decision.get("domain", ""),
-                "action_status": "pending",
-            }),
-            json.dumps({"projected_metrics": {}, "actual_metrics": {}, "variance": {}}),
-            json.dumps({}),
-            json.dumps({}),
-        ),
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-    log.info("case_trace written: %s", decision["decision_id"])
+    conn = get_db_conn()
+    try:
+        cur = conn.cursor()
+        # Existing case_traces schema: id, case_id, ts, route_taken,
+        # inputs_snapshot, tool_passes, decision_artifacts, execution_artifacts,
+        # outcomes, disagreement_analysis, learning_updates, created_at, updated_at
+        cur.execute(
+            """INSERT INTO case_traces
+               (case_id, ts, route_taken,
+                inputs_snapshot, tool_passes, decision_artifacts,
+                execution_artifacts, outcomes,
+                disagreement_analysis, learning_updates)
+               VALUES (%s, NOW(), %s,
+                       %s::jsonb, %s::jsonb, %s::jsonb,
+                       %s::jsonb, %s::jsonb,
+                       %s::jsonb, %s::jsonb)
+               ON CONFLICT (case_id) DO NOTHING""",
+            (
+                decision["decision_id"],
+                decision.get("decision_type", ""),
+                json.dumps({k: v for k, v in decision.items()
+                            if k not in ("payoff_matrix",) and not isinstance(v, bytes)}),
+                json.dumps(tool_passes),
+                json.dumps({
+                    "governance_status": "approved",
+                    "chosen_action": chosen,
+                    "domain": decision.get("domain", ""),
+                    "decision_type": decision.get("decision_type", ""),
+                }),
+                json.dumps({
+                    "workflow_id": None,
+                    "owner_role": decision.get("domain", ""),
+                    "action_status": "pending",
+                }),
+                json.dumps({"projected_metrics": {}, "actual_metrics": {}, "variance": {}}),
+                json.dumps({}),
+                json.dumps({}),
+            ),
+        )
+        conn.commit()
+        cur.close()
+        log.info("case_trace written: %s", decision["decision_id"])
+    except Exception as e:
+        log.error("Failed to write case_trace: %s", e)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    finally:
+        release_db_conn(conn)
 
 
 def log_decision(decision, output):
     """Write to decision_journal table."""
-    conn = psycopg2.connect(DB_URL)
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO decision_journal (decision_id, domain, decision_type, solver_used, recommendation) "
-        "VALUES (%s, %s, %s, %s, %s::jsonb)",
-        (
-            decision["decision_id"],
-            decision["domain"],
-            decision["decision_type"],
-            output["result"].get("solver", "unknown"),
-            json.dumps(output["result"]),
-        ),
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
+    conn = get_db_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO decision_journal (decision_id, domain, decision_type, solver_used, recommendation) "
+            "VALUES (%s, %s, %s, %s, %s::jsonb)",
+            (
+                decision["decision_id"],
+                decision["domain"],
+                decision["decision_type"],
+                output["result"].get("solver", "unknown"),
+                json.dumps(output["result"]),
+            ),
+        )
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        log.error("Failed to log decision: %s", e)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    finally:
+        release_db_conn(conn)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -764,9 +848,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not DB_URL:
                     self._json(503, {"error": "No database configured"})
                     return
+                conn = None
                 try:
                     actual = body.get("actual_metrics", {})
-                    conn = psycopg2.connect(DB_URL)
+                    conn = get_db_conn()
                     cur = conn.cursor()
                     cur.execute(
                         """UPDATE case_traces
@@ -778,13 +863,20 @@ class Handler(BaseHTTPRequestHandler):
                     updated = cur.rowcount
                     conn.commit()
                     cur.close()
-                    conn.close()
                     if updated:
                         self._json(200, {"updated": decision_id, "actual_metrics": actual})
                     else:
                         self._json(404, {"error": f"No case_trace for {decision_id}"})
                 except Exception as e:
+                    if conn:
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
                     self._json(500, {"error": str(e)})
+                finally:
+                    if conn:
+                        release_db_conn(conn)
                 return
             self._json(400, {"error": "Expected /trace/{decision_id}/outcome"})
             return
