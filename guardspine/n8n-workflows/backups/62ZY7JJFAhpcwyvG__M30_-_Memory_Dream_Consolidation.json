@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-24T15:24:58.240Z",
+    "updatedAt": "2026-04-01T03:19:09.680Z",
     "createdAt": "2026-03-21T06:15:14.127Z",
     "id": "62ZY7JJFAhpcwyvG",
     "name": "M30 - Memory Dream Consolidation",
@@ -33,7 +33,7 @@
             ],
             "id": "dream-conditions-check",
             "parameters": {
-                "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\nconst META_FILE = '/app/.openclaw/memory/dream-meta.json';\nconst SESSIONS_DIR = '/app/.openclaw/agents/main/sessions';\n\nlet meta = { last_run: null };\ntry { meta = JSON.parse(fs.readFileSync(META_FILE, 'utf8')); } catch {}\n\nlet hoursSince = Infinity;\nif (meta.last_run) hoursSince = (Date.now() - new Date(meta.last_run).getTime()) / 3600000;\nconst timeOk = hoursSince >= 24;\n\nconst lastRunTs = meta.last_run ? new Date(meta.last_run).getTime() : 0;\nlet newSessions = 0;\ntry {\n  newSessions = fs.readdirSync(SESSIONS_DIR)\n    .filter(f => f.endsWith('.jsonl'))\n    .filter(f => { try { return fs.statSync(path.join(SESSIONS_DIR, f)).mtimeMs > lastRunTs; } catch { return false; } }).length;\n} catch {}\nconst sessionsOk = newSessions > 3;\n\nlet activeSession = false;\ntry {\n  const sessJson = JSON.parse(fs.readFileSync(path.join(SESSIONS_DIR, 'sessions.json'), 'utf8'));\n  for (const [, sess] of Object.entries(sessJson)) {\n    if (Date.now() - (sess.updatedAt || 0) < 60000) { activeSession = true; break; }\n  }\n} catch {}\n\nconst shouldRun = timeOk && sessionsOk && !activeSession;\nreturn [{ json: { shouldRun, timeOk, sessionsOk, activeSession, hoursSince: Math.round(hoursSince * 10) / 10, newSessions, lastRun: meta.last_run, skipReason: !timeOk ? 'Not enough time since last run' : !sessionsOk ? 'Need >3 new sessions' : activeSession ? 'Active session detected' : null } }];\n"
+                "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\nconst META_FILE = '/app/.openclaw/memory/dream-meta.json';\nconst SESSIONS_DIR = '/app/.openclaw/agents/main/sessions';\nconst LOCK_FILE = '/app/.openclaw/memory/dream.lock';\nconst LOCK_TTL_HOURS = 2;\n\nlet meta = { last_run: null };\ntry { meta = JSON.parse(fs.readFileSync(META_FILE, 'utf8')); } catch {}\n\nlet hoursSince = Infinity;\nif (meta.last_run) hoursSince = (Date.now() - new Date(meta.last_run).getTime()) / 3600000;\nconst timeOk = hoursSince >= 24;\n\nconst lastRunTs = meta.last_run ? new Date(meta.last_run).getTime() : 0;\nlet newSessions = 0;\ntry {\n  newSessions = fs.readdirSync(SESSIONS_DIR)\n    .filter(f => f.endsWith('.jsonl'))\n    .filter(f => { try { return fs.statSync(path.join(SESSIONS_DIR, f)).mtimeMs > lastRunTs; } catch { return false; } }).length;\n} catch {}\nconst sessionsOk = newSessions > 3;\n\nlet activeSession = false;\ntry {\n  const sessJson = JSON.parse(fs.readFileSync(path.join(SESSIONS_DIR, 'sessions.json'), 'utf8'));\n  for (const [, sess] of Object.entries(sessJson)) {\n    if (Date.now() - (sess.updatedAt || 0) < 60000) { activeSession = true; break; }\n  }\n} catch {}\n\n// Gate 3: Distributed lock (prevents concurrent M30 runs)\nlet lockAcquired = false;\nlet lockReason = null;\ntry {\n  const lockStat = fs.statSync(LOCK_FILE);\n  const lockAgeHours = (Date.now() - lockStat.mtimeMs) / 3600000;\n  if (lockAgeHours > LOCK_TTL_HOURS) {\n    // Stale lock \u2014 safe to overwrite and acquire\n    fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, ts: new Date().toISOString(), stale_overwrite: true }));\n    lockAcquired = true;\n  } else {\n    lockReason = 'Lock held by concurrent run (age: ' + lockAgeHours.toFixed(2) + 'h)';\n  }\n} catch (e) {\n  if (e.code === 'ENOENT') {\n    // No lock \u2014 acquire\n    try {\n      fs.mkdirSync(path.dirname(LOCK_FILE), { recursive: true });\n      fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, ts: new Date().toISOString() }));\n      lockAcquired = true;\n    } catch (writeErr) {\n      lockReason = 'Failed to acquire lock: ' + writeErr.message;\n    }\n  } else {\n    lockReason = 'Lock stat error: ' + e.message;\n  }\n}\n\nconst shouldRun = timeOk && sessionsOk && !activeSession && lockAcquired;\nconst skipReason = !timeOk ? 'Not enough time since last run'\n  : !sessionsOk ? 'Need >3 new sessions'\n  : activeSession ? 'Active session detected'\n  : !lockAcquired ? (lockReason || 'Could not acquire lock')\n  : null;\n\nreturn [{ json: { shouldRun, timeOk, sessionsOk, activeSession, lockAcquired, lockReason,\n  hoursSince: Math.round(hoursSince * 10) / 10, newSessions, lastRun: meta.last_run,\n  skipReason, lockFile: LOCK_FILE } }];\n"
             }
         },
         {
@@ -76,7 +76,7 @@
             ],
             "id": "dream-run-command",
             "parameters": {
-                "jsCode": "\nconst { execSync } = require('child_process');\nlet stdout = '';\nlet exitCode = -1;\ntry {\n  stdout = execSync('timeout 600 node /app/.openclaw/extensions/dream/dream.js 2>&1', {\n    timeout: 610000,\n    maxBuffer: 1024 * 1024\n  }).toString();\n  exitCode = 0;\n} catch (e) {\n  stdout = (e.stdout || '') + (e.stderr || '') + e.message;\n  exitCode = e.status || 1;\n}\nreturn [{ json: { stdout, exitCode } }];\n"
+                "jsCode": "\nconst { execSync } = require('child_process');\nconst fs = require('fs');\nconst LOCK_FILE = '/app/.openclaw/memory/dream.lock';\nlet stdout = '';\nlet exitCode = -1;\ntry {\n  stdout = execSync('timeout 600 node /app/.openclaw/extensions/dream/dream.js 2>&1', {\n    timeout: 610000,\n    maxBuffer: 1024 * 1024\n  }).toString();\n  exitCode = 0;\n} catch (e) {\n  stdout = (e.stdout || '') + (e.stderr || '') + e.message;\n  exitCode = e.status || 1;\n}\n// Release lock on success or failure\ntry { fs.unlinkSync(LOCK_FILE); } catch {}\nreturn [{ json: { stdout, exitCode } }];\n"
             }
         },
         {
@@ -137,7 +137,7 @@
             ],
             "id": "dream-log-skip",
             "parameters": {
-                "jsCode": "\nconst input = $input.first().json;\nreturn [{ json: { workflow_name: $workflow.name, execution_id: String($execution.id), status: 'skipped', skip_reason: input.skipReason, hours_since: input.hoursSince, new_sessions: input.newSessions, finished_at: new Date().toISOString(), service_identity: 'n8n-workflows', metadata: { job: 'M30-Dream' } } }];\n"
+                "jsCode": "\nconst input = .first().json;\nconst fs = require('fs');\nconst LOCK_FILE = '/app/.openclaw/memory/dream.lock';\n// Release lock on skip (we acquired it before deciding to skip)\nif (input.lockAcquired) {\n  try { fs.unlinkSync(LOCK_FILE); } catch {}\n}\nreturn [{ json: { workflow_name: .name, execution_id: String(.id), status: 'skipped', skip_reason: input.skipReason, hours_since: input.hoursSince, new_sessions: input.newSessions, lock_acquired: input.lockAcquired, finished_at: new Date().toISOString(), service_identity: 'n8n-workflows', metadata: { job: 'M30-Dream' } } }];\n"
             }
         }
     ],
@@ -235,9 +235,9 @@
     "staticData": {},
     "meta": null,
     "pinData": null,
-    "versionId": "2d9efa12-ff37-4979-936e-6e479ba939d8",
-    "activeVersionId": "2d9efa12-ff37-4979-936e-6e479ba939d8",
-    "versionCounter": 61,
+    "versionId": "0bbc0ee7-b178-46ca-8870-612494743fcb",
+    "activeVersionId": "0bbc0ee7-b178-46ca-8870-612494743fcb",
+    "versionCounter": 64,
     "triggerCount": 1,
     "shared": [
         {
@@ -260,9 +260,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-24T15:24:58.241Z",
-        "createdAt": "2026-03-24T15:24:58.241Z",
-        "versionId": "2d9efa12-ff37-4979-936e-6e479ba939d8",
+        "updatedAt": "2026-04-01T03:19:09.681Z",
+        "createdAt": "2026-04-01T03:19:09.681Z",
+        "versionId": "0bbc0ee7-b178-46ca-8870-612494743fcb",
         "workflowId": "62ZY7JJFAhpcwyvG",
         "nodes": [
             {
@@ -291,7 +291,7 @@
                 ],
                 "id": "dream-conditions-check",
                 "parameters": {
-                    "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\nconst META_FILE = '/app/.openclaw/memory/dream-meta.json';\nconst SESSIONS_DIR = '/app/.openclaw/agents/main/sessions';\n\nlet meta = { last_run: null };\ntry { meta = JSON.parse(fs.readFileSync(META_FILE, 'utf8')); } catch {}\n\nlet hoursSince = Infinity;\nif (meta.last_run) hoursSince = (Date.now() - new Date(meta.last_run).getTime()) / 3600000;\nconst timeOk = hoursSince >= 24;\n\nconst lastRunTs = meta.last_run ? new Date(meta.last_run).getTime() : 0;\nlet newSessions = 0;\ntry {\n  newSessions = fs.readdirSync(SESSIONS_DIR)\n    .filter(f => f.endsWith('.jsonl'))\n    .filter(f => { try { return fs.statSync(path.join(SESSIONS_DIR, f)).mtimeMs > lastRunTs; } catch { return false; } }).length;\n} catch {}\nconst sessionsOk = newSessions > 3;\n\nlet activeSession = false;\ntry {\n  const sessJson = JSON.parse(fs.readFileSync(path.join(SESSIONS_DIR, 'sessions.json'), 'utf8'));\n  for (const [, sess] of Object.entries(sessJson)) {\n    if (Date.now() - (sess.updatedAt || 0) < 60000) { activeSession = true; break; }\n  }\n} catch {}\n\nconst shouldRun = timeOk && sessionsOk && !activeSession;\nreturn [{ json: { shouldRun, timeOk, sessionsOk, activeSession, hoursSince: Math.round(hoursSince * 10) / 10, newSessions, lastRun: meta.last_run, skipReason: !timeOk ? 'Not enough time since last run' : !sessionsOk ? 'Need >3 new sessions' : activeSession ? 'Active session detected' : null } }];\n"
+                    "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\nconst META_FILE = '/app/.openclaw/memory/dream-meta.json';\nconst SESSIONS_DIR = '/app/.openclaw/agents/main/sessions';\nconst LOCK_FILE = '/app/.openclaw/memory/dream.lock';\nconst LOCK_TTL_HOURS = 2;\n\nlet meta = { last_run: null };\ntry { meta = JSON.parse(fs.readFileSync(META_FILE, 'utf8')); } catch {}\n\nlet hoursSince = Infinity;\nif (meta.last_run) hoursSince = (Date.now() - new Date(meta.last_run).getTime()) / 3600000;\nconst timeOk = hoursSince >= 24;\n\nconst lastRunTs = meta.last_run ? new Date(meta.last_run).getTime() : 0;\nlet newSessions = 0;\ntry {\n  newSessions = fs.readdirSync(SESSIONS_DIR)\n    .filter(f => f.endsWith('.jsonl'))\n    .filter(f => { try { return fs.statSync(path.join(SESSIONS_DIR, f)).mtimeMs > lastRunTs; } catch { return false; } }).length;\n} catch {}\nconst sessionsOk = newSessions > 3;\n\nlet activeSession = false;\ntry {\n  const sessJson = JSON.parse(fs.readFileSync(path.join(SESSIONS_DIR, 'sessions.json'), 'utf8'));\n  for (const [, sess] of Object.entries(sessJson)) {\n    if (Date.now() - (sess.updatedAt || 0) < 60000) { activeSession = true; break; }\n  }\n} catch {}\n\n// Gate 3: Distributed lock (prevents concurrent M30 runs)\nlet lockAcquired = false;\nlet lockReason = null;\ntry {\n  const lockStat = fs.statSync(LOCK_FILE);\n  const lockAgeHours = (Date.now() - lockStat.mtimeMs) / 3600000;\n  if (lockAgeHours > LOCK_TTL_HOURS) {\n    // Stale lock \u2014 safe to overwrite and acquire\n    fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, ts: new Date().toISOString(), stale_overwrite: true }));\n    lockAcquired = true;\n  } else {\n    lockReason = 'Lock held by concurrent run (age: ' + lockAgeHours.toFixed(2) + 'h)';\n  }\n} catch (e) {\n  if (e.code === 'ENOENT') {\n    // No lock \u2014 acquire\n    try {\n      fs.mkdirSync(path.dirname(LOCK_FILE), { recursive: true });\n      fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, ts: new Date().toISOString() }));\n      lockAcquired = true;\n    } catch (writeErr) {\n      lockReason = 'Failed to acquire lock: ' + writeErr.message;\n    }\n  } else {\n    lockReason = 'Lock stat error: ' + e.message;\n  }\n}\n\nconst shouldRun = timeOk && sessionsOk && !activeSession && lockAcquired;\nconst skipReason = !timeOk ? 'Not enough time since last run'\n  : !sessionsOk ? 'Need >3 new sessions'\n  : activeSession ? 'Active session detected'\n  : !lockAcquired ? (lockReason || 'Could not acquire lock')\n  : null;\n\nreturn [{ json: { shouldRun, timeOk, sessionsOk, activeSession, lockAcquired, lockReason,\n  hoursSince: Math.round(hoursSince * 10) / 10, newSessions, lastRun: meta.last_run,\n  skipReason, lockFile: LOCK_FILE } }];\n"
                 }
             },
             {
@@ -334,7 +334,7 @@
                 ],
                 "id": "dream-run-command",
                 "parameters": {
-                    "jsCode": "\nconst { execSync } = require('child_process');\nlet stdout = '';\nlet exitCode = -1;\ntry {\n  stdout = execSync('timeout 600 node /app/.openclaw/extensions/dream/dream.js 2>&1', {\n    timeout: 610000,\n    maxBuffer: 1024 * 1024\n  }).toString();\n  exitCode = 0;\n} catch (e) {\n  stdout = (e.stdout || '') + (e.stderr || '') + e.message;\n  exitCode = e.status || 1;\n}\nreturn [{ json: { stdout, exitCode } }];\n"
+                    "jsCode": "\nconst { execSync } = require('child_process');\nconst fs = require('fs');\nconst LOCK_FILE = '/app/.openclaw/memory/dream.lock';\nlet stdout = '';\nlet exitCode = -1;\ntry {\n  stdout = execSync('timeout 600 node /app/.openclaw/extensions/dream/dream.js 2>&1', {\n    timeout: 610000,\n    maxBuffer: 1024 * 1024\n  }).toString();\n  exitCode = 0;\n} catch (e) {\n  stdout = (e.stdout || '') + (e.stderr || '') + e.message;\n  exitCode = e.status || 1;\n}\n// Release lock on success or failure\ntry { fs.unlinkSync(LOCK_FILE); } catch {}\nreturn [{ json: { stdout, exitCode } }];\n"
                 }
             },
             {
@@ -395,7 +395,7 @@
                 ],
                 "id": "dream-log-skip",
                 "parameters": {
-                    "jsCode": "\nconst input = $input.first().json;\nreturn [{ json: { workflow_name: $workflow.name, execution_id: String($execution.id), status: 'skipped', skip_reason: input.skipReason, hours_since: input.hoursSince, new_sessions: input.newSessions, finished_at: new Date().toISOString(), service_identity: 'n8n-workflows', metadata: { job: 'M30-Dream' } } }];\n"
+                    "jsCode": "\nconst input = .first().json;\nconst fs = require('fs');\nconst LOCK_FILE = '/app/.openclaw/memory/dream.lock';\n// Release lock on skip (we acquired it before deciding to skip)\nif (input.lockAcquired) {\n  try { fs.unlinkSync(LOCK_FILE); } catch {}\n}\nreturn [{ json: { workflow_name: .name, execution_id: String(.id), status: 'skipped', skip_reason: input.skipReason, hours_since: input.hoursSince, new_sessions: input.newSessions, lock_acquired: input.lockAcquired, finished_at: new Date().toISOString(), service_identity: 'n8n-workflows', metadata: { job: 'M30-Dream' } } }];\n"
                 }
             }
         ],
@@ -491,18 +491,18 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-24T15:24:58.306Z",
-                "id": 1768,
+                "createdAt": "2026-04-01T03:19:09.744Z",
+                "id": 2111,
                 "workflowId": "62ZY7JJFAhpcwyvG",
-                "versionId": "2d9efa12-ff37-4979-936e-6e479ba939d8",
+                "versionId": "0bbc0ee7-b178-46ca-8870-612494743fcb",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-24T15:24:58.272Z",
-                "id": 1767,
+                "createdAt": "2026-04-01T03:19:09.721Z",
+                "id": 2110,
                 "workflowId": "62ZY7JJFAhpcwyvG",
-                "versionId": "2d9efa12-ff37-4979-936e-6e479ba939d8",
+                "versionId": "0bbc0ee7-b178-46ca-8870-612494743fcb",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
