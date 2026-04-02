@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-30T14:34:15.533Z",
+    "updatedAt": "2026-04-01T22:12:23.261Z",
     "createdAt": "2026-03-20T17:29:58.401Z",
     "id": "dtA2h7wy6QuzJ23z",
     "name": "W24 - Notification Router",
@@ -35,15 +35,9 @@
                 "specifyBody": "json",
                 "contentType": "json",
                 "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "sendHeaders": false,
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "Fetch Recent Events",
             "type": "n8n-nodes-base.httpRequest",
@@ -52,7 +46,13 @@
                 420,
                 300
             ],
-            "id": "d8d0de98-550e-40f7-adc2-583743f6904e"
+            "id": "d8d0de98-550e-40f7-adc2-583743f6904e",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {
@@ -115,15 +115,9 @@
                 "specifyBody": "json",
                 "contentType": "json",
                 "jsonBody": "={\"service\": \"notifications\", \"event_type\": \"alert_batch\", \"payload\": {\"immediate_events\": {{ JSON.stringify($json.immediate_events) }}, \"high_events\": {{ JSON.stringify($json.high_events) }}, \"alert_count\": {{ $json.immediate_count + $json.high_count }}, \"immediate_count\": {{ $json.immediate_count }}, \"high_count\": {{ $json.high_count }}, \"medium_count\": {{ $json.medium_count }}, \"timestamp\": \"{{ new Date().toISOString() }}\"}}",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "sendHeaders": false,
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "Log Alert Batch",
             "type": "n8n-nodes-base.httpRequest",
@@ -132,7 +126,13 @@
                 1080,
                 200
             ],
-            "id": "00592bdd-1c29-45b9-baaa-83de1f1a57a3"
+            "id": "00592bdd-1c29-45b9-baaa-83de1f1a57a3",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {
@@ -142,15 +142,9 @@
                 "specifyBody": "json",
                 "contentType": "json",
                 "jsonBody": "={\"service\": \"notifications\", \"event_type\": \"no_alerts\", \"payload\": {\"total_events\": {{ $json.summary.total_events }}, \"routine_count\": {{ $json.summary.routine }}, \"timestamp\": \"{{ new Date().toISOString() }}\"}}",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "sendHeaders": false,
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "Log Clean Status",
             "type": "n8n-nodes-base.httpRequest",
@@ -159,7 +153,13 @@
                 1080,
                 400
             ],
-            "id": "5c2d1e02-660e-4ce6-a148-69711b93c310"
+            "id": "5c2d1e02-660e-4ce6-a148-69711b93c310",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {},
@@ -180,15 +180,9 @@
                 "specifyBody": "json",
                 "contentType": "json",
                 "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W24 - Notification Router\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "sendHeaders": false,
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -197,7 +191,13 @@
                 420,
                 600
             ],
-            "id": "585cb1c4-6329-43d5-8e12-b812f73d7f90"
+            "id": "585cb1c4-6329-43d5-8e12-b812f73d7f90",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {
@@ -355,9 +355,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "b1ef54f9-bb1d-4413-98bb-bc687b982ef5",
-    "activeVersionId": "b1ef54f9-bb1d-4413-98bb-bc687b982ef5",
-    "versionCounter": 55,
+    "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
+    "activeVersionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
+    "versionCounter": 61,
     "triggerCount": 1,
     "shared": [
         {
@@ -380,9 +380,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-30T14:34:15.534Z",
-        "createdAt": "2026-03-30T14:34:15.534Z",
-        "versionId": "b1ef54f9-bb1d-4413-98bb-bc687b982ef5",
+        "updatedAt": "2026-04-01T22:12:11.617Z",
+        "createdAt": "2026-04-01T22:12:11.617Z",
+        "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
         "workflowId": "dtA2h7wy6QuzJ23z",
         "nodes": [
             {
@@ -413,15 +413,9 @@
                     "specifyBody": "json",
                     "contentType": "json",
                     "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 50}}",
-                    "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "sendHeaders": false,
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "Fetch Recent Events",
                 "type": "n8n-nodes-base.httpRequest",
@@ -430,7 +424,13 @@
                     420,
                     300
                 ],
-                "id": "d8d0de98-550e-40f7-adc2-583743f6904e"
+                "id": "d8d0de98-550e-40f7-adc2-583743f6904e",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {
@@ -493,15 +493,9 @@
                     "specifyBody": "json",
                     "contentType": "json",
                     "jsonBody": "={\"service\": \"notifications\", \"event_type\": \"alert_batch\", \"payload\": {\"immediate_events\": {{ JSON.stringify($json.immediate_events) }}, \"high_events\": {{ JSON.stringify($json.high_events) }}, \"alert_count\": {{ $json.immediate_count + $json.high_count }}, \"immediate_count\": {{ $json.immediate_count }}, \"high_count\": {{ $json.high_count }}, \"medium_count\": {{ $json.medium_count }}, \"timestamp\": \"{{ new Date().toISOString() }}\"}}",
-                    "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "sendHeaders": false,
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "Log Alert Batch",
                 "type": "n8n-nodes-base.httpRequest",
@@ -510,7 +504,13 @@
                     1080,
                     200
                 ],
-                "id": "00592bdd-1c29-45b9-baaa-83de1f1a57a3"
+                "id": "00592bdd-1c29-45b9-baaa-83de1f1a57a3",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {
@@ -520,15 +520,9 @@
                     "specifyBody": "json",
                     "contentType": "json",
                     "jsonBody": "={\"service\": \"notifications\", \"event_type\": \"no_alerts\", \"payload\": {\"total_events\": {{ $json.summary.total_events }}, \"routine_count\": {{ $json.summary.routine }}, \"timestamp\": \"{{ new Date().toISOString() }}\"}}",
-                    "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "sendHeaders": false,
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "Log Clean Status",
                 "type": "n8n-nodes-base.httpRequest",
@@ -537,7 +531,13 @@
                     1080,
                     400
                 ],
-                "id": "5c2d1e02-660e-4ce6-a148-69711b93c310"
+                "id": "5c2d1e02-660e-4ce6-a148-69711b93c310",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {},
@@ -558,15 +558,9 @@
                     "specifyBody": "json",
                     "contentType": "json",
                     "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W24 - Notification Router\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
-                    "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "sendHeaders": false,
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -575,7 +569,13 @@
                     420,
                     600
                 ],
-                "id": "585cb1c4-6329-43d5-8e12-b812f73d7f90"
+                "id": "585cb1c4-6329-43d5-8e12-b812f73d7f90",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {
@@ -727,34 +727,34 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-30T14:34:15.596Z",
-                "id": 1987,
+                "createdAt": "2026-04-01T22:12:11.677Z",
+                "id": 2113,
                 "workflowId": "dtA2h7wy6QuzJ23z",
-                "versionId": "b1ef54f9-bb1d-4413-98bb-bc687b982ef5",
+                "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-30T14:34:15.782Z",
-                "id": 1989,
+                "createdAt": "2026-04-01T22:12:23.296Z",
+                "id": 2115,
                 "workflowId": "dtA2h7wy6QuzJ23z",
-                "versionId": "b1ef54f9-bb1d-4413-98bb-bc687b982ef5",
+                "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-30T14:34:15.563Z",
-                "id": 1986,
+                "createdAt": "2026-04-01T22:12:11.653Z",
+                "id": 2112,
                 "workflowId": "dtA2h7wy6QuzJ23z",
-                "versionId": "b1ef54f9-bb1d-4413-98bb-bc687b982ef5",
+                "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-30T14:34:15.694Z",
-                "id": 1988,
+                "createdAt": "2026-04-01T22:12:23.279Z",
+                "id": 2114,
                 "workflowId": "dtA2h7wy6QuzJ23z",
-                "versionId": "b1ef54f9-bb1d-4413-98bb-bc687b982ef5",
+                "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

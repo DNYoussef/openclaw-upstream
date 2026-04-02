@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-30T14:34:03.262Z",
+    "updatedAt": "2026-04-01T22:15:36.134Z",
     "createdAt": "2026-03-20T17:29:59.502Z",
     "id": "Ea3gWkhZls5Ey1h4",
     "name": "W28 - Loop Detector",
@@ -36,14 +36,8 @@
                 "contentType": "json",
                 "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 200}}",
                 "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "Fetch Recent Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -52,7 +46,13 @@
                 420,
                 300
             ],
-            "id": "8bc1078e-3fb9-4e8f-942e-7e7c4d40b7bb"
+            "id": "8bc1078e-3fb9-4e8f-942e-7e7c4d40b7bb",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {
@@ -63,14 +63,8 @@
                 "contentType": "json",
                 "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"1 hour\"}}",
                 "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "Fetch Agent Heartbeats",
             "type": "n8n-nodes-base.httpRequest",
@@ -79,7 +73,13 @@
                 640,
                 300
             ],
-            "id": "cfa10b63-3bb3-4505-85dd-a9a5553f6110"
+            "id": "cfa10b63-3bb3-4505-85dd-a9a5553f6110",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {
@@ -134,14 +134,8 @@
                 "contentType": "json",
                 "jsonBody": "={\"service\": \"loop-detector\", \"event_type\": \"runaway_detected\", \"payload\": {\"alert_count\": {{ $json.alert_count }}, \"alerts\": {{ JSON.stringify($json.alerts) }}, \"checked_events\": {{ $json.checked_events }}, \"checked_heartbeats\": {{ $json.checked_heartbeats }}, \"timestamp\": \"{{ $json.timestamp }}\"}}",
                 "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "Log Runaway Detected",
             "type": "n8n-nodes-base.httpRequest",
@@ -150,7 +144,13 @@
                 1300,
                 200
             ],
-            "id": "39e93746-8101-43ec-b210-e6c05ec9bb02"
+            "id": "39e93746-8101-43ec-b210-e6c05ec9bb02",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {
@@ -161,14 +161,8 @@
                 "contentType": "json",
                 "jsonBody": "={\"service\": \"loop-detector\", \"event_type\": \"system_stable\", \"payload\": {\"checked_events\": {{ $json.checked_events }}, \"checked_heartbeats\": {{ $json.checked_heartbeats }}, \"timestamp\": \"{{ $json.timestamp }}\"}}",
                 "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "Log System Stable",
             "type": "n8n-nodes-base.httpRequest",
@@ -177,7 +171,13 @@
                 1300,
                 400
             ],
-            "id": "141d687e-7672-47d1-8d69-ba3b7f952a04"
+            "id": "141d687e-7672-47d1-8d69-ba3b7f952a04",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {},
@@ -199,14 +199,8 @@
                 "contentType": "json",
                 "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W28 - Loop Detector\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
                 "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -215,7 +209,13 @@
                 420,
                 600
             ],
-            "id": "bb5a11e3-fd2f-4607-a573-effd44f2965e"
+            "id": "bb5a11e3-fd2f-4607-a573-effd44f2965e",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {
@@ -384,9 +384,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "c2f8fe70-d544-4fed-95a5-61e2fbc436a7",
-    "activeVersionId": "c2f8fe70-d544-4fed-95a5-61e2fbc436a7",
-    "versionCounter": 58,
+    "versionId": "13a96d6a-623c-44d2-8bf1-3cf7fa0297e6",
+    "activeVersionId": "13a96d6a-623c-44d2-8bf1-3cf7fa0297e6",
+    "versionCounter": 61,
     "triggerCount": 1,
     "shared": [
         {
@@ -409,9 +409,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-30T14:34:03.263Z",
-        "createdAt": "2026-03-30T14:34:03.263Z",
-        "versionId": "c2f8fe70-d544-4fed-95a5-61e2fbc436a7",
+        "updatedAt": "2026-04-01T22:15:36.135Z",
+        "createdAt": "2026-04-01T22:15:36.135Z",
+        "versionId": "13a96d6a-623c-44d2-8bf1-3cf7fa0297e6",
         "workflowId": "Ea3gWkhZls5Ey1h4",
         "nodes": [
             {
@@ -443,14 +443,8 @@
                     "contentType": "json",
                     "jsonBody": "{\"query_name\": \"recent_telemetry\", \"params\": {\"limit\": 200}}",
                     "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "Fetch Recent Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -459,7 +453,13 @@
                     420,
                     300
                 ],
-                "id": "8bc1078e-3fb9-4e8f-942e-7e7c4d40b7bb"
+                "id": "8bc1078e-3fb9-4e8f-942e-7e7c4d40b7bb",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {
@@ -470,14 +470,8 @@
                     "contentType": "json",
                     "jsonBody": "{\"query_name\": \"agent_heartbeats\", \"params\": {\"hours\": \"1 hour\"}}",
                     "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "Fetch Agent Heartbeats",
                 "type": "n8n-nodes-base.httpRequest",
@@ -486,7 +480,13 @@
                     640,
                     300
                 ],
-                "id": "cfa10b63-3bb3-4505-85dd-a9a5553f6110"
+                "id": "cfa10b63-3bb3-4505-85dd-a9a5553f6110",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {
@@ -541,14 +541,8 @@
                     "contentType": "json",
                     "jsonBody": "={\"service\": \"loop-detector\", \"event_type\": \"runaway_detected\", \"payload\": {\"alert_count\": {{ $json.alert_count }}, \"alerts\": {{ JSON.stringify($json.alerts) }}, \"checked_events\": {{ $json.checked_events }}, \"checked_heartbeats\": {{ $json.checked_heartbeats }}, \"timestamp\": \"{{ $json.timestamp }}\"}}",
                     "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "Log Runaway Detected",
                 "type": "n8n-nodes-base.httpRequest",
@@ -557,7 +551,13 @@
                     1300,
                     200
                 ],
-                "id": "39e93746-8101-43ec-b210-e6c05ec9bb02"
+                "id": "39e93746-8101-43ec-b210-e6c05ec9bb02",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {
@@ -568,14 +568,8 @@
                     "contentType": "json",
                     "jsonBody": "={\"service\": \"loop-detector\", \"event_type\": \"system_stable\", \"payload\": {\"checked_events\": {{ $json.checked_events }}, \"checked_heartbeats\": {{ $json.checked_heartbeats }}, \"timestamp\": \"{{ $json.timestamp }}\"}}",
                     "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "Log System Stable",
                 "type": "n8n-nodes-base.httpRequest",
@@ -584,7 +578,13 @@
                     1300,
                     400
                 ],
-                "id": "141d687e-7672-47d1-8d69-ba3b7f952a04"
+                "id": "141d687e-7672-47d1-8d69-ba3b7f952a04",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {},
@@ -606,14 +606,8 @@
                     "contentType": "json",
                     "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W28 - Loop Detector\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
                     "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -622,7 +616,13 @@
                     420,
                     600
                 ],
-                "id": "bb5a11e3-fd2f-4607-a573-effd44f2965e"
+                "id": "bb5a11e3-fd2f-4607-a573-effd44f2965e",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {
@@ -785,34 +785,18 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-30T14:34:03.323Z",
-                "id": 1867,
+                "createdAt": "2026-04-01T22:15:36.220Z",
+                "id": 2117,
                 "workflowId": "Ea3gWkhZls5Ey1h4",
-                "versionId": "c2f8fe70-d544-4fed-95a5-61e2fbc436a7",
+                "versionId": "13a96d6a-623c-44d2-8bf1-3cf7fa0297e6",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-30T14:34:03.492Z",
-                "id": 1869,
+                "createdAt": "2026-04-01T22:15:36.194Z",
+                "id": 2116,
                 "workflowId": "Ea3gWkhZls5Ey1h4",
-                "versionId": "c2f8fe70-d544-4fed-95a5-61e2fbc436a7",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:03.303Z",
-                "id": 1866,
-                "workflowId": "Ea3gWkhZls5Ey1h4",
-                "versionId": "c2f8fe70-d544-4fed-95a5-61e2fbc436a7",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:03.409Z",
-                "id": 1868,
-                "workflowId": "Ea3gWkhZls5Ey1h4",
-                "versionId": "c2f8fe70-d544-4fed-95a5-61e2fbc436a7",
+                "versionId": "13a96d6a-623c-44d2-8bf1-3cf7fa0297e6",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

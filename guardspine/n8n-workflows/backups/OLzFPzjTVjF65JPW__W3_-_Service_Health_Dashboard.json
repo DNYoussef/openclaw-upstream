@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-30T14:34:09.478Z",
+    "updatedAt": "2026-04-01T22:15:36.317Z",
     "createdAt": "2026-03-20T17:30:00.245Z",
     "id": "OLzFPzjTVjF65JPW",
     "name": "W3 - Service Health Dashboard",
@@ -31,14 +31,8 @@
             "parameters": {
                 "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_health?weeks=4&limit=10",
                 "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "Query Health KPIs",
             "type": "n8n-nodes-base.httpRequest",
@@ -47,20 +41,20 @@
                 420,
                 250
             ],
-            "id": "7c154e1e-5cf8-4d51-8e0b-62f80a1bbeeb"
+            "id": "7c154e1e-5cf8-4d51-8e0b-62f80a1bbeeb",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {
                 "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10",
                 "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "Query Automation KPIs",
             "type": "n8n-nodes-base.httpRequest",
@@ -69,7 +63,13 @@
                 420,
                 400
             ],
-            "id": "2ebcce56-7cf2-4424-b9fe-e9100d5ec5de"
+            "id": "2ebcce56-7cf2-4424-b9fe-e9100d5ec5de",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {
@@ -113,14 +113,8 @@
                 "contentType": "json",
                 "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": \"={{ JSON.stringify($json.alerts) }}\", \"alert_count\": \"={{ $json.alert_count }}\"}}",
                 "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "Emit Health Alert",
             "type": "n8n-nodes-base.httpRequest",
@@ -129,7 +123,13 @@
                 1080,
                 200
             ],
-            "id": "9630de3b-c771-4f7a-bbc5-ae984d7dbf70"
+            "id": "9630de3b-c771-4f7a-bbc5-ae984d7dbf70",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {},
@@ -151,14 +151,8 @@
                 "contentType": "json",
                 "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W3 - Service Health Dashboard\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
                 "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "***REDACTED***"
-                        }
-                    ]
-                }
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "httpHeaderAuth"
             },
             "name": "POST Error to Telemetry",
             "type": "n8n-nodes-base.httpRequest",
@@ -167,7 +161,13 @@
                 420,
                 600
             ],
-            "id": "894bcea6-313b-4815-8161-715b25caea1a"
+            "id": "894bcea6-313b-4815-8161-715b25caea1a",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "huHftAKqWOtw7M34",
+                    "name": "telemetry-api-auth"
+                }
+            }
         },
         {
             "parameters": {
@@ -319,9 +319,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
-    "activeVersionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
-    "versionCounter": 55,
+    "versionId": "1fea503b-19ec-4a7d-86cd-6ae1d5ec7399",
+    "activeVersionId": "1fea503b-19ec-4a7d-86cd-6ae1d5ec7399",
+    "versionCounter": 58,
     "triggerCount": 1,
     "shared": [
         {
@@ -344,9 +344,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-30T14:34:09.478Z",
-        "createdAt": "2026-03-30T14:34:09.478Z",
-        "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
+        "updatedAt": "2026-04-01T22:15:36.318Z",
+        "createdAt": "2026-04-01T22:15:36.318Z",
+        "versionId": "1fea503b-19ec-4a7d-86cd-6ae1d5ec7399",
         "workflowId": "OLzFPzjTVjF65JPW",
         "nodes": [
             {
@@ -373,14 +373,8 @@
                 "parameters": {
                     "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_health?weeks=4&limit=10",
                     "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "Query Health KPIs",
                 "type": "n8n-nodes-base.httpRequest",
@@ -389,20 +383,20 @@
                     420,
                     250
                 ],
-                "id": "7c154e1e-5cf8-4d51-8e0b-62f80a1bbeeb"
+                "id": "7c154e1e-5cf8-4d51-8e0b-62f80a1bbeeb",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {
                     "url": "http://telemetry-api.railway.internal:8090/kpi/kpi_automation?weeks=4&limit=10",
                     "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "Query Automation KPIs",
                 "type": "n8n-nodes-base.httpRequest",
@@ -411,7 +405,13 @@
                     420,
                     400
                 ],
-                "id": "2ebcce56-7cf2-4424-b9fe-e9100d5ec5de"
+                "id": "2ebcce56-7cf2-4424-b9fe-e9100d5ec5de",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {
@@ -455,14 +455,8 @@
                     "contentType": "json",
                     "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": \"={{ JSON.stringify($json.alerts) }}\", \"alert_count\": \"={{ $json.alert_count }}\"}}",
                     "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "Emit Health Alert",
                 "type": "n8n-nodes-base.httpRequest",
@@ -471,7 +465,13 @@
                     1080,
                     200
                 ],
-                "id": "9630de3b-c771-4f7a-bbc5-ae984d7dbf70"
+                "id": "9630de3b-c771-4f7a-bbc5-ae984d7dbf70",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {},
@@ -493,14 +493,8 @@
                     "contentType": "json",
                     "jsonBody": "{\"service\": \"n8n\", \"event_type\": \"workflow_error\", \"payload\": {\"workflow\": \"W3 - Service Health Dashboard\", \"error\": \"={{ $json.execution.error.message }}\", \"node\": \"={{ $json.execution.lastNodeExecuted }}\", \"timestamp\": \"={{ $now.toISO() }}\", \"execution_id\": \"={{ $json.execution.id }}\"}}",
                     "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
+                    "authentication": "predefinedCredentialType",
+                    "nodeCredentialType": "httpHeaderAuth"
                 },
                 "name": "POST Error to Telemetry",
                 "type": "n8n-nodes-base.httpRequest",
@@ -509,7 +503,13 @@
                     420,
                     600
                 ],
-                "id": "894bcea6-313b-4815-8161-715b25caea1a"
+                "id": "894bcea6-313b-4815-8161-715b25caea1a",
+                "credentials": {
+                    "httpHeaderAuth": {
+                        "id": "huHftAKqWOtw7M34",
+                        "name": "telemetry-api-auth"
+                    }
+                }
             },
             {
                 "parameters": {
@@ -655,34 +655,18 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-30T14:34:09.568Z",
-                "id": 1927,
+                "createdAt": "2026-04-01T22:15:36.380Z",
+                "id": 2119,
                 "workflowId": "OLzFPzjTVjF65JPW",
-                "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
+                "versionId": "1fea503b-19ec-4a7d-86cd-6ae1d5ec7399",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-30T14:34:09.777Z",
-                "id": 1929,
+                "createdAt": "2026-04-01T22:15:36.352Z",
+                "id": 2118,
                 "workflowId": "OLzFPzjTVjF65JPW",
-                "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:09.515Z",
-                "id": 1926,
-                "workflowId": "OLzFPzjTVjF65JPW",
-                "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:09.677Z",
-                "id": 1928,
-                "workflowId": "OLzFPzjTVjF65JPW",
-                "versionId": "9beaa1bf-4e9c-40ca-9cb5-7b8ed2e8c285",
+                "versionId": "1fea503b-19ec-4a7d-86cd-6ae1d5ec7399",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
