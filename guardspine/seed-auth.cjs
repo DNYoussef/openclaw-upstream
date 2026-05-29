@@ -5,10 +5,20 @@
 // 1. Replicate the gateway's exact path resolution (resolveStateDir + agent dir)
 // 2. Write auth-profiles.json to ALL candidate paths
 // 3. Intercept fs.writeFileSync to block empty-store overwrites during gateway init
-// 4. Also seed gateway config from OPENCLAW_SEED_CONFIG if present
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const debugSeedAuth = process.env.OPENCLAW_DEBUG_SEED_AUTH === "1";
+
+function logSeedAuth(message) {
+  process.stdout.write(`[seed-auth] ${message}\n`);
+}
+
+function logSeedAuthDebug(message) {
+  if (debugSeedAuth) {
+    logSeedAuth(message);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Step 0: Resolve the EXACT paths the gateway will use
@@ -16,8 +26,7 @@ const os = require("os");
 // Mirror src/config/paths.ts resolveStateDir() logic
 function resolveStateDir() {
   const override =
-    (process.env.OPENCLAW_STATE_DIR || "").trim() ||
-    (process.env.CLAWDBOT_STATE_DIR || "").trim();
+    (process.env.OPENCLAW_STATE_DIR || "").trim() || (process.env.CLAWDBOT_STATE_DIR || "").trim();
   if (override) return override;
 
   const home = process.env.HOME || process.env.USERPROFILE || os.homedir();
@@ -36,8 +45,7 @@ function resolveStateDir() {
 // Mirror src/agents/agent-paths.ts resolveOpenClawAgentDir() logic
 function resolveAgentDir() {
   const override =
-    (process.env.OPENCLAW_AGENT_DIR || "").trim() ||
-    (process.env.PI_CODING_AGENT_DIR || "").trim();
+    (process.env.OPENCLAW_AGENT_DIR || "").trim() || (process.env.PI_CODING_AGENT_DIR || "").trim();
   if (override) return override;
   return path.join(resolveStateDir(), "agents", "main", "agent");
 }
@@ -45,11 +53,9 @@ function resolveAgentDir() {
 const gatewayAgentDir = resolveAgentDir();
 const gatewayAuthPath = path.join(gatewayAgentDir, "auth-profiles.json");
 
-process.stdout.write(
-  `[seed-auth] gateway will read from: ${gatewayAuthPath}\n`,
-);
-process.stdout.write(
-  `[seed-auth] HOME=${process.env.HOME} STATE_DIR=${process.env.OPENCLAW_STATE_DIR || "(unset)"} AGENT_DIR=${process.env.OPENCLAW_AGENT_DIR || "(unset)"}\n`,
+logSeedAuthDebug(`gateway will read from: ${gatewayAuthPath}`);
+logSeedAuthDebug(
+  `HOME=${process.env.HOME} STATE_DIR=${process.env.OPENCLAW_STATE_DIR || "(unset)"} AGENT_DIR=${process.env.OPENCLAW_AGENT_DIR || "(unset)"}`,
 );
 
 // ---------------------------------------------------------------------------
@@ -70,16 +76,14 @@ if (data) {
   try {
     parsed = JSON.parse(data);
   } catch (e) {
-    process.stdout.write(`[seed-auth] ERROR: invalid JSON: ${e.message}\n`);
+    logSeedAuth(`ERROR: invalid JSON: ${e.message}`);
     // Don't crash gateway -- continue without auth
     parsed = null;
   }
 
   if (parsed) {
     const profileCount = Object.keys(parsed.profiles || {}).length;
-    process.stdout.write(
-      `[seed-auth] source=${source} profiles=${profileCount} bytes=${data.length}\n`,
-    );
+    logSeedAuthDebug(`source=${source} profiles=${profileCount} bytes=${data.length}`);
 
     // Write to the gateway's resolved path PLUS fallback locations
     const dirs = new Set([
@@ -95,11 +99,9 @@ if (data) {
         fs.writeFileSync(filePath, data, "utf8");
         const verify = fs.readFileSync(filePath, "utf8");
         const verifyProfiles = Object.keys(JSON.parse(verify).profiles || {}).length;
-        process.stdout.write(
-          `[seed-auth] OK ${filePath} (${verifyProfiles} profiles)\n`,
-        );
+        logSeedAuthDebug(`OK ${filePath} (${verifyProfiles} profiles)`);
       } catch (e) {
-        process.stdout.write(`[seed-auth] FAIL ${dir}: ${e.message}\n`);
+        logSeedAuth(`FAIL ${dir}: ${e.message}`);
       }
     }
 
@@ -112,10 +114,7 @@ if (data) {
     // any that would replace a populated store with an empty one.
     const _origWriteFileSync = fs.writeFileSync;
     fs.writeFileSync = function patchedWriteFileSync(filePath, content, opts) {
-      if (
-        typeof filePath === "string" &&
-        filePath.endsWith("auth-profiles.json")
-      ) {
+      if (typeof filePath === "string" && filePath.endsWith("auth-profiles.json")) {
         // Check if this write would empty out a populated store
         let incoming;
         try {
@@ -134,12 +133,10 @@ if (data) {
         if (incomingProfiles === 0) {
           try {
             const existing = JSON.parse(fs.readFileSync(filePath, "utf8"));
-            const existingProfiles = Object.keys(
-              existing.profiles || {},
-            ).length;
+            const existingProfiles = Object.keys(existing.profiles || {}).length;
             if (existingProfiles > 0) {
-              process.stdout.write(
-                `[seed-auth] BLOCKED empty overwrite of ${filePath} (existing has ${existingProfiles} profiles)\n`,
+              logSeedAuth(
+                `BLOCKED empty overwrite of ${filePath} (existing has ${existingProfiles} profiles)`,
               );
               return; // Block the write
             }
@@ -151,35 +148,8 @@ if (data) {
       return _origWriteFileSync.call(fs, filePath, content, opts);
     };
 
-    process.stdout.write("[seed-auth] fs.writeFileSync interceptor ACTIVE\n");
+    logSeedAuthDebug("fs.writeFileSync interceptor ACTIVE");
   }
 } else {
-  process.stdout.write(
-    "[seed-auth] NO AUTH DATA (OPENCLAW_AUTH_PROFILES_B64 not set, baked file not found)\n",
-  );
-  process.stdout.write(
-    `[seed-auth] env keys: ${Object.keys(process.env)
-      .filter((k) => k.includes("OPENCLAW") || k.includes("AUTH"))
-      .join(", ")}\n`,
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Step 3: Seed gateway config from OPENCLAW_SEED_CONFIG (redundant safety)
-// ---------------------------------------------------------------------------
-const seedConfig = process.env.OPENCLAW_SEED_CONFIG;
-if (seedConfig) {
-  try {
-    const configData = Buffer.from(seedConfig, "base64").toString("utf8");
-    JSON.parse(configData); // validate
-    const stateDir = resolveStateDir();
-    const configPath = path.join(stateDir, "openclaw.json");
-    fs.mkdirSync(stateDir, { recursive: true });
-    fs.writeFileSync(configPath, configData, "utf8");
-    process.stdout.write(`[seed-auth] config seeded to ${configPath}\n`);
-  } catch (e) {
-    process.stdout.write(
-      `[seed-auth] config seed failed: ${e.message}\n`,
-    );
-  }
+  logSeedAuth("NO AUTH DATA (OPENCLAW_AUTH_PROFILES_B64 not set, baked file not found)");
 }
