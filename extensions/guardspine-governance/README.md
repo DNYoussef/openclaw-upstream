@@ -5,13 +5,13 @@ L0-L4 risk tiers with evidence packs, multi-model council review, and remote app
 
 ## Risk Tiers
 
-| Tier | Action | Examples |
-|------|--------|----------|
-| L0 | No-op | sequentialthinking, memory_search |
-| L1 | Log only | rlm_read, web_search |
-| L2 | Evidence pack | bash, apply_patch |
-| L3 | 3-model council | rm -rf, curl, npm install |
-| L4 | Council + approval | credential_access, chmod 777 |
+| Tier | Action             | Examples                          |
+| ---- | ------------------ | --------------------------------- |
+| L0   | No-op              | sequentialthinking, memory_search |
+| L1   | Log only           | rlm_read, web_search              |
+| L2   | Evidence pack      | bash, apply_patch                 |
+| L3   | 3-model council    | rm -rf, curl, npm install         |
+| L4   | Council + approval | credential_access, chmod 777      |
 
 Bash commands are dynamically escalated based on content (e.g. `rm -rf` escalates
 from L2 to L3, credential patterns escalate to L4).

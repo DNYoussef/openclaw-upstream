@@ -11,12 +11,16 @@ const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
 
-const LOG_DIR = path.join(process.env.USERPROFILE || process.env.HOME, ".openclaw", "guardspine-logs");
+const LOG_DIR = path.join(
+  process.env.USERPROFILE || process.env.HOME,
+  ".openclaw",
+  "guardspine-logs",
+);
 const REPORT_DIR = path.join(process.env.USERPROFILE || process.env.HOME, ".openclaw", "reports");
 
 // Parse command line args
 const args = process.argv.slice(2);
-const daysArg = args.find(a => a.startsWith("--days="));
+const daysArg = args.find((a) => a.startsWith("--days="));
 const DAYS = daysArg ? parseInt(daysArg.split("=")[1]) : 7;
 
 async function main() {
@@ -54,7 +58,7 @@ async function main() {
   for (const logFile of logFiles) {
     const rl = readline.createInterface({
       input: fs.createReadStream(logFile),
-      crlfDelay: Infinity
+      crlfDelay: Infinity,
     });
 
     for await (const line of rl) {
@@ -71,12 +75,13 @@ async function main() {
   console.log(`Parsed ${entries.length} total entries`);
 
   // Filter for failures
-  const failures = entries.filter(e =>
-    e.action === "COUNCIL_FAIL" ||
-    e.action === "COUNCIL_ERROR" ||
-    e.action === "L3.5_OPUS_FAIL" ||
-    e.action === "BLOCKED" ||
-    (e.outcome && e.outcome.includes("DENIED"))
+  const failures = entries.filter(
+    (e) =>
+      e.action === "COUNCIL_FAIL" ||
+      e.action === "COUNCIL_ERROR" ||
+      e.action === "L3.5_OPUS_FAIL" ||
+      e.action === "BLOCKED" ||
+      (e.outcome && e.outcome.includes("DENIED")),
   );
 
   // Group by tool

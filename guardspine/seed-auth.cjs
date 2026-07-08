@@ -16,19 +16,24 @@ const os = require("os");
 // Mirror src/config/paths.ts resolveStateDir() logic
 function resolveStateDir() {
   const override =
-    (process.env.OPENCLAW_STATE_DIR || "").trim() ||
-    (process.env.CLAWDBOT_STATE_DIR || "").trim();
-  if (override) return override;
+    (process.env.OPENCLAW_STATE_DIR || "").trim() || (process.env.CLAWDBOT_STATE_DIR || "").trim();
+  if (override) {
+    return override;
+  }
 
   const home = process.env.HOME || process.env.USERPROFILE || os.homedir();
   const newDir = path.join(home, ".openclaw");
 
   // Check legacy dirs (same order as gateway)
   const legacyNames = [".clawdbot", ".moldbot", ".moltbot"];
-  if (fs.existsSync(newDir)) return newDir;
+  if (fs.existsSync(newDir)) {
+    return newDir;
+  }
   for (const name of legacyNames) {
     const dir = path.join(home, name);
-    if (fs.existsSync(dir)) return dir;
+    if (fs.existsSync(dir)) {
+      return dir;
+    }
   }
   return newDir;
 }
@@ -36,18 +41,17 @@ function resolveStateDir() {
 // Mirror src/agents/agent-paths.ts resolveOpenClawAgentDir() logic
 function resolveAgentDir() {
   const override =
-    (process.env.OPENCLAW_AGENT_DIR || "").trim() ||
-    (process.env.PI_CODING_AGENT_DIR || "").trim();
-  if (override) return override;
+    (process.env.OPENCLAW_AGENT_DIR || "").trim() || (process.env.PI_CODING_AGENT_DIR || "").trim();
+  if (override) {
+    return override;
+  }
   return path.join(resolveStateDir(), "agents", "main", "agent");
 }
 
 const gatewayAgentDir = resolveAgentDir();
 const gatewayAuthPath = path.join(gatewayAgentDir, "auth-profiles.json");
 
-process.stdout.write(
-  `[seed-auth] gateway will read from: ${gatewayAuthPath}\n`,
-);
+process.stdout.write(`[seed-auth] gateway will read from: ${gatewayAuthPath}\n`);
 process.stdout.write(
   `[seed-auth] HOME=${process.env.HOME} STATE_DIR=${process.env.OPENCLAW_STATE_DIR || "(unset)"} AGENT_DIR=${process.env.OPENCLAW_AGENT_DIR || "(unset)"}\n`,
 );
@@ -95,9 +99,7 @@ if (data) {
         fs.writeFileSync(filePath, data, "utf8");
         const verify = fs.readFileSync(filePath, "utf8");
         const verifyProfiles = Object.keys(JSON.parse(verify).profiles || {}).length;
-        process.stdout.write(
-          `[seed-auth] OK ${filePath} (${verifyProfiles} profiles)\n`,
-        );
+        process.stdout.write(`[seed-auth] OK ${filePath} (${verifyProfiles} profiles)\n`);
       } catch (e) {
         process.stdout.write(`[seed-auth] FAIL ${dir}: ${e.message}\n`);
       }
@@ -112,17 +114,14 @@ if (data) {
     // any that would replace a populated store with an empty one.
     const _origWriteFileSync = fs.writeFileSync;
     fs.writeFileSync = function patchedWriteFileSync(filePath, content, opts) {
-      if (
-        typeof filePath === "string" &&
-        filePath.endsWith("auth-profiles.json")
-      ) {
+      if (typeof filePath === "string" && filePath.endsWith("auth-profiles.json")) {
         // Check if this write would empty out a populated store
         let incoming;
         try {
           incoming =
             typeof content === "string"
               ? JSON.parse(content)
-              : JSON.parse(content.toString("utf8"));
+              : JSON.parse(Buffer.from(content).toString("utf8"));
         } catch {
           // Not JSON or not parseable -- let it through
           return _origWriteFileSync.call(fs, filePath, content, opts);
@@ -134,9 +133,7 @@ if (data) {
         if (incomingProfiles === 0) {
           try {
             const existing = JSON.parse(fs.readFileSync(filePath, "utf8"));
-            const existingProfiles = Object.keys(
-              existing.profiles || {},
-            ).length;
+            const existingProfiles = Object.keys(existing.profiles || {}).length;
             if (existingProfiles > 0) {
               process.stdout.write(
                 `[seed-auth] BLOCKED empty overwrite of ${filePath} (existing has ${existingProfiles} profiles)\n`,
@@ -178,8 +175,6 @@ if (seedConfig) {
     fs.writeFileSync(configPath, configData, "utf8");
     process.stdout.write(`[seed-auth] config seeded to ${configPath}\n`);
   } catch (e) {
-    process.stdout.write(
-      `[seed-auth] config seed failed: ${e.message}\n`,
-    );
+    process.stdout.write(`[seed-auth] config seed failed: ${e.message}\n`);
   }
 }

@@ -9,8 +9,8 @@ connector:
 source:
   # Watch these Google Drive folder IDs
   folders:
-    - "1ABC123_BoardPackets"      # Board Packets folder ID
-    - "1DEF456_Contracts"         # Contracts folder ID
+    - "1ABC123_BoardPackets" # Board Packets folder ID
+    - "1DEF456_Contracts" # Contracts folder ID
 
   # OAuth credentials (from Google Cloud Console)
   credentials_path: "credentials.json"
@@ -26,9 +26,9 @@ filters:
     - "**/*.pptx"
     - "**/*.docx"
   exclude_paths:
-    - "**/~$*"           # Office temp files
-    - "**/.~*"           # Hidden temp files
-    - "**/Archive/**"    # Archived documents
+    - "**/~$*" # Office temp files
+    - "**/.~*" # Hidden temp files
+    - "**/Archive/**" # Archived documents
 
 risk_mapping:
   default: "L1"
@@ -58,7 +58,7 @@ output:
   # Retention policy
   retention:
     policy: "regulatory"
-    days: 2555  # 7 years for SOX compliance
+    days: 2555 # 7 years for SOX compliance
     compliance_frameworks:
       - "SOX"
       - "SEC"

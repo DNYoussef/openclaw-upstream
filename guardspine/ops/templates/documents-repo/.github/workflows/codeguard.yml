@@ -1,7 +1,7 @@
 name: GuardSpine Document Governance
 on:
   pull_request:
-    paths: ['pdfs/**', 'sheets/**', 'images/**']
+    paths: ["pdfs/**", "sheets/**", "images/**"]
 
 permissions:
   pull-requests: write

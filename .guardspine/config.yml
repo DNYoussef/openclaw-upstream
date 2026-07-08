@@ -14,4 +14,4 @@ evidence:
   sign: true
 
 notifications:
-  slack_channel: 
+  slack_channel:

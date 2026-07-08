@@ -1,170 +1,170 @@
-name: 'GuardSpine CodeGuard'
-description: 'AI-aware code governance with cryptographically verifiable evidence bundles'
-author: 'GuardSpine'
+name: "GuardSpine CodeGuard"
+description: "AI-aware code governance with cryptographically verifiable evidence bundles"
+author: "GuardSpine"
 
 branding:
-  icon: 'shield'
-  color: 'blue'
+  icon: "shield"
+  color: "blue"
 
 inputs:
   risk_threshold:
-    description: 'Risk tier threshold for blocking (L0-L4). Changes at or above this level require approval.'
+    description: "Risk tier threshold for blocking (L0-L4). Changes at or above this level require approval."
     required: false
-    default: 'L3'
+    default: "L3"
   rubric:
-    description: 'Policy rubric to evaluate against (soc2, hipaa, pci-dss, or path to custom rubric)'
+    description: "Policy rubric to evaluate against (soc2, hipaa, pci-dss, or path to custom rubric)"
     required: false
-    default: 'default'
+    default: "default"
   github_token:
-    description: 'GitHub token for PR operations'
+    description: "GitHub token for PR operations"
     required: true
     default: ${{ github.token }}
   post_comment:
-    description: 'Post risk summary as PR comment'
+    description: "Post risk summary as PR comment"
     required: false
-    default: 'true'
+    default: "true"
   generate_bundle:
-    description: 'Generate evidence bundle artifact'
+    description: "Generate evidence bundle artifact"
     required: false
-    default: 'true'
+    default: "true"
   upload_sarif:
-    description: 'Upload findings to GitHub Security tab (SARIF)'
+    description: "Upload findings to GitHub Security tab (SARIF)"
     required: false
-    default: 'false'
+    default: "false"
   fail_on_high_risk:
-    description: 'Fail the check if risk exceeds threshold'
+    description: "Fail the check if risk exceeds threshold"
     required: false
-    default: 'false'
+    default: "false"
   openai_api_key:
-    description: 'OpenAI API key for AI-powered analysis (optional)'
+    description: "OpenAI API key for AI-powered analysis (optional)"
     required: false
   anthropic_api_key:
-    description: 'Anthropic API key for AI-powered analysis (optional)'
+    description: "Anthropic API key for AI-powered analysis (optional)"
     required: false
   openrouter_api_key:
-    description: 'OpenRouter API key for AI-powered analysis (optional) - supports 100+ models'
+    description: "OpenRouter API key for AI-powered analysis (optional) - supports 100+ models"
     required: false
   openrouter_model:
-    description: 'Model to use with OpenRouter (e.g., anthropic/claude-sonnet-4, google/gemini-3)'
+    description: "Model to use with OpenRouter (e.g., anthropic/claude-sonnet-4, google/gemini-3)"
     required: false
-    default: 'anthropic/claude-sonnet-4'
+    default: "anthropic/claude-sonnet-4"
   ollama_host:
-    description: 'Ollama server URL for local/on-prem AI (e.g., http://localhost:11434)'
+    description: "Ollama server URL for local/on-prem AI (e.g., http://localhost:11434)"
     required: false
   ollama_model:
-    description: 'Model to use with Ollama (e.g., llama3.3, codellama, mistral)'
+    description: "Model to use with Ollama (e.g., llama3.3, codellama, mistral)"
     required: false
-    default: 'llama3.3'
+    default: "llama3.3"
   model_1:
-    description: 'First AI model for L1+ reviews. Format: provider/model or just model name'
+    description: "First AI model for L1+ reviews. Format: provider/model or just model name"
     required: false
   model_2:
-    description: 'Second AI model for L2+ reviews. Format: provider/model or just model name'
+    description: "Second AI model for L2+ reviews. Format: provider/model or just model name"
     required: false
   model_3:
-    description: 'Third AI model for L3+ reviews. Format: provider/model or just model name'
+    description: "Third AI model for L3+ reviews. Format: provider/model or just model name"
     required: false
   ai_review:
-    description: 'Enable AI-powered code review (requires at least one API key)'
+    description: "Enable AI-powered code review (requires at least one API key)"
     required: false
-    default: 'true'
+    default: "true"
   pii_shield_enabled:
-    description: 'Enable PII-Shield preprocessing for AI review input'
+    description: "Enable PII-Shield preprocessing for AI review input"
     required: false
-    default: 'false'
+    default: "false"
   pii_shield_mode:
-    description: 'PII-Shield mode: auto, local, or remote'
+    description: "PII-Shield mode: auto, local, or remote"
     required: false
-    default: 'auto'
+    default: "auto"
   pii_shield_endpoint:
-    description: 'Optional PII-Shield HTTP endpoint for remote redaction'
+    description: "Optional PII-Shield HTTP endpoint for remote redaction"
     required: false
   pii_shield_api_key:
-    description: 'API key for PII-Shield endpoint (optional)'
+    description: "API key for PII-Shield endpoint (optional)"
     required: false
   pii_shield_timeout:
-    description: 'PII-Shield HTTP timeout in seconds'
+    description: "PII-Shield HTTP timeout in seconds"
     required: false
-    default: '5'
+    default: "5"
   pii_shield_fail_closed:
-    description: 'Fail workflow if PII-Shield redaction errors occur (recommended: true for production)'
+    description: "Fail workflow if PII-Shield redaction errors occur (recommended: true for production)"
     required: false
-    default: 'true'
+    default: "true"
   pii_shield_salt_fingerprint:
-    description: 'Non-secret salt fingerprint for deterministic redaction attestations (sha256:XXXXXXXX)'
+    description: "Non-secret salt fingerprint for deterministic redaction attestations (sha256:XXXXXXXX)"
     required: false
-    default: 'sha256:00000000'
+    default: "sha256:00000000"
   pii_safe_regex_list:
     description: 'JSON array of regex patterns that bypass PII-Shield entropy detection (e.g., [{"pattern": "^[a-f0-9]{40,64}$", "name": "SafeGitSHA"}])'
     required: false
     default: '[{"pattern": "^[a-f0-9]{40,64}$", "name": "SafeGitSHA"}, {"pattern": "_hash$", "name": "HashFieldSuffix"}]'
   pii_shield_sanitize_comments:
-    description: 'Sanitize PR comments with PII-Shield before publishing'
+    description: "Sanitize PR comments with PII-Shield before publishing"
     required: false
-    default: 'true'
+    default: "true"
   pii_shield_sanitize_bundle:
-    description: 'Sanitize evidence bundles with PII-Shield before writing artifacts'
+    description: "Sanitize evidence bundles with PII-Shield before writing artifacts"
     required: false
-    default: 'true'
+    default: "true"
   pii_shield_sanitize_sarif:
-    description: 'Sanitize SARIF output with PII-Shield before upload'
+    description: "Sanitize SARIF output with PII-Shield before upload"
     required: false
-    default: 'true'
+    default: "true"
   rubrics_dir:
-    description: 'Directory containing rubric YAML files (relative paths allowed)'
+    description: "Directory containing rubric YAML files (relative paths allowed)"
     required: false
-    default: '.guardspine/rubrics'
+    default: ".guardspine/rubrics"
   risk_policy:
-    description: 'Path to YAML file defining custom risk patterns/thresholds'
+    description: "Path to YAML file defining custom risk patterns/thresholds"
     required: false
   bundle_dir:
-    description: 'Directory to write evidence bundles (relative to workspace)'
+    description: "Directory to write evidence bundles (relative to workspace)"
     required: false
-    default: '.guardspine/bundles'
+    default: ".guardspine/bundles"
   decision_policy:
-    description: 'Decision engine policy (standard, strict, advisory, or path to custom YAML)'
+    description: "Decision engine policy (standard, strict, advisory, or path to custom YAML)"
     required: false
-    default: 'standard'
+    default: "standard"
   deliberate:
-    description: 'Enable deliberation (multi-round cross-checking between AI models)'
+    description: "Enable deliberation (multi-round cross-checking between AI models)"
     required: false
-    default: 'false'
+    default: "false"
   auto_merge:
-    description: 'Auto-merge clean PRs (decision=merge, tier L0-L3). Requires contents:write permission.'
+    description: "Auto-merge clean PRs (decision=merge, tier L0-L3). Requires contents:write permission."
     required: false
-    default: 'false'
+    default: "false"
   auto_merge_method:
-    description: 'Merge method: merge, squash, or rebase'
+    description: "Merge method: merge, squash, or rebase"
     required: false
-    default: 'squash'
+    default: "squash"
 
 outputs:
   risk_tier:
-    description: 'Assessed risk tier (L0-L4)'
+    description: "Assessed risk tier (L0-L4)"
   risk_drivers:
-    description: 'JSON array of top risk drivers'
+    description: "JSON array of top risk drivers"
   bundle_path:
-    description: 'Path to generated evidence bundle'
+    description: "Path to generated evidence bundle"
   findings_count:
-    description: 'Number of policy findings'
+    description: "Number of policy findings"
   requires_approval:
-    description: 'Whether human approval is required (true/false)'
+    description: "Whether human approval is required (true/false)"
   models_used:
-    description: 'Number of AI models that reviewed the change'
+    description: "Number of AI models that reviewed the change"
   consensus_risk:
-    description: 'Multi-model consensus: approve, request_changes, or comment'
+    description: "Multi-model consensus: approve, request_changes, or comment"
   agreement_score:
-    description: 'How much models agreed (0.0-1.0)'
+    description: "How much models agreed (0.0-1.0)"
   decision:
-    description: 'Decision engine verdict: merge, merge-with-conditions, or block'
+    description: "Decision engine verdict: merge, merge-with-conditions, or block"
   merged:
-    description: 'Whether PR was auto-merged'
+    description: "Whether PR was auto-merged"
   merge_sha:
-    description: 'Merge commit SHA (if merged)'
+    description: "Merge commit SHA (if merged)"
 
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
+  using: "docker"
+  image: "Dockerfile"
   args:
     - ${{ inputs.risk_threshold }}
     - ${{ inputs.rubric }}

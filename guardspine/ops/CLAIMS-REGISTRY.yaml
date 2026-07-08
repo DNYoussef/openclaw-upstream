@@ -8,12 +8,12 @@
 tests:
   total: 737
   breakdown:
-    codeguard-action: 172       # python -m pytest --co -q
-    guardspine-backend: 489     # python -m pytest --co -q (1 collection error in test_bundle_import.py)
-    guardspine-kernel-ts: 32    # npm test (vitest)
-    guardspine-kernel-py: 29    # python -m pytest --co -q
-    guardspine-local-council: 15  # python -m pytest --co -q
-    guardspine-verify: 0        # no package.json found
+    codeguard-action: 172 # python -m pytest --co -q
+    guardspine-backend: 489 # python -m pytest --co -q (1 collection error in test_bundle_import.py)
+    guardspine-kernel-ts: 32 # npm test (vitest)
+    guardspine-kernel-py: 29 # python -m pytest --co -q
+    guardspine-local-council: 15 # python -m pytest --co -q
+    guardspine-verify: 0 # no package.json found
   verified_date: "2026-02-23"
   verified_by: "pytest --co -q / npm test in each repo"
 
@@ -44,7 +44,7 @@ pricing:
 
 repos:
   total_oss: 8
-  license: "Apache-2.0"  # Decision 2026-02-23: standardize all to Apache 2.0
+  license: "Apache-2.0" # Decision 2026-02-23: standardize all to Apache 2.0
   list:
     - codeguard-action
     - guardspine-kernel

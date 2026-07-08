@@ -126,19 +126,13 @@
   ],
   "connections": {
     "Every 6 Hours": {
-      "main": [
-        [{ "node": "Fetch Finance Bundles", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Fetch Finance Bundles", "type": "main", "index": 0 }]]
     },
     "Fetch Finance Bundles": {
-      "main": [
-        [{ "node": "Classify Bundles", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Classify Bundles", "type": "main", "index": 0 }]]
     },
     "Classify Bundles": {
-      "main": [
-        [{ "node": "Has Bundles?", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Has Bundles?", "type": "main", "index": 0 }]]
     },
     "Has Bundles?": {
       "main": [
@@ -147,14 +141,10 @@
       ]
     },
     "Create CFO Issue": {
-      "main": [
-        [{ "node": "Log Issue Created", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "Log Issue Created", "type": "main", "index": 0 }]]
     },
     "Error Trigger": {
-      "main": [
-        [{ "node": "POST Error", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "POST Error", "type": "main", "index": 0 }]]
     }
   },
   "settings": {

@@ -82,6 +82,7 @@ Return ONLY valid JSON. No markdown fencing, no commentary outside the JSON:
 ## Self-Check Before Output
 
 Before returning the JSON:
+
 1. Count words in each body. Set `word_count` and `word_count_ok` (100-300 range).
 2. Scan for banned terms. Set `banned_terms_ok`.
 3. Run the swap test mentally. Set `swap_test_ok`.

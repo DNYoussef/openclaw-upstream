@@ -15,7 +15,7 @@ None found.
 ## P1 Findings (Should Fix)
 
 1. README contradicts the canonical chain definition
-   - The README states previous_hash links to prior _content_hash_, while the schema/spec define previous_hash as prior _chain_hash_.
+   - The README states previous*hash links to prior \_content_hash*, while the schema/spec define previous*hash as prior \_chain_hash*.
    - Impact: Implementers following README will produce invalid chains that fail kernel/verify, causing interop drift.
    - Fix: Align README verification rules with SPECIFICATION.md and schema.
    - File: `D:\Projects\guardspine-spec\README.md`

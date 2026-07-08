@@ -7,8 +7,8 @@
     "evidence-packs",
     "governance",
     "guardspine",
-    "multi-model-council",
     "litellm",
+    "multi-model-council",
     "openclaw",
     "openrouter",
     "risk-tiers"
