@@ -1,0 +1,29 @@
+{
+  "id": "guardspine-discovery-prep",
+  "name": "GuardSpine Discovery Prep",
+  "description": "Composes pre-call handoff sheets for sales discovery calls. Queries outreach.db for prospect data and discovery_tree.json for matching openers, pitch variants, and objection bridges.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "outreach_db_path": {
+        "type": "string",
+        "default": ""
+      },
+      "discovery_tree_path": {
+        "type": "string",
+        "default": ""
+      }
+    }
+  },
+  "uiHints": {
+    "outreach_db_path": {
+      "label": "Outreach DB Path",
+      "help": "Absolute path to outreach.db. Defaults to ~/.claude/outreach/outreach.db"
+    },
+    "discovery_tree_path": {
+      "label": "Discovery Tree Path",
+      "help": "Absolute path to discovery_tree.json. Defaults to ~/.claude/outreach/discovery_tree.json"
+    }
+  }
+}

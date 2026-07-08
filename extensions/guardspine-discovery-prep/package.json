@@ -1,0 +1,11 @@
+{
+  "name": "@openclaw/guardspine-discovery-prep",
+  "version": "1.0.0",
+  "description": "Pre-call discovery handoff sheet tool for GuardSpine CMO agent",
+  "main": "plugin.js",
+  "openclaw": {
+    "extensions": [
+      "./plugin.js"
+    ]
+  }
+}

@@ -1183,6 +1183,118 @@ export const GENERATED_BUNDLED_PLUGIN_METADATA = [
     },
   },
   {
+    dirName: "guardspine-discovery-prep",
+    idHint: "guardspine-discovery-prep",
+    source: {
+      source: "./plugin.js",
+      built: "plugin.js",
+    },
+    packageName: "@openclaw/guardspine-discovery-prep",
+    packageVersion: "1.0.0",
+    packageDescription: "Pre-call discovery handoff sheet tool for GuardSpine CMO agent",
+    packageManifest: {
+      extensions: ["./plugin.js"],
+    },
+    manifest: {
+      id: "guardspine-discovery-prep",
+      configSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          outreach_db_path: {
+            type: "string",
+            default: "",
+          },
+          discovery_tree_path: {
+            type: "string",
+            default: "",
+          },
+        },
+      },
+      name: "GuardSpine Discovery Prep",
+      description:
+        "Composes pre-call handoff sheets for sales discovery calls. Queries outreach.db for prospect data and discovery_tree.json for matching openers, pitch variants, and objection bridges.",
+      uiHints: {
+        outreach_db_path: {
+          label: "Outreach DB Path",
+          help: "Absolute path to outreach.db. Defaults to ~/.claude/outreach/outreach.db",
+        },
+        discovery_tree_path: {
+          label: "Discovery Tree Path",
+          help: "Absolute path to discovery_tree.json. Defaults to ~/.claude/outreach/discovery_tree.json",
+        },
+      },
+    },
+  },
+  {
+    dirName: "guardspine-governance",
+    idHint: "guardspine-governance",
+    source: {
+      source: "./plugin.js",
+      built: "plugin.js",
+    },
+    packageName: "@openclaw/guardspine-governance",
+    packageVersion: "2026.3.2",
+    packageDescription:
+      "Deny-by-default governance layer for OpenClaw with L0-L4 risk tiers, 3-model council, and evidence packs",
+    packageManifest: {
+      extensions: ["./plugin.js"],
+    },
+    manifest: {
+      id: "guardspine-governance",
+      configSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          enabled: {
+            type: "boolean",
+            default: true,
+          },
+          enforcement_mode: {
+            type: "string",
+            enum: ["enforce", "shadow", "audit", "disabled"],
+            default: "enforce",
+          },
+          council_endpoint: {
+            type: "string",
+          },
+          guardspine_root: {
+            type: "string",
+            default: "",
+          },
+          discord_approval_target: {
+            type: "string",
+          },
+          discord_bot_token: {
+            type: "string",
+          },
+        },
+      },
+      name: "GuardSpine Governance",
+      description:
+        "Deny-by-default governance layer. Gates dangerous tool calls through L0-L4 risk tiers with evidence packs, 3-model council review, L3.5 Opus tie-breaker, pattern authorization bypass, and remote approval.",
+      uiHints: {
+        enforcement_mode: {
+          label: "Enforcement Mode",
+          help: "enforce = block unauthorized actions, shadow = evaluate and log without blocking, audit = development-only pass-through, disabled = no checks",
+        },
+        council_endpoint: {
+          label: "Council Endpoint",
+          help: "Ollama-compatible endpoint for L3 council review. Required in enforce/shadow mode.",
+        },
+        discord_approval_target: {
+          label: "Discord Approval Target",
+          help: "Discord target for L4 approvals (e.g. user:123456789 or channel:123456789)",
+        },
+        discord_bot_token: {
+          label: "Discord Bot Token",
+          sensitive: true,
+          help: "Bot token for Discord reaction-based L4 approval",
+        },
+      },
+    },
+  },
+  {
     dirName: "huggingface",
     idHint: "huggingface",
     source: {
