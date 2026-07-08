@@ -33,7 +33,7 @@ Edit `config.yaml`:
 ```yaml
 source:
   folders:
-    - "YOUR_FOLDER_ID"  # Get from Drive URL
+    - "YOUR_FOLDER_ID" # Get from Drive URL
   credentials_path: "credentials.json"
   token_path: "token.json"
 ```
@@ -105,7 +105,7 @@ coherence_rules:
     targets:
       - "Board Deck!Slide 5!Revenue Figure"
       - "CEO Letter!Para 2!Revenue Mention"
-    tolerance: 0.01  # 1% variance allowed
+    tolerance: 0.01 # 1% variance allowed
 
   - rule: date_consistency
     pattern: "Q[1-4] 20[0-9]{2}"
@@ -116,14 +116,14 @@ coherence_rules:
 
 Files are automatically classified by path:
 
-| Path Pattern | Risk Tier |
-|--------------|-----------|
-| `**/Board Packets/**` | L4 |
-| `**/Contracts/**` | L4 |
-| `**/Financials/**` | L3 |
-| `**/HR/**` | L3 |
-| `**/Marketing/**` | L2 |
-| Default | L1 |
+| Path Pattern          | Risk Tier |
+| --------------------- | --------- |
+| `**/Board Packets/**` | L4        |
+| `**/Contracts/**`     | L4        |
+| `**/Financials/**`    | L3        |
+| `**/HR/**`            | L3        |
+| `**/Marketing/**`     | L2        |
+| Default               | L1        |
 
 ## API Reference
 
@@ -148,11 +148,11 @@ class BoardPacketWatcher(GoogleDriveConnector):
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `SLACK_WEBHOOK_URL` | Slack notifications |
-| `SMTP_HOST` | Email notifications |
-| `GUARDSPINE_URL` | GuardSpine backend URL |
+| Variable            | Description            |
+| ------------------- | ---------------------- |
+| `SLACK_WEBHOOK_URL` | Slack notifications    |
+| `SMTP_HOST`         | Email notifications    |
+| `GUARDSPINE_URL`    | GuardSpine backend URL |
 
 ## License
 

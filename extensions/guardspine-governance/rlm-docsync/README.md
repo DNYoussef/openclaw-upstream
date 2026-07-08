@@ -38,14 +38,14 @@ rlm-docsync integrates RLM (Recursive Language Models) context virtualization wi
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `rlm-docsync-plugin.yaml` | OpenClaw manifest (tools, governance, config) |
-| `rlm_docsync.py` | Python implementation |
-| `guardspine-evidence-rubric.yaml` | L3 council rubric |
-| `evaluate_evidence.py` | Evidence pack evaluator |
-| `sample-evidence-pack.json` | Example passing pack |
-| `sample-evidence-pack-fail.json` | Example failing pack |
+| File                              | Purpose                                       |
+| --------------------------------- | --------------------------------------------- |
+| `rlm-docsync-plugin.yaml`         | OpenClaw manifest (tools, governance, config) |
+| `rlm_docsync.py`                  | Python implementation                         |
+| `guardspine-evidence-rubric.yaml` | L3 council rubric                             |
+| `evaluate_evidence.py`            | Evidence pack evaluator                       |
+| `sample-evidence-pack.json`       | Example passing pack                          |
+| `sample-evidence-pack-fail.json`  | Example failing pack                          |
 
 ## Quick Start
 
@@ -85,14 +85,15 @@ python evaluate_evidence.py --pack audit-result.json --mode security_audit
 
 **Purpose:** Scan external codebases for vulnerabilities
 
-| Aspect | Value |
-|--------|-------|
-| Governance Tier | L2 (escalate to L3 on findings) |
-| Evidence Mode | `security_audit` |
-| Min Rubric Score | 4.0 |
+| Aspect              | Value                              |
+| ------------------- | ---------------------------------- |
+| Governance Tier     | L2 (escalate to L3 on findings)    |
+| Evidence Mode       | `security_audit`                   |
+| Min Rubric Score    | 4.0                                |
 | Escalation Triggers | Critical finding, ≥3 high findings |
 
 **Default Claims:**
+
 - SEC-SQLI-001: No raw SQL string concatenation
 - SEC-SECRETS-001: No hardcoded credentials
 - SEC-EVAL-001: No dangerous eval/exec usage
@@ -102,14 +103,15 @@ python evaluate_evidence.py --pack audit-result.json --mode security_audit
 
 **Purpose:** Self-verify governance integrity
 
-| Aspect | Value |
-|--------|-------|
-| Governance Tier | L1 (but affects L2+) |
-| Evidence Mode | `introspection` |
-| Min Rubric Score | 4.0 |
-| On Fail | **BLOCK ALL L2+ ACTIONS** |
+| Aspect           | Value                     |
+| ---------------- | ------------------------- |
+| Governance Tier  | L1 (but affects L2+)      |
+| Evidence Mode    | `introspection`           |
+| Min Rubric Score | 4.0                       |
+| On Fail          | **BLOCK ALL L2+ ACTIONS** |
 
 **Default Claims:**
+
 - GOV-TIER-001: L3 actions require 3-model council
 - GOV-HASH-001: All audit decisions are hash-chained
 - GOV-BYPASS-001: No code paths bypass governance
@@ -121,14 +123,15 @@ python evaluate_evidence.py --pack audit-result.json --mode security_audit
 
 **Purpose:** Read large documents with proof trails
 
-| Aspect | Value |
-|--------|-------|
-| Governance Tier | L1 |
-| Evidence Mode | `context_read` |
-| Min Rubric Score | 3.5 |
-| Max Context | 10M+ tokens |
+| Aspect           | Value          |
+| ---------------- | -------------- |
+| Governance Tier  | L1             |
+| Evidence Mode    | `context_read` |
+| Min Rubric Score | 3.5            |
+| Max Context      | 10M+ tokens    |
 
 **Strategies:**
+
 - `needle` — Targeted search for specific information
 - `global` — Map-reduce for overall understanding
 - `trace` — Follow execution/data flow
@@ -138,11 +141,11 @@ python evaluate_evidence.py --pack audit-result.json --mode security_audit
 
 Your 3-model council (sequential, VRAM-safe):
 
-| Auditor | Model | Weight | Role |
-|---------|-------|--------|------|
-| **C** | `mistral:7b-instruct-q4_K_M` | 0.25 | Format compliance, fast fail |
-| **A** | `qwen3:8b-q4_K_M` | 0.40 | Lead evaluator |
-| **B** | `falcon3:7b` | 0.35 | Adversarial verifier |
+| Auditor | Model                        | Weight | Role                         |
+| ------- | ---------------------------- | ------ | ---------------------------- |
+| **C**   | `mistral:7b-instruct-q4_K_M` | 0.25   | Format compliance, fast fail |
+| **A**   | `qwen3:8b-q4_K_M`            | 0.40   | Lead evaluator               |
+| **B**   | `falcon3:7b`                 | 0.35   | Adversarial verifier         |
 
 **Execution Order:** C → A → B (fast fail first, then deep reasoning)
 
@@ -229,6 +232,7 @@ register(moltbot_instance)
 ```
 
 This registers:
+
 - `rlm_security_audit` tool
 - `rlm_introspect` tool
 - `rlm_read` tool

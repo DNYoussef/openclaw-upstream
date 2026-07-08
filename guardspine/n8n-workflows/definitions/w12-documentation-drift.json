@@ -16,10 +16,7 @@
       "name": "Daily 3 AM UTC",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        200,
-        300
-      ]
+      "position": [200, 300]
     },
     {
       "parameters": {
@@ -29,10 +26,7 @@
       "name": "Fetch Service Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        420,
-        300
-      ]
+      "position": [420, 300]
     },
     {
       "parameters": {
@@ -47,10 +41,7 @@
       "name": "Fetch Agent Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        640,
-        300
-      ]
+      "position": [640, 300]
     },
     {
       "parameters": {
@@ -65,10 +56,7 @@
       "name": "Fetch Recent Heartbeats",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        860,
-        300
-      ]
+      "position": [860, 300]
     },
     {
       "parameters": {
@@ -83,10 +71,7 @@
       "name": "Fetch Workflow Telemetry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1080,
-        300
-      ]
+      "position": [1080, 300]
     },
     {
       "parameters": {
@@ -96,10 +81,7 @@
       "name": "Compare Against Expected",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1300, 300]
     },
     {
       "parameters": {
@@ -117,10 +99,7 @@
       "name": "Drift Found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [
-        1520,
-        300
-      ]
+      "position": [1520, 300]
     },
     {
       "parameters": {
@@ -135,10 +114,7 @@
       "name": "Log Drift Report",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1740,
-        200
-      ]
+      "position": [1740, 200]
     },
     {
       "parameters": {
@@ -153,10 +129,7 @@
       "name": "Log Clean Report",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1740,
-        400
-      ]
+      "position": [1740, 400]
     },
     {
       "parameters": {},
@@ -164,10 +137,7 @@
       "name": "Error Trigger",
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
-      "position": [
-        200,
-        600
-      ]
+      "position": [200, 600]
     },
     {
       "parameters": {
@@ -182,10 +152,7 @@
       "name": "POST Error to Telemetry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        420,
-        600
-      ]
+      "position": [420, 600]
     }
   ],
   "connections": {

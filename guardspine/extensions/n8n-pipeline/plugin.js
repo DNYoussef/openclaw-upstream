@@ -52,7 +52,8 @@ module.exports = function register(api) {
   const NON_RETRYABLE_STATUS = new Set([400, 401, 403, 404, 405, 409, 422]);
 
   function n8nRequestOnce(method, path, body, opts) {
-    const effectiveMaxBytes = (opts && typeof opts.maxResponseBytes === "number") ? opts.maxResponseBytes : maxResponseBytes;
+    const effectiveMaxBytes =
+      opts && typeof opts.maxResponseBytes === "number" ? opts.maxResponseBytes : maxResponseBytes;
     // effectiveMaxBytes === 0 means no truncation
     return new Promise((resolve, reject) => {
       const url = new URL(baseUrl + path);
@@ -202,7 +203,9 @@ module.exports = function register(api) {
 
   async function refreshWorkflowCache() {
     try {
-      const result = await n8nRequest("GET", "/api/v1/workflows?limit=250", null, { maxResponseBytes: 0 });
+      const result = await n8nRequest("GET", "/api/v1/workflows?limit=250", null, {
+        maxResponseBytes: 0,
+      });
       const map = {};
       for (const wf of result.data || []) {
         map[wf.name] = wf.id;
@@ -1130,8 +1133,10 @@ module.exports = function register(api) {
         (prospect.name || "this person") +
         " at " +
         (prospect.company || "their company") +
-        ". Signal type: " + (prospect.signal_type || "unknown") +
-        ". Followup count so far: " + (prospect.followup_count || 0) +
+        ". Signal type: " +
+        (prospect.signal_type || "unknown") +
+        ". Followup count so far: " +
+        (prospect.followup_count || 0) +
         ". Their pain bucket is " +
         (prospect.pain_bucket || "unknown") +
         ". Previous message was about " +
@@ -1146,7 +1151,8 @@ module.exports = function register(api) {
             messages: [
               {
                 role: "system",
-                content: "You draft brief, direct follow-up messages for B2B outreach. No fluff. " +
+                content:
+                  "You draft brief, direct follow-up messages for B2B outreach. No fluff. " +
                   "Never use 'just checking in' or 'circling back'. Lead with new value or a specific question. " +
                   "Reference their specific pain point. One short paragraph, no greeting.",
               },
@@ -1378,7 +1384,9 @@ module.exports = function register(api) {
       // LLM-assisted evaluation for threads with keyword score >= 30
       if (keywordScore >= 30) {
         try {
-          const threadText = [thread.title || "", thread.body || thread.content || ""].join("\n").substring(0, 2000);
+          const threadText = [thread.title || "", thread.body || thread.content || ""]
+            .join("\n")
+            .substring(0, 2000);
           const llmResult = await httpPost(
             litellmUrl + "/v1/chat/completions",
             {
@@ -1386,9 +1394,10 @@ module.exports = function register(api) {
               messages: [
                 {
                   role: "system",
-                  content: "You evaluate community threads for B2B code governance outreach relevance. " +
+                  content:
+                    "You evaluate community threads for B2B code governance outreach relevance. " +
                     "Score 0-100 how relevant this thread is for someone selling AI code review/governance tools. " +
-                    "Extract the specific pain signal if present. Respond in JSON: {\"score\": N, \"pain_signal\": \"...\"}",
+                    'Extract the specific pain signal if present. Respond in JSON: {"score": N, "pain_signal": "..."}',
                 },
                 { role: "user", content: threadText },
               ],
@@ -1397,9 +1406,15 @@ module.exports = function register(api) {
             },
             15000,
           );
-          const content = llmResult.choices && llmResult.choices[0] ? llmResult.choices[0].message.content : "";
+          const content =
+            llmResult.choices && llmResult.choices[0] ? llmResult.choices[0].message.content : "";
           try {
-            const llmParsed = JSON.parse(content.replace(/```json?\n?/g, "").replace(/```/g, "").trim());
+            const llmParsed = JSON.parse(
+              content
+                .replace(/```json?\n?/g, "")
+                .replace(/```/g, "")
+                .trim(),
+            );
             llmScore = Math.min(Math.max(Number(llmParsed.score) || 0, 0), 100);
             painSignal = llmParsed.pain_signal || null;
           } catch (e) {
@@ -1409,7 +1424,9 @@ module.exports = function register(api) {
         } catch (e) {
           // LLM failed, fall back to keyword-only scoring
           compositeScore = keywordScore;
-          console.error("[evaluate] LLM scoring failed for " + (thread.url || "thread") + ": " + e.message);
+          console.error(
+            "[evaluate] LLM scoring failed for " + (thread.url || "thread") + ": " + e.message,
+          );
         }
       }
 

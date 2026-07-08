@@ -13,16 +13,16 @@ Your job: verify every service is healthy, every agent is registered and respons
 
 Ping every service on the Railway internal network. For each, do a simple HTTP GET to confirm it responds. Report results as a table.
 
-| Service | URL | Health Check |
-|---------|-----|-------------|
-| Paperclip | `http://paperclip.railway.internal:3100/` | GET, expect 200 or redirect |
-| telemetry-api | `http://telemetry-api.railway.internal:8090/health` | GET |
-| decision-engine | `http://decision-engine.railway.internal:8091/health` | GET |
-| LiteLLM | `http://litellm.railway.internal:4000/health` | GET |
-| n8n | `http://n8n.railway.internal:5678/healthz` | GET |
-| guardspine-internal | `http://guardspine-internal.railway.internal:8000/health` | GET |
-| mirofish | `http://mirofish.railway.internal:5001/health` | GET |
-| Postgres | TCP connect to `postgres.railway.internal:5432` | Connection test via SQL query |
+| Service             | URL                                                       | Health Check                  |
+| ------------------- | --------------------------------------------------------- | ----------------------------- |
+| Paperclip           | `http://paperclip.railway.internal:3100/`                 | GET, expect 200 or redirect   |
+| telemetry-api       | `http://telemetry-api.railway.internal:8090/health`       | GET                           |
+| decision-engine     | `http://decision-engine.railway.internal:8091/health`     | GET                           |
+| LiteLLM             | `http://litellm.railway.internal:4000/health`             | GET                           |
+| n8n                 | `http://n8n.railway.internal:5678/healthz`                | GET                           |
+| guardspine-internal | `http://guardspine-internal.railway.internal:8000/health` | GET                           |
+| mirofish            | `http://mirofish.railway.internal:5001/health`            | GET                           |
+| Postgres            | TCP connect to `postgres.railway.internal:5432`           | Connection test via SQL query |
 
 For any service that fails, log the error and continue. Do not block on failures.
 
@@ -36,20 +36,21 @@ GET http://paperclip.railway.internal:3100/api/agents
 
 Expected agents (6 active + 1 reserved):
 
-| Agent | Model | Heartbeat | Role |
-|-------|-------|-----------|------|
-| CEO | anthropic/claude-sonnet-4-6 | 24h | Strategic oversight, daily briefing review |
-| CMO | anthropic/claude-sonnet-4-6 | 2h | Outreach hunting, drafting, follow-up |
-| Content Director | anthropic/claude-sonnet-4-6 | 2h | LinkedIn posts, lead magnets, case studies |
-| CTO | openai-codex/gpt-5.4 | 2h | Code review, technical decisions, CI/CD health |
-| Chief of Staff | openai-codex/gpt-5.4 | 2h | Cross-dept coordination, blocker resolution |
-| Narrowcast Scout | openai-codex/gpt-5.4-mini | 6h | Thread scoring, prospect signal extraction |
-| CFO | openai-codex/gpt-5.4 | 24h | Budget tracking, cost monitoring |
+| Agent            | Model                       | Heartbeat | Role                                           |
+| ---------------- | --------------------------- | --------- | ---------------------------------------------- |
+| CEO              | anthropic/claude-sonnet-4-6 | 24h       | Strategic oversight, daily briefing review     |
+| CMO              | anthropic/claude-sonnet-4-6 | 2h        | Outreach hunting, drafting, follow-up          |
+| Content Director | anthropic/claude-sonnet-4-6 | 2h        | LinkedIn posts, lead magnets, case studies     |
+| CTO              | openai-codex/gpt-5.4        | 2h        | Code review, technical decisions, CI/CD health |
+| Chief of Staff   | openai-codex/gpt-5.4        | 2h        | Cross-dept coordination, blocker resolution    |
+| Narrowcast Scout | openai-codex/gpt-5.4-mini   | 6h        | Thread scoring, prospect signal extraction     |
+| CFO              | openai-codex/gpt-5.4        | 24h       | Budget tracking, cost monitoring               |
 
 If any agent is missing, create it using the Paperclip API.
 If any agent has wrong model routing, update it.
 
 Model routing rules:
+
 - CREATIVE agents (CEO, CMO, Content Director) use Anthropic subscription models
 - CRITIC agents (CTO, Chief of Staff, CFO, Narrowcast Scout) use OpenAI Codex subscription models
 - All flat-rate subscriptions. $0 marginal cost per token. But don't waste context.
@@ -57,6 +58,7 @@ Model routing rules:
 ## Phase 3: Agent System Prompts
 
 Each agent needs its system prompt loaded. System prompts live at:
+
 - `guardspine/agents/cmo-system-prompt.md`
 - `guardspine/agents/cto-system-prompt.md`
 - `guardspine/agents/content-system-prompt.md`
@@ -69,6 +71,7 @@ Verify each agent's system prompt is set. If not, read the markdown file and set
 ## Phase 4: Verify Paperclip Issue Pipeline
 
 The work loop is:
+
 1. n8n creates issues in Paperclip (tagged for specific agents)
 2. Agent wakes on heartbeat
 3. Agent queries: `GET /api/companies/guardspine/issues?assigneeAgentId={me}&status=backlog`
@@ -78,6 +81,7 @@ The work loop is:
 7. Agent logs PMC telemetry: `POST telemetry-api.railway.internal:8090/telemetry`
 
 Test the full loop:
+
 1. Create a test issue assigned to CTO: "Bootstrap health check -- verify agent can claim and close issues"
 2. Verify CTO agent can retrieve it
 3. Post a test comment
@@ -89,30 +93,37 @@ Test the full loop:
 Test each component of the S/G/O pipeline:
 
 ### S (Simulate) -- MiroFish
+
 ```
 POST http://decision-engine.railway.internal:8091/simulate
 Content-Type: application/json
 {"scenario": "test_bootstrap", "personas": 1, "model": "free-sim"}
 ```
+
 Expected: response with simulation result. Uses free llama-3.2-3b via LiteLLM.
 
 ### G (Game Theory) -- Mieza
+
 ```
 POST http://decision-engine.railway.internal:8091/solve
 Content-Type: application/json
 {"game_type": "test", "players": 2}
 ```
+
 Expected: response with Nash equilibrium solution.
 
 ### O (Optimize) -- globalMOO
+
 ```
 POST http://decision-engine.railway.internal:8091/optimize
 Content-Type: application/json
 {"objective": "test_bootstrap"}
 ```
+
 Expected: response with optimization result (may return "insufficient data" if < 2 weeks operational data -- that's OK).
 
 ### Full Stack
+
 ```
 POST http://decision-engine.railway.internal:8091/decide
 Content-Type: application/json
@@ -130,6 +141,7 @@ GET http://guardspine-internal.railway.internal:8000/health
 Confirm 29 tools are classified into L0-L4 tiers (they were classified in the Mar 19 session). If all show "unknown" or "L2", the classification was lost and needs to be redone.
 
 Tool risk tiers:
+
 - L0: read-only, no side effects (file reads, searches)
 - L1: local writes, reversible (file edits, git operations)
 - L2: external reads, API calls (web fetch, API queries)
@@ -145,6 +157,7 @@ GET http://n8n.railway.internal:5678/api/v1/workflows?active=true
 ```
 
 Expected: 30+ active workflows. Key ones to verify:
+
 - W5: Content Scheduling
 - W6: Data Sync Pipeline
 - W11: CEO Briefing
@@ -157,6 +170,7 @@ Expected: 30+ active workflows. Key ones to verify:
 ## Phase 8: Slack Channel Check
 
 If SLACK_BOT_TOKEN and SLACK_APP_TOKEN are set as env vars, verify Slack connectivity:
+
 1. Check that the Slack Bolt app can connect via Socket Mode
 2. Post a test message to #alerts: "Bootstrap complete. All systems verified."
 
@@ -165,6 +179,7 @@ If Slack tokens are not set, log this as a gap and move on.
 ## Phase 9: Telemetry Verification
 
 Post a bootstrap telemetry event:
+
 ```
 POST http://telemetry-api.railway.internal:8090/telemetry
 Content-Type: application/json

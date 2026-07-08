@@ -14,6 +14,7 @@
 **Issue:** `release_db_conn()` doesn't validate connection health before returning to pool.
 
 **Root Cause:**
+
 ```python
 def release_db_conn(conn):
     pool = _get_pool()
@@ -28,6 +29,7 @@ def release_db_conn(conn):
 If a connection is closed/timed-out/errored, `putconn()` re-adds it to the pool. Next request gets a dead connection → request hangs or crashes.
 
 **Fix Applied:** Add connection health check + close bad connections:
+
 ```python
 def release_db_conn(conn):
     """Return a connection to the pool (or close it if not pooled)."""
@@ -61,6 +63,7 @@ def release_db_conn(conn):
 **Issue:** Pool max=20, but if 20+ concurrent requests arrive, new requests fail immediately (no queue/wait).
 
 **Root Cause:**
+
 ```python
 _db_pool = psycopg2.pool.SimpleConnectionPool(minconn=2, maxconn=20, dsn=DB_URL)
 # SimpleConnectionPool.getconn() raises when pool is exhausted
@@ -69,6 +72,7 @@ _db_pool = psycopg2.pool.SimpleConnectionPool(minconn=2, maxconn=20, dsn=DB_URL)
 Under load spike, legitimate requests get `PoolError` instead of waiting.
 
 **Fix Applied:** Use `ThreadedConnectionPool` (supports blocking) and increase maxconn based on expected concurrency:
+
 ```python
 def _get_pool():
     """Lazy-init a connection pool. Returns None if no DB_URL configured."""
@@ -99,14 +103,16 @@ def _get_pool():
 **Issue:** Patch claims to fix backwards cache-expiry check, but logic is still wrong.
 
 **Root Cause:**
+
 ```javascript
 // Line 230: Refresh if cache is stale
 if (!workflowNameCache || Date.now() > workflowCacheExpiry) {
-  await refreshWorkflowCache();  // Sets workflowCacheExpiry to future timestamp
+  await refreshWorkflowCache(); // Sets workflowCacheExpiry to future timestamp
 }
 // Lines 235-244: Skip if ID-like or found by name...
 // Lines 245-260: Force-refresh again?
-if (Date.now() >= workflowCacheExpiry) {  // ← SAME CONDITION, will never be true!
+if (Date.now() >= workflowCacheExpiry) {
+  // ← SAME CONDITION, will never be true!
   // This code is unreachable after line 230 refresh
   await refreshWorkflowCache();
 }
@@ -115,10 +121,12 @@ if (Date.now() >= workflowCacheExpiry) {  // ← SAME CONDITION, will never be t
 The second refresh is **unreachable** — we already set `workflowCacheExpiry = Date.now() + TTL` at line 230.
 
 **Scenario:** Workflow created 1s ago (name "NewWF"), cached 5min ago (TTL expired). Request arrives:
+
 1. Line 230: Cache is stale, refresh → finds NewWF ✓
 2. Workflow not created SINCE refresh → works fine
 
 But if refresh FAILS:
+
 1. Line 230: Refresh fails (n8n down), keep old cache
 2. Line 245: `Date.now() >= workflowCacheExpiry` is TRUE (cache expired)
 3. Line 246: Try refresh again → n8n still down → return old cache
@@ -127,46 +135,47 @@ But if refresh FAILS:
 Actually, the logic is CORRECT if n8n is down (graceful degradation). But the comment is misleading. **Real issue:** No caching during forced-refresh. If force-refresh fails, we keep attempting on every call.
 
 **Fix Applied:** Simplify logic + add cooldown for failed refreshes:
+
 ```javascript
 async function resolveWorkflowId(nameOrId) {
-    if (!nameOrId) {
-      throw new Error("workflow_id is required");
-    }
-    const looksLikeId = /^[a-zA-Z0-9_-]+$/.test(nameOrId) && nameOrId.length <= 30;
+  if (!nameOrId) {
+    throw new Error("workflow_id is required");
+  }
+  const looksLikeId = /^[a-zA-Z0-9_-]+$/.test(nameOrId) && nameOrId.length <= 30;
 
-    // Refresh cache if expired OR never initialized
-    if (!workflowNameCache || Date.now() >= workflowCacheExpiry) {
-      await refreshWorkflowCache();
-    }
+  // Refresh cache if expired OR never initialized
+  if (!workflowNameCache || Date.now() >= workflowCacheExpiry) {
+    await refreshWorkflowCache();
+  }
 
-    // Check by name first (exact match)
+  // Check by name first (exact match)
+  if (workflowNameCache && workflowNameCache[nameOrId]) {
+    return workflowNameCache[nameOrId];
+  }
+
+  // If it looks like an ID, return as-is (don't re-fetch)
+  if (looksLikeId) {
+    return nameOrId;
+  }
+
+  // Name not found and doesn't look like ID. One more refresh attempt,
+  // but only if we have cache to start with (avoid hammering failed API).
+  if (workflowNameCache && Date.now() >= workflowCacheExpiry + 60000) {
+    // Wait 1min before re-trying failed refreshes
+    await refreshWorkflowCache();
     if (workflowNameCache && workflowNameCache[nameOrId]) {
       return workflowNameCache[nameOrId];
     }
-
-    // If it looks like an ID, return as-is (don't re-fetch)
-    if (looksLikeId) {
-      return nameOrId;
-    }
-
-    // Name not found and doesn't look like ID. One more refresh attempt,
-    // but only if we have cache to start with (avoid hammering failed API).
-    if (workflowNameCache && Date.now() >= workflowCacheExpiry + 60000) {
-      // Wait 1min before re-trying failed refreshes
-      await refreshWorkflowCache();
-      if (workflowNameCache && workflowNameCache[nameOrId]) {
-        return workflowNameCache[nameOrId];
-      }
-    }
-
-    throw new Error(
-      "Workflow not found: '" +
-        nameOrId +
-        "'. Not a known workflow name and does not look like a valid ID. " +
-        "Available workflows: " +
-        Object.keys(workflowNameCache || {}).join(", "),
-    );
   }
+
+  throw new Error(
+    "Workflow not found: '" +
+      nameOrId +
+      "'. Not a known workflow name and does not look like a valid ID. " +
+      "Available workflows: " +
+      Object.keys(workflowNameCache || {}).join(", "),
+  );
+}
 ```
 
 **Status:** ✅ FIXED in `/app/.openclaw/workspace/n8n-plugin.js`
@@ -181,6 +190,7 @@ async function resolveWorkflowId(nameOrId) {
 **Example:** n8n API corrupted → returns `id: "abc$(rm -rf /)"` → shell executes `rm -rf /`.
 
 **Fix Applied:** Quote variables, add validation:
+
 ```bash
 # Line 28-32: Before
 curl -sf \
@@ -220,6 +230,7 @@ fi
 **Impact:** Mission says "Export all 118 n8n workflows" — but only 250 max returned. If there are 300, last 50 are missing from backup.
 
 **Fix Applied:** Paginate through all results:
+
 ```bash
 # Replace single curl with paginated loop
 ALL_WORKFLOWS=""
@@ -236,17 +247,17 @@ data = json.load(sys.stdin)
 workflows = data.get('data', data) if isinstance(data, dict) else data
 print(json.dumps(workflows))
 ")
-  
+
   if [ -z "$PAGE" ] || [ "$PAGE" = "[]" ]; then
     break  # No more pages
   fi
-  
+
   ALL_WORKFLOWS="${ALL_WORKFLOWS}$(echo "$PAGE" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 for wf in data:
     print(json.dumps({'id': wf['id'], 'name': wf['name'], 'active': wf.get('active', False)}))")$'\n'"
-  
+
   OFFSET=$((OFFSET + LIMIT))
 done
 
@@ -263,6 +274,7 @@ WORKFLOWS="$ALL_WORKFLOWS"  # Use paginated results
 **Issue:** Script exits 1 if ANY workflow fails, but exports 117/118 successfully. Manifest says "errors=1" but caller might think entire backup failed.
 
 **Fix Applied:** Add warning if errors > 0 but also succeeded partially:
+
 ```bash
 if [ "$ERRORS" -gt 0 ]; then
   echo ""
@@ -280,11 +292,13 @@ fi
 
 **File:** `/app/.openclaw/workspace/patches/postgres-hardening.sql`  
 **Issue:** DELETEs and VACUUMs run outside explicit transaction. If interrupted mid-way, inconsistent state:
+
 - Indexes created ✓
 - 90% of old data deleted ✓
 - VACUUM never ran ✗ → table bloated
 
 **Fix Applied:** Wrap in transaction:
+
 ```sql
 BEGIN;
 
@@ -344,6 +358,7 @@ COMMIT;
 **Issue:** `log_decision()` and `log_case_trace()` attempt rollback on error, but cursors are not closed if exception occurs between execute() and commit().
 
 **Example:**
+
 ```python
 try:
     cur = conn.cursor()
@@ -359,6 +374,7 @@ finally:
 **Impact:** Low — Python GC will eventually close cursor. But pool connection might have dangling cursor state.
 
 **Recommendation:** Add `try/finally` for cursor.close():
+
 ```python
 try:
     cur = conn.cursor()
@@ -384,7 +400,7 @@ except Exception as e:
 
 **Issue:** If pool reaches 50 connections and stays there, no alert fires. Decision engine silently degrades.
 
-**Recommendation:** Add pool-size metric to telemetry every 30s (min/max/current). Alert if current >= 0.8 * maxconn for >5min.
+**Recommendation:** Add pool-size metric to telemetry every 30s (min/max/current). Alert if current >= 0.8 \* maxconn for >5min.
 
 **Status:** Not implemented. Add to M-series monitoring workflow.
 
@@ -395,21 +411,22 @@ except Exception as e:
 **Issue:** If 100 agents call `resolveWorkflowId()` simultaneously with expired cache, all 100 hit n8n API at once to refresh.
 
 **Recommendation:** Add refresh-in-progress flag + blocking queue:
+
 ```javascript
 let refreshInProgress = false;
 let refreshPromise = null;
 
 async function refreshWorkflowCache() {
-    if (refreshInProgress) {
-        return refreshPromise;  // Wait for in-flight refresh
-    }
-    refreshInProgress = true;
-    try {
-        refreshPromise = actualRefresh();
-        return await refreshPromise;
-    } finally {
-        refreshInProgress = false;
-    }
+  if (refreshInProgress) {
+    return refreshPromise; // Wait for in-flight refresh
+  }
+  refreshInProgress = true;
+  try {
+    refreshPromise = actualRefresh();
+    return await refreshPromise;
+  } finally {
+    refreshInProgress = false;
+  }
 }
 ```
 
@@ -422,6 +439,7 @@ async function refreshWorkflowCache() {
 **Issue:** If a table doesn't exist (e.g., `activity_log` renamed), entire script fails. No graceful degradation.
 
 **Recommendation:** Wrap each DELETE in existence check:
+
 ```sql
 DO $$ BEGIN
   DELETE FROM activity_log
@@ -437,13 +455,13 @@ END $$;
 
 ## OVERALL ASSESSMENT
 
-| Component | Status | Severity | Action |
-|-----------|--------|----------|--------|
-| decision-engine-router.py | ✅ FIXED | CRITICAL | Ship with fixes |
-| n8n-plugin.js | ✅ FIXED | CRITICAL | Ship with fixes |
-| n8n-export-all.sh | ✅ FIXED | HIGH | Ship with fixes |
-| postgres-hardening.sql | ✅ FIXED | MEDIUM | Ship with fixes |
-| litellm-config.yaml | ✅ NO BUGS FOUND | - | Ship as-is |
+| Component                 | Status           | Severity | Action          |
+| ------------------------- | ---------------- | -------- | --------------- |
+| decision-engine-router.py | ✅ FIXED         | CRITICAL | Ship with fixes |
+| n8n-plugin.js             | ✅ FIXED         | CRITICAL | Ship with fixes |
+| n8n-export-all.sh         | ✅ FIXED         | HIGH     | Ship with fixes |
+| postgres-hardening.sql    | ✅ FIXED         | MEDIUM   | Ship with fixes |
+| litellm-config.yaml       | ✅ NO BUGS FOUND | -        | Ship as-is      |
 
 ---
 
@@ -451,9 +469,10 @@ END $$;
 
 ### **SHIP WITH FIXES** ✅
 
-All critical bugs have been identified and fixed in-place. 
+All critical bugs have been identified and fixed in-place.
 
 **Deployment checklist:**
+
 1. ✅ Apply `decision-engine-router.py` (ThreadedConnectionPool fix)
 2. ✅ Apply `n8n-plugin.js` (cache refresh simplification)
 3. ✅ Apply `postgres-hardening.sql` (transaction wrapping)
@@ -463,6 +482,7 @@ All critical bugs have been identified and fixed in-place.
 7. ⏭️ Test `postgres-hardening.sql` on staging before prod (concurrent writes during index build)
 
 **Risks mitigated:**
+
 - ✅ Connection pool leaks fixed (P1, P2)
 - ✅ Cache logic clarified (N5)
 - ✅ Shell injection prevented (S1)
@@ -470,6 +490,7 @@ All critical bugs have been identified and fixed in-place.
 - ✅ Transaction consistency improved (SQL1)
 
 **Residual risks:**
+
 - Database schema migration must be tested on staging (index CONCURRENTLY timing)
 - Monitoring for pool exhaustion still needed (deferred)
 

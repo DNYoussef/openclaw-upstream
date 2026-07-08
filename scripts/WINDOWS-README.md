@@ -68,24 +68,24 @@ pnpm build
 
 ## Available PowerShell Scripts
 
-| Script | Description |
-|--------|-------------|
-| `docker-setup.ps1` | Build Docker image and start gateway |
-| `dev-windows.ps1` | Start development server |
-| `run-tests.ps1` | Run test suites |
-| `setup-git-hooks.ps1` | Configure git pre-commit hooks |
-| `test-cleanup-docker.ps1` | Clean up Docker test resources |
-| `build-and-run-windows.ps1` | Build and run in one step |
+| Script                      | Description                          |
+| --------------------------- | ------------------------------------ |
+| `docker-setup.ps1`          | Build Docker image and start gateway |
+| `dev-windows.ps1`           | Start development server             |
+| `run-tests.ps1`             | Run test suites                      |
+| `setup-git-hooks.ps1`       | Configure git pre-commit hooks       |
+| `test-cleanup-docker.ps1`   | Clean up Docker test resources       |
+| `build-and-run-windows.ps1` | Build and run in one step            |
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OPENCLAW_CONFIG_DIR` | `~/.openclaw` | Configuration directory |
-| `OPENCLAW_WORKSPACE_DIR` | `~/.openclaw/workspace` | Workspace directory |
-| `OPENCLAW_GATEWAY_PORT` | `18789` | Gateway HTTP port |
-| `OPENCLAW_BRIDGE_PORT` | `18790` | Bridge port |
-| `OPENCLAW_PROFILE` | - | Set to `dev` for development mode |
+| Variable                 | Default                 | Description                       |
+| ------------------------ | ----------------------- | --------------------------------- |
+| `OPENCLAW_CONFIG_DIR`    | `~/.openclaw`           | Configuration directory           |
+| `OPENCLAW_WORKSPACE_DIR` | `~/.openclaw/workspace` | Workspace directory               |
+| `OPENCLAW_GATEWAY_PORT`  | `18789`                 | Gateway HTTP port                 |
+| `OPENCLAW_BRIDGE_PORT`   | `18790`                 | Bridge port                       |
+| `OPENCLAW_PROFILE`       | -                       | Set to `dev` for development mode |
 
 ## Notes
 

@@ -142,3 +142,4 @@ docs/superpowers
 
 # Deprecated changelog fragment workflow
 changelog/fragments/
+guardspine/auth/auth-profiles.json
