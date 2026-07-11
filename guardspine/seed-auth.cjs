@@ -56,14 +56,7 @@ process.stdout.write(
 // Step 1: Write auth-profiles.json
 // ---------------------------------------------------------------------------
 const b64 = process.env.OPENCLAW_AUTH_PROFILES_B64;
-const bakedPath = "/app/auth-profiles.json.baked";
-
-const source = b64 ? "env" : fs.existsSync(bakedPath) ? "baked" : null;
-const data = b64
-  ? Buffer.from(b64, "base64").toString("utf8")
-  : fs.existsSync(bakedPath)
-    ? fs.readFileSync(bakedPath, "utf8")
-    : null;
+const data = b64 ? Buffer.from(b64, "base64").toString("utf8") : null;
 
 if (data) {
   let parsed;
@@ -77,9 +70,7 @@ if (data) {
 
   if (parsed) {
     const profileCount = Object.keys(parsed.profiles || {}).length;
-    process.stdout.write(
-      `[seed-auth] source=${source} profiles=${profileCount} bytes=${data.length}\n`,
-    );
+    process.stdout.write(`[seed-auth] source=env profiles=${profileCount} bytes=${data.length}\n`);
 
     // Write to the gateway's resolved path PLUS fallback locations
     const dirs = new Set([

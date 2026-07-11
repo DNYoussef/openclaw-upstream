@@ -36,7 +36,7 @@ if [ -n "$OPENCLAW_SEED_CONFIG" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 4. ALWAYS restore auth-profiles (the key fix for the race condition)
+# 4. Seed auth-profiles from the environment
 #    Write to the EXACT path the gateway will read:
 #    $OPENCLAW_STATE_DIR/agents/main/agent/auth-profiles.json
 # ---------------------------------------------------------------------------
@@ -46,9 +46,6 @@ mkdir -p "$AGENT_DIR" 2>/dev/null || true
 if [ -n "$OPENCLAW_AUTH_PROFILES_B64" ]; then
   echo "$OPENCLAW_AUTH_PROFILES_B64" | base64 -d > "$AGENT_DIR/auth-profiles.json"
   echo "[entrypoint] auth-profiles written from B64 env ($(wc -c < "$AGENT_DIR/auth-profiles.json") bytes)" >&2
-elif [ -f /app/auth-profiles.json.baked ]; then
-  cp -f /app/auth-profiles.json.baked "$AGENT_DIR/auth-profiles.json"
-  echo "[entrypoint] auth-profiles restored from baked ($(wc -c < "$AGENT_DIR/auth-profiles.json") bytes)" >&2
 else
   echo "[entrypoint] WARNING: no auth-profiles source available" >&2
 fi

@@ -142,3 +142,6 @@ docs/superpowers
 
 # Deprecated changelog fragment workflow
 changelog/fragments/
+
+# Local provider credentials must never be tracked.
+guardspine/auth/auth-profiles.json

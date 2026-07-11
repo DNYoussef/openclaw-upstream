@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
       "anthropic:default": {
         type: "oauth",
         provider: "anthropic",
+        // pragma: allowlist next-line secret
         access: "sk-ant-oat01-ACCESS-TOKEN-1234567890",
         refresh: "sk-ant-ort01-REFRESH-TOKEN-1234567890", // pragma: allowlist secret
         expires: Date.now() + 60_000,

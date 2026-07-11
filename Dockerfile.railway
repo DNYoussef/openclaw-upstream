@@ -110,9 +110,6 @@ RUN mkdir -p /app/docs/reference/templates && \
 RUN groupadd -r openclaw && useradd -r -g openclaw -d /app -s /bin/bash openclaw && \
     chown -R openclaw:openclaw /app/.openclaw/data
 
-# Bake auth-profiles outside volume mount so entrypoint can restore it
-COPY guardspine/auth/auth-profiles.json /app/auth-profiles.json.baked
-
 COPY guardspine/seed-auth.cjs /app/seed-auth.cjs
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh

@@ -59,6 +59,7 @@ guardspine-logs/
 .env.*
 **/.env
 **/.env.*
+guardspine/auth/auth-profiles.json
 __pycache__
 **/__pycache__
 
