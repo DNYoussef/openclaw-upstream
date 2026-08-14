@@ -11,6 +11,7 @@ Routes:
 import json
 import logging
 import os
+import re
 import secrets
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -47,6 +48,27 @@ QUERY_REGISTRY = {
     "recent_telemetry": {
         "sql": "SELECT id, ts, service, event_type FROM telemetry_events ORDER BY ts DESC LIMIT %(limit)s",
         "params": {"limit": {"type": "int", "default": 20, "max": 1000}},
+    },
+    # The only query that returns payload. Every other registry entry is a projection or a
+    # KPI view, so retrieving a specific governing verdict was impossible without a bounded
+    # scan - and a bounded scan that misses is indistinguishable from an absent verdict.
+    # artifact_sha256 filters on a payload field so a caller retrieves EXACTLY the row it
+    # means, never "probably that one".
+    "events_lookup": {
+        "sql": (
+            "SELECT id, ts, service, event_type, payload FROM telemetry_events "
+            "WHERE service = %(service)s AND event_type = %(event_type)s "
+            "  AND ts > NOW() - (%(since_minutes)s * INTERVAL '1 minute') "
+            "  AND (%(artifact_sha256)s = '' OR payload->>'artifact_sha256' = %(artifact_sha256)s) "
+            "ORDER BY ts DESC LIMIT %(limit)s"
+        ),
+        "params": {
+            "service": {"type": "str", "required": True},
+            "event_type": {"type": "str", "required": True},
+            "since_minutes": {"type": "int", "default": 1440, "max": 43200},
+            "artifact_sha256": {"type": "str", "default": ""},
+            "limit": {"type": "int", "default": 50, "max": 500},
+        },
     },
     "kpi_health": {
         "sql": "SELECT * FROM kpi_health",
@@ -626,11 +648,15 @@ class Handler(BaseHTTPRequestHandler):
         """
         raw_length = self.headers.get("Content-Length")
 
-        # n8n error handler nodes sometimes send without Content-Length
-        # or with Content-Length: 0 when they just want to signal an event.
+        # STRICT INGEST (plan v4 C1 / F7). The old behaviour accepted an empty body as a
+        # "ping" returning 201 with id=None, and filled missing fields with
+        # "unknown"/"untyped". A row that records an event nobody can attribute is not
+        # evidence, and a 201 for a write that never happened is a lie told to the caller.
+        # Checked against five months of live data before tightening: across 1,680 events
+        # in the last 7 days the four live producers sent zero malformed rows, and the only
+        # row in 30 days relying on the defaults was this gate's own negative probe.
         if raw_length is None or int(raw_length) == 0:
-            # Accept bare POST /telemetry as a heartbeat ping
-            self._json(201, {"status": "created", "id": None, "ts": None, "note": "empty body accepted as ping"})
+            self._json(400, {"error": "Body required"})
             return
 
         length = int(raw_length)
@@ -651,17 +677,22 @@ class Handler(BaseHTTPRequestHandler):
         service = (body.get("service") or "").strip()
         event_type = (body.get("event_type") or "").strip()
 
-        # If service or event_type missing, fill defaults instead of 400.
-        # n8n error-handler nodes often POST partial payloads.
-        if not service:
-            service = "unknown"
-        if not event_type:
-            event_type = "untyped"
+        if not service or not event_type:
+            self._json(400, {"error": "service and event_type are required"})
+            return
+
+        # Pattern-checked so a producer identity stays a stable key rather than free text.
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", service) or \
+           not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", event_type):
+            self._json(400, {"error": "service/event_type fail pattern check"})
+            return
 
         payload = body.get("payload", {})
         if not isinstance(payload, dict):
-            # Coerce non-dict payloads into a wrapper
-            payload = {"raw": payload}
+            # Was coerced to {"raw": payload}. Coercion hides a caller's bug and produces
+            # rows whose shape nothing downstream can rely on. Refuse instead.
+            self._json(400, {"error": "payload must be a JSON object"})
+            return
 
         conn = None
         try:
