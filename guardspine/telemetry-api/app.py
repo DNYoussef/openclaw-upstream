@@ -11,6 +11,7 @@ Routes:
 import json
 import logging
 import os
+import secrets
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -21,7 +22,10 @@ from psycopg2.pool import SimpleConnectionPool
 
 DB_URL = os.environ["DATABASE_URL"]
 PORT = int(os.environ.get("PORT", "8090"))
-SERVICE_TOKEN = os.environ.get("TELEMETRY_SERVICE_TOKEN", "")
+SERVICE_TOKEN = (
+    os.environ.get("TELEMETRY_SERVICE_TOKEN")
+    or os.environ.get("TELEMETRY_API_KEY", "")
+)
 
 # Connection pool: reuse connections instead of per-request connect/close
 _pool = SimpleConnectionPool(minconn=1, maxconn=10, dsn=DB_URL)
@@ -29,7 +33,11 @@ _pool = SimpleConnectionPool(minconn=1, maxconn=10, dsn=DB_URL)
 logger = logging.getLogger("telemetry-api")
 logging.basicConfig(level=logging.INFO, format="[telemetry] %(message)s")
 
-if not SERVICE_TOKEN:
+if os.environ.get("TELEMETRY_SERVICE_TOKEN"):
+    logger.info("Telemetry auth configured via TELEMETRY_SERVICE_TOKEN")
+elif os.environ.get("TELEMETRY_API_KEY"):
+    logger.warning("Using legacy TELEMETRY_API_KEY for telemetry auth; migrate to TELEMETRY_SERVICE_TOKEN")
+else:
     logger.warning("TELEMETRY_SERVICE_TOKEN not set -- auth disabled (migration mode)")
 
 # ---------------------------------------------------------------------------
@@ -296,11 +304,16 @@ def ensure_views():
         conn = get_conn()
         cur = conn.cursor()
 
+        # Drop first because CREATE OR REPLACE VIEW cannot change column types.
+        # The original views used ts (timestamptz) for day; current SQL casts to date.
+        cur.execute("DROP VIEW IF EXISTS kpi_health CASCADE")
+        cur.execute("DROP VIEW IF EXISTS kpi_costs CASCADE")
+
         # kpi_health: daily aggregate of health_check events from soak-monitor.
         # Columns: day, checks_total, checks_passed, checks_failed, services_checked, crashes
         # W3 Health Dashboard reads checks_failed and crashes from this view.
         cur.execute("""
-            CREATE OR REPLACE VIEW kpi_health AS
+            CREATE VIEW kpi_health AS
             SELECT
                 ts::date AS day,
                 COUNT(*) AS checks_total,
@@ -329,7 +342,7 @@ def ensure_views():
         # Tracks LLM requests, billing errors, and service-level spend signals.
         # CFO agent and W13 Cost Tracker read from this view.
         cur.execute("""
-            CREATE OR REPLACE VIEW kpi_costs AS
+            CREATE VIEW kpi_costs AS
             SELECT
                 ts::date AS day,
                 service,
@@ -374,10 +387,18 @@ class Handler(BaseHTTPRequestHandler):
         if not SERVICE_TOKEN:
             # Migration mode: no token configured, allow with warning
             return True
-        token = self.headers.get("X-Service-Token", "")
-        if token == SERVICE_TOKEN:
+        token = self.headers.get("X-Service-Token", "").strip()
+        if not token:
+            token = self.headers.get("X-API-Key", "").strip()
+        if not token:
+            auth = self.headers.get("Authorization", "").strip()
+            if auth.lower().startswith("bearer "):
+                token = auth[7:].strip()
+        if token and secrets.compare_digest(token, SERVICE_TOKEN):
             return True
-        self._json(401, {"error": "Unauthorized. Provide X-Service-Token header."})
+        self._json(401, {
+            "error": "Unauthorized. Provide X-Service-Token, X-API-Key, or Authorization: Bearer <token>.",
+        })
         return False
 
     # ---- GET routes ----
@@ -415,6 +436,8 @@ class Handler(BaseHTTPRequestHandler):
 
         # GET /queries -- list available named queries
         if path == "/queries":
+            if not self._check_service_token():
+                return
             catalog = {}
             for name, defn in QUERY_REGISTRY.items():
                 catalog[name] = {
@@ -428,6 +451,8 @@ class Handler(BaseHTTPRequestHandler):
 
         # GET /kpi/{view_name}?limit=10&weeks=4
         if path.startswith("/kpi/"):
+            if not self._check_service_token():
+                return
             view_name = path.split("/kpi/")[1]
             if view_name not in ALLOWED_VIEWS:
                 self._json(400, {"error": f"Unknown view: {view_name}", "allowed": sorted(ALLOWED_VIEWS)})
@@ -466,6 +491,8 @@ class Handler(BaseHTTPRequestHandler):
 
         # GET /champion/leaderboard
         if path == "/champion/leaderboard":
+            if not self._check_service_token():
+                return
             conn = None
             try:
                 conn = get_conn()
@@ -492,6 +519,8 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path.rstrip("/")
 
         if path == "/telemetry":
+            if not self._check_service_token():
+                return
             self._handle_telemetry()
             return
 
