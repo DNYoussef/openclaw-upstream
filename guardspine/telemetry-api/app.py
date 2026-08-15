@@ -66,7 +66,8 @@ QUERY_REGISTRY = {
             "service": {"type": "str", "required": True},
             "event_type": {"type": "str", "required": True},
             "since_minutes": {"type": "int", "default": 1440, "max": 43200},
-            "artifact_sha256": {"type": "str", "default": ""},
+            # Omit for "no filter". If supplied it must be a real sha256 - see bind_params.
+            "artifact_sha256": {"type": "str", "default": "", "pattern": r"[0-9a-fA-F]{64}"},
             "limit": {"type": "int", "default": 50, "max": 500},
         },
     },
@@ -297,6 +298,18 @@ def bind_params(query_def, raw_params):
             if required:
                 return None, f"Missing required parameter: {name}"
             val = spec.get("default")
+
+        # A filter value that is SUPPLIED must be well-formed. The artifact_sha256 filter
+        # short-circuits on '' so that omitting it means "no filter" - which meant an
+        # explicitly empty value silently disabled the predicate and returned every row
+        # for the service/event_type. A send-gate retrieving an approval by hash would
+        # then accept another artifact's verdict as its own. Absent stays optional;
+        # supplied must match, and empty no longer counts as absent.
+        pattern = spec.get("pattern")
+        if pattern is not None and name in raw_params and raw_params[name] is not None:
+            supplied = raw_params[name]
+            if not isinstance(supplied, str) or not re.fullmatch(pattern, supplied):
+                return None, f"Parameter {name} must match {pattern}"
 
         ptype = spec.get("type", "str")
         if ptype == "int":
@@ -655,11 +668,16 @@ class Handler(BaseHTTPRequestHandler):
         # Checked against five months of live data before tightening: across 1,680 events
         # in the last 7 days the four live producers sent zero malformed rows, and the only
         # row in 30 days relying on the defaults was this gate's own negative probe.
-        if raw_length is None or int(raw_length) == 0:
+        # A malformed or negative Content-Length must be a controlled 400, not an
+        # unhandled ValueError inside a single-process HTTPServer.
+        try:
+            length = int(raw_length) if raw_length is not None else 0
+        except (TypeError, ValueError):
+            self._json(400, {"error": "Invalid Content-Length"})
+            return
+        if length <= 0:
             self._json(400, {"error": "Body required"})
             return
-
-        length = int(raw_length)
         if length > 65536:
             self._json(400, {"error": "Body too large (max 64KB)"})
             return
@@ -674,8 +692,20 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": "Body must be a JSON object"})
             return
 
-        service = (body.get("service") or "").strip()
-        event_type = (body.get("event_type") or "").strip()
+        # These must be STRINGS. {"service": 1} used to reach .strip() and raise, which
+        # the single-process server turned into a dropped connection (502 at the edge)
+        # instead of the documented 400.
+        raw_service = body.get("service")
+        raw_event = body.get("event_type")
+        if raw_service is not None and not isinstance(raw_service, str):
+            self._json(400, {"error": "service must be a string"})
+            return
+        if raw_event is not None and not isinstance(raw_event, str):
+            self._json(400, {"error": "event_type must be a string"})
+            return
+
+        service = (raw_service or "").strip()
+        event_type = (raw_event or "").strip()
 
         if not service or not event_type:
             self._json(400, {"error": "service and event_type are required"})
