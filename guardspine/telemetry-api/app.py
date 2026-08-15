@@ -291,24 +291,29 @@ def bind_params(query_def, raw_params):
 
     bound = {}
     for name, spec in schema.items():
-        val = raw_params.get(name)
         required = spec.get("required", False)
 
-        if val is None:
+        # PRESENCE decides defaulting, never the VALUE. This used to key off `val is None`,
+        # which made an explicitly supplied JSON null indistinguishable from an omitted key:
+        # null fell through to the default, and for artifact_sha256 the default is '', the
+        # very value that disables the predicate. Verified live - a null filter returned 2
+        # rows where the correct hash returned 1, so a send-gate retrieving an approval by
+        # hash could be handed another artifact's verdict. Same fail-open as the empty
+        # string, reached through a different type.
+        if name in raw_params:
+            val = raw_params[name]
+            if val is None:
+                return None, f"Parameter {name} must not be null"
+        else:
             if required:
                 return None, f"Missing required parameter: {name}"
             val = spec.get("default")
 
-        # A filter value that is SUPPLIED must be well-formed. The artifact_sha256 filter
-        # short-circuits on '' so that omitting it means "no filter" - which meant an
-        # explicitly empty value silently disabled the predicate and returned every row
-        # for the service/event_type. A send-gate retrieving an approval by hash would
-        # then accept another artifact's verdict as its own. Absent stays optional;
-        # supplied must match, and empty no longer counts as absent.
+        # A filter value that is SUPPLIED must be well-formed. Absent stays optional;
+        # supplied must match, and neither empty nor null counts as absent.
         pattern = spec.get("pattern")
-        if pattern is not None and name in raw_params and raw_params[name] is not None:
-            supplied = raw_params[name]
-            if not isinstance(supplied, str) or not re.fullmatch(pattern, supplied):
+        if pattern is not None and name in raw_params:
+            if not isinstance(val, str) or not re.fullmatch(pattern, val):
                 return None, f"Parameter {name} must match {pattern}"
 
         ptype = spec.get("type", "str")
