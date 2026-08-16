@@ -798,8 +798,6 @@
     "@grammyjs/types": "^3.25.0",
     "@lit-labs/signals": "^0.2.0",
     "@lit/context": "^1.1.6",
-    "@oxfmt/binding-win32-x64-msvc": "^0.36.0",
-    "@oxlint/binding-win32-x64-msvc": "^1.56.0",
     "@types/express": "^5.0.6",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^25.5.0",
