@@ -4,7 +4,7 @@
     "id": "MZO62GwO5rIZ3wBS",
     "name": "M24 - Contact Enrichment",
     "description": null,
-    "active": true,
+    "active": false,
     "isArchived": false,
     "nodes": [
         {
@@ -165,8 +165,8 @@
     "meta": null,
     "pinData": null,
     "versionId": "04fba8f8-6a2f-438b-b62e-bee783b19f1b",
-    "activeVersionId": "04fba8f8-6a2f-438b-b62e-bee783b19f1b",
-    "versionCounter": 53,
+    "activeVersionId": null,
+    "versionCounter": 62,
     "triggerCount": 1,
     "shared": [
         {
@@ -188,194 +188,5 @@
         }
     ],
     "tags": [],
-    "activeVersion": {
-        "updatedAt": "2026-03-30T14:34:07.817Z",
-        "createdAt": "2026-03-30T14:34:07.817Z",
-        "versionId": "04fba8f8-6a2f-438b-b62e-bee783b19f1b",
-        "workflowId": "MZO62GwO5rIZ3wBS",
-        "nodes": [
-            {
-                "parameters": {
-                    "rule": {
-                        "interval": [
-                            {
-                                "field": "cronExpression",
-                                "expression": "0 6 * * *"
-                            }
-                        ]
-                    }
-                },
-                "name": "Schedule",
-                "type": "n8n-nodes-base.scheduleTrigger",
-                "typeVersion": 1.2,
-                "position": [
-                    250,
-                    300
-                ],
-                "id": "2ab29018-8d12-4dc1-a7ba-1c65d5516f22"
-            },
-            {
-                "parameters": {
-                    "url": "http://openclaw.railway.internal:18789/health",
-                    "method": "GET",
-                    "options": {
-                        "timeout": 30000
-                    }
-                },
-                "name": "Execute",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "position": [
-                    480,
-                    300
-                ],
-                "id": "7b4298b0-19f5-4dff-860d-8f8e953e630e"
-            },
-            {
-                "parameters": {
-                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
-                    "method": "POST",
-                    "sendBody": true,
-                    "specifyBody": "json",
-                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M24 - Contact Enrichment\"}}",
-                    "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
-                },
-                "name": "Log",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "position": [
-                    710,
-                    300
-                ],
-                "id": "98683847-97a3-4353-b22a-c152f4cb76c1"
-            },
-            {
-                "parameters": {
-                    "jsCode": "const items = $input.all();\nconst outputItems = items.map(i => {\n  const j = {...i.json};\n  // Redact anything that looks like a secret\n  for (const k of Object.keys(j)) {\n    if (/token|key|secret|password|auth|bearer/i.test(k)) j[k] = '[REDACTED]';\n  }\n  return j;\n});\n\nreturn [{ json: {\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: 'completed',\n  items_count: items.length,\n  finished_at: new Date().toISOString(),\n  service_identity: 'n8n-workflows',\n  output_items: outputItems.slice(0, 10),\n  metadata: { node_count: $workflow.nodes?.length || 0 }\n}}];"
-                },
-                "name": "Prepare Evidence",
-                "type": "n8n-nodes-base.code",
-                "typeVersion": 2,
-                "position": [
-                    960,
-                    300
-                ],
-                "onError": "continueRegularOutput",
-                "id": "595fb953-7e31-480e-acdd-9883aaf181d0"
-            },
-            {
-                "parameters": {
-                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
-                    "method": "POST",
-                    "sendBody": true,
-                    "specifyBody": "json",
-                    "jsonBody": "={{ JSON.stringify($json) }}",
-                    "options": {
-                        "timeout": 10000
-                    }
-                },
-                "name": "Seal via GuardSpine",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "onError": "continueRegularOutput",
-                "position": [
-                    1210,
-                    250
-                ],
-                "id": "b9d97278-37ee-4f6e-a5f0-a691f27a14c4"
-            }
-        ],
-        "connections": {
-            "Schedule": {
-                "main": [
-                    [
-                        {
-                            "node": "Execute",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            },
-            "Execute": {
-                "main": [
-                    [
-                        {
-                            "node": "Log",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            },
-            "Log": {
-                "main": [
-                    [
-                        {
-                            "node": "Prepare Evidence",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            },
-            "Prepare Evidence": {
-                "main": [
-                    [
-                        {
-                            "node": "Seal via GuardSpine",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            }
-        },
-        "authors": "David Youssef",
-        "name": null,
-        "description": null,
-        "autosaved": false,
-        "workflowPublishHistory": [
-            {
-                "createdAt": "2026-03-30T14:34:07.853Z",
-                "id": 1911,
-                "workflowId": "MZO62GwO5rIZ3wBS",
-                "versionId": "04fba8f8-6a2f-438b-b62e-bee783b19f1b",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:08.022Z",
-                "id": 1913,
-                "workflowId": "MZO62GwO5rIZ3wBS",
-                "versionId": "04fba8f8-6a2f-438b-b62e-bee783b19f1b",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:07.835Z",
-                "id": 1910,
-                "workflowId": "MZO62GwO5rIZ3wBS",
-                "versionId": "04fba8f8-6a2f-438b-b62e-bee783b19f1b",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:07.936Z",
-                "id": 1912,
-                "workflowId": "MZO62GwO5rIZ3wBS",
-                "versionId": "04fba8f8-6a2f-438b-b62e-bee783b19f1b",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            }
-        ]
-    }
+    "activeVersion": null
 }

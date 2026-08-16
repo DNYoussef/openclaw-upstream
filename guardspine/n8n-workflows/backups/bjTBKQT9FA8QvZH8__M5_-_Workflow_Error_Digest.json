@@ -4,7 +4,7 @@
     "id": "bjTBKQT9FA8QvZH8",
     "name": "M5 - Workflow Error Digest",
     "description": null,
-    "active": true,
+    "active": false,
     "isArchived": false,
     "nodes": [
         {
@@ -176,8 +176,8 @@
     "meta": null,
     "pinData": null,
     "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
-    "activeVersionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
-    "versionCounter": 59,
+    "activeVersionId": null,
+    "versionCounter": 68,
     "triggerCount": 1,
     "shared": [
         {
@@ -199,205 +199,5 @@
         }
     ],
     "tags": [],
-    "activeVersion": {
-        "updatedAt": "2026-03-30T14:34:14.774Z",
-        "createdAt": "2026-03-30T14:34:14.774Z",
-        "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
-        "workflowId": "bjTBKQT9FA8QvZH8",
-        "nodes": [
-            {
-                "parameters": {
-                    "rule": {
-                        "interval": [
-                            {
-                                "field": "cronExpression",
-                                "expression": "0 8 * * *"
-                            }
-                        ]
-                    }
-                },
-                "name": "Schedule",
-                "type": "n8n-nodes-base.scheduleTrigger",
-                "typeVersion": 1.2,
-                "position": [
-                    250,
-                    300
-                ],
-                "id": "4062b56d-12a1-4231-ba7b-9ce6db555331"
-            },
-            {
-                "parameters": {
-                    "url": "http://n8n.railway.internal:5678/api/v1/executions?status=error&limit=50",
-                    "method": "GET",
-                    "options": {
-                        "timeout": 30000
-                    },
-                    "authentication": "none",
-                    "sendHeaders": true,
-                    "specifyHeaders": "keypair",
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "X-N8N-API-KEY",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
-                },
-                "name": "Execute",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "position": [
-                    480,
-                    300
-                ],
-                "id": "f79d117c-9fcb-449d-9d6d-0d0cb2ef4a5f"
-            },
-            {
-                "parameters": {
-                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
-                    "method": "POST",
-                    "sendBody": true,
-                    "specifyBody": "json",
-                    "jsonBody": "{\"service\":\"n8n\",\"event_type\":\"meta_cron\",\"payload\":{\"job\":\"M5 - Workflow Error Digest\"}}",
-                    "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    }
-                },
-                "name": "Log",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "position": [
-                    710,
-                    300
-                ],
-                "id": "d82d0ef4-4964-4bde-a3f9-f610eab809ea"
-            },
-            {
-                "parameters": {
-                    "jsCode": "const raw = $input.first().json || {};\nconst executions = Array.isArray(raw.data) ? raw.data : (Array.isArray(raw) ? raw : []);\nconst grouped = {};\nconst typeBreakdown = {};\n\nfunction classifyError(execution) {\n  const text = JSON.stringify(execution).toLowerCase();\n  if (/timeout|timed out|econnreset|socket hang up|network/.test(text)) return 'network_timeout';\n  if (/auth|unauthorized|forbidden|invalid api key|credentials?/.test(text)) return 'auth_failure';\n  if (/json|schema|validation|bad request|payload|parse/.test(text)) return 'data_error';\n  return 'unknown';\n}\n\nfor (const ex of executions) {\n  const wfName = ex.workflowName || ex.workflow?.name || ex.workflowId || 'unknown_workflow';\n  const nodeName = ex.data?.resultData?.lastNodeExecuted || ex.lastNodeExecuted || 'unknown_node';\n  const errType = classifyError(ex);\n  grouped[wfName] = grouped[wfName] || {count: 0, nodes: {}, sample_execution_ids: [], error_types: {}};\n  grouped[wfName].count += 1;\n  grouped[wfName].nodes[nodeName] = (grouped[wfName].nodes[nodeName] || 0) + 1;\n  grouped[wfName].error_types[errType] = (grouped[wfName].error_types[errType] || 0) + 1;\n  if (grouped[wfName].sample_execution_ids.length < 5) grouped[wfName].sample_execution_ids.push(ex.id);\n  typeBreakdown[errType] = (typeBreakdown[errType] || 0) + 1;\n}\n\nconst ranked = Object.entries(grouped).map(([workflow_name, stats]) => ({workflow_name, ...stats})).sort((a,b) => b.count - a.count);\nconst workflowsAboveThreshold = ranked.filter(r => r.count > 3).map(r => r.workflow_name);\n\nreturn [{json:{\n  stream: 'workflow_error_digest',\n  event_type: 'daily_error_digest',\n  workflow_name: $workflow.name,\n  execution_id: String($execution.id),\n  status: executions.length ? 'errors_found' : 'clean',\n  finished_at: new Date().toISOString(),\n  total_errors: executions.length,\n  unique_workflows: ranked.length,\n  top_failing_workflow: ranked[0]?.workflow_name || null,\n  workflows_above_threshold: workflowsAboveThreshold,\n  error_count_by_workflow: Object.fromEntries(ranked.map(r => [r.workflow_name, r.count])),\n  error_type_breakdown: typeBreakdown,\n  digest: ranked.slice(0, 10)\n}}];"
-                },
-                "name": "Prepare Evidence",
-                "type": "n8n-nodes-base.code",
-                "typeVersion": 2,
-                "position": [
-                    960,
-                    300
-                ],
-                "onError": "continueRegularOutput",
-                "id": "b1079002-0f22-487f-9f01-058ceb5919ab"
-            },
-            {
-                "parameters": {
-                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
-                    "method": "POST",
-                    "sendBody": true,
-                    "specifyBody": "json",
-                    "jsonBody": "={{ JSON.stringify($json) }}",
-                    "options": {
-                        "timeout": 10000
-                    }
-                },
-                "name": "Seal via GuardSpine",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "onError": "continueRegularOutput",
-                "position": [
-                    1210,
-                    250
-                ],
-                "id": "50e63058-c6ab-42f4-bad4-5727e7aee15a"
-            }
-        ],
-        "connections": {
-            "Schedule": {
-                "main": [
-                    [
-                        {
-                            "node": "Execute",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            },
-            "Execute": {
-                "main": [
-                    [
-                        {
-                            "node": "Log",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            },
-            "Log": {
-                "main": [
-                    [
-                        {
-                            "node": "Prepare Evidence",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            },
-            "Prepare Evidence": {
-                "main": [
-                    [
-                        {
-                            "node": "Seal via GuardSpine",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            }
-        },
-        "authors": "David Youssef",
-        "name": null,
-        "description": null,
-        "autosaved": false,
-        "workflowPublishHistory": [
-            {
-                "createdAt": "2026-03-30T14:34:14.828Z",
-                "id": 1979,
-                "workflowId": "bjTBKQT9FA8QvZH8",
-                "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:15.000Z",
-                "id": 1981,
-                "workflowId": "bjTBKQT9FA8QvZH8",
-                "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:14.800Z",
-                "id": 1978,
-                "workflowId": "bjTBKQT9FA8QvZH8",
-                "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:14.907Z",
-                "id": 1980,
-                "workflowId": "bjTBKQT9FA8QvZH8",
-                "versionId": "27fa45c5-801b-4d04-9b0d-52d4134e3621",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            }
-        ]
-    }
+    "activeVersion": null
 }

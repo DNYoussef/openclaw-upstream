@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-22T00:01:54.608Z",
+    "updatedAt": "2026-08-15T20:01:03.913Z",
     "createdAt": "2026-03-21T22:13:34.674Z",
     "id": "5OgaWcGaPDQY6t0S",
     "name": "W-Content-Chain-Generator",
@@ -93,21 +93,28 @@
             ],
             "parameters": {
                 "method": "POST",
-                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "url": "https://api.guardspine.ai/api/v1/ops/evidence/seal",
                 "sendHeaders": true,
                 "headerParameters": {
                     "parameters": [
                         {
-                            "name": "X-Evidence-Key",
-                            "value": "={{ $env.OPS_EVIDENCE_API_KEY || '' }}"
+                            "name": "X-Service-Key",
+                            "value": "={{ $env.GUARDSPINE_SERVICE_KEY }}"
+                        },
+                        {
+                            "name": "X-Service-Name",
+                            "value": "n8n"
                         }
                     ]
                 },
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={{ JSON.stringify({ stream_key: 'content-chain-generator', execution_id: String($execution.id), workflow_name: $workflow.name, payload: $json, sealed_hash: 'sha256:chain-' + String($execution.id) }) }}"
+                "jsonBody": "={{ JSON.stringify({ diff_hash: ('n8n:' + $workflow.name + ':' + $execution.id).slice(0, 250), approver_id: 'n8n-workflows', policy_ref: 'ops-automation', metadata: { payload: $json, workflow: $workflow.name, execution_id: $execution.id } }) }}",
+                "specifyHeaders": "keypair",
+                "options": {
+                    "timeout": 10000
+                }
             },
-            "onError": "continueRegularOutput",
             "id": "94f4bde3-0a28-4259-a51b-afd57a95a2f6"
         }
     ],
@@ -169,9 +176,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "eb653b7b-f625-4fb0-b03a-e24b04fe2e62",
-    "activeVersionId": "eb653b7b-f625-4fb0-b03a-e24b04fe2e62",
-    "versionCounter": 27,
+    "versionId": "66f2bfb6-cf5e-457e-9e5c-10422d05a86d",
+    "activeVersionId": "66f2bfb6-cf5e-457e-9e5c-10422d05a86d",
+    "versionCounter": 44,
     "triggerCount": 1,
     "shared": [
         {
@@ -194,9 +201,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-22T00:01:54.611Z",
-        "createdAt": "2026-03-22T00:01:54.611Z",
-        "versionId": "eb653b7b-f625-4fb0-b03a-e24b04fe2e62",
+        "updatedAt": "2026-08-15T20:01:03.914Z",
+        "createdAt": "2026-08-15T20:01:03.914Z",
+        "versionId": "66f2bfb6-cf5e-457e-9e5c-10422d05a86d",
         "workflowId": "5OgaWcGaPDQY6t0S",
         "nodes": [
             {
@@ -285,21 +292,28 @@
                 ],
                 "parameters": {
                     "method": "POST",
-                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "url": "https://api.guardspine.ai/api/v1/ops/evidence/seal",
                     "sendHeaders": true,
                     "headerParameters": {
                         "parameters": [
                             {
-                                "name": "X-Evidence-Key",
-                                "value": "={{ $env.OPS_EVIDENCE_API_KEY || '' }}"
+                                "name": "X-Service-Key",
+                                "value": "={{ $env.GUARDSPINE_SERVICE_KEY }}"
+                            },
+                            {
+                                "name": "X-Service-Name",
+                                "value": "n8n"
                             }
                         ]
                     },
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "={{ JSON.stringify({ stream_key: 'content-chain-generator', execution_id: String($execution.id), workflow_name: $workflow.name, payload: $json, sealed_hash: 'sha256:chain-' + String($execution.id) }) }}"
+                    "jsonBody": "={{ JSON.stringify({ diff_hash: ('n8n:' + $workflow.name + ':' + $execution.id).slice(0, 250), approver_id: 'n8n-workflows', policy_ref: 'ops-automation', metadata: { payload: $json, workflow: $workflow.name, execution_id: $execution.id } }) }}",
+                    "specifyHeaders": "keypair",
+                    "options": {
+                        "timeout": 10000
+                    }
                 },
-                "onError": "continueRegularOutput",
                 "id": "94f4bde3-0a28-4259-a51b-afd57a95a2f6"
             }
         ],
@@ -355,18 +369,18 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-22T00:01:54.675Z",
-                "id": 1523,
+                "createdAt": "2026-08-15T20:01:03.951Z",
+                "id": 2254,
                 "workflowId": "5OgaWcGaPDQY6t0S",
-                "versionId": "eb653b7b-f625-4fb0-b03a-e24b04fe2e62",
+                "versionId": "66f2bfb6-cf5e-457e-9e5c-10422d05a86d",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-22T00:01:54.645Z",
-                "id": 1522,
+                "createdAt": "2026-08-15T20:01:03.936Z",
+                "id": 2253,
                 "workflowId": "5OgaWcGaPDQY6t0S",
-                "versionId": "eb653b7b-f625-4fb0-b03a-e24b04fe2e62",
+                "versionId": "66f2bfb6-cf5e-457e-9e5c-10422d05a86d",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

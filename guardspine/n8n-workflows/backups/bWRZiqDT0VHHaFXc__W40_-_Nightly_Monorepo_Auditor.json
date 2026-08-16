@@ -4,7 +4,7 @@
     "id": "bWRZiqDT0VHHaFXc",
     "name": "W40 - Nightly Monorepo Auditor",
     "description": null,
-    "active": true,
+    "active": false,
     "isArchived": false,
     "nodes": [
         {
@@ -151,8 +151,8 @@
     "meta": null,
     "pinData": null,
     "versionId": "c75156d1-5f14-4f3e-86dd-ca1e4846be82",
-    "activeVersionId": "c75156d1-5f14-4f3e-86dd-ca1e4846be82",
-    "versionCounter": 11,
+    "activeVersionId": null,
+    "versionCounter": 20,
     "triggerCount": 1,
     "shared": [
         {
@@ -174,180 +174,5 @@
         }
     ],
     "tags": [],
-    "activeVersion": {
-        "updatedAt": "2026-03-30T14:34:14.415Z",
-        "createdAt": "2026-03-30T14:34:14.415Z",
-        "versionId": "c75156d1-5f14-4f3e-86dd-ca1e4846be82",
-        "workflowId": "bWRZiqDT0VHHaFXc",
-        "nodes": [
-            {
-                "parameters": {
-                    "rule": {
-                        "interval": [
-                            {
-                                "triggerAtHour": 1,
-                                "triggerAtMinute": 45
-                            }
-                        ]
-                    }
-                },
-                "id": "schedule-1",
-                "name": "Nightly 1:45 UTC",
-                "type": "n8n-nodes-base.scheduleTrigger",
-                "typeVersion": 1.2,
-                "position": [
-                    240,
-                    300
-                ]
-            },
-            {
-                "parameters": {
-                    "jsCode": "const date = new Date().toISOString().split('T')[0];\nconst dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);\nconst services = ['telemetry-api/app.py', 'decision-engine/router.py', 'mirofish-sim/app.py', 'soak-monitor/health-check.sh', 'litellm/config.yaml', 'agents/SHARED-CONTEXT.md', 'agents/ceo-system-prompt.md', 'agents/cmo-system-prompt.md', 'agents/cto-system-prompt.md', 'extensions/guardspine/plugin.js', 'n8n-workflows/config/outreach-templates.json', 'agents/staff-engineer-system-prompt.md', 'agents/qa-engineer-system-prompt.md'];\nconst startIdx = dayOfYear % services.length;\nconst files = [];\nfor (let i = 0; i < 5; i++) { files.push(services[(startIdx + i) % services.length]); }\nreturn [{json: {date, branch: 'main', files, audit_focus: dayOfYear % 3 === 0 ? 'bugs' : dayOfYear % 3 === 1 ? 'simplifications' : 'optimizations'}}];"
-                },
-                "id": "code-1",
-                "name": "Select Audit Scope",
-                "type": "n8n-nodes-base.code",
-                "typeVersion": 2,
-                "position": [
-                    460,
-                    300
-                ]
-            },
-            {
-                "parameters": {
-                    "method": "POST",
-                    "url": "http://paperclip.railway.internal:3100/api/companies/75b694a8-5f7a-4b83-b12e-94fc378915c7/issues",
-                    "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            },
-                            {
-                                "name": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ]
-                    },
-                    "sendBody": true,
-                    "specifyBody": "json",
-                    "jsonBody": "={{ JSON.stringify({title: 'Nightly Audit ' + $json.date + ': ' + $json.branch + ' (' + $json.files.length + ' files)', description: JSON.stringify({branch: $json.branch, files: $json.files, audit_focus: $json.audit_focus}), assigneeAgentId: '725b6347-7724-4383-b2a7-96b198749a68', labels: ['nightly-audit']}) }}",
-                    "options": {}
-                },
-                "id": "http-1",
-                "name": "Create Audit Issue",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "position": [
-                    680,
-                    300
-                ]
-            },
-            {
-                "parameters": {
-                    "method": "POST",
-                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
-                    "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Content-Type",
-                                "value": "application/json"
-                            },
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    },
-                    "sendBody": true,
-                    "specifyBody": "json",
-                    "jsonBody": "={{ JSON.stringify({service: 'nightly-audit', event_type: 'audit_requested', payload: {branch: $json.branch, file_count: $json.files.length, scope: $json.audit_focus}}) }}",
-                    "options": {}
-                },
-                "id": "http-2",
-                "name": "Log to Telemetry",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "position": [
-                    900,
-                    300
-                ]
-            }
-        ],
-        "connections": {
-            "Nightly 1:45 UTC": {
-                "main": [
-                    [
-                        {
-                            "node": "Select Audit Scope",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            },
-            "Select Audit Scope": {
-                "main": [
-                    [
-                        {
-                            "node": "Create Audit Issue",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            },
-            "Create Audit Issue": {
-                "main": [
-                    [
-                        {
-                            "node": "Log to Telemetry",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            }
-        },
-        "authors": "David Youssef",
-        "name": null,
-        "description": null,
-        "autosaved": false,
-        "workflowPublishHistory": [
-            {
-                "createdAt": "2026-03-30T14:34:14.448Z",
-                "id": 1975,
-                "workflowId": "bWRZiqDT0VHHaFXc",
-                "versionId": "c75156d1-5f14-4f3e-86dd-ca1e4846be82",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:14.613Z",
-                "id": 1977,
-                "workflowId": "bWRZiqDT0VHHaFXc",
-                "versionId": "c75156d1-5f14-4f3e-86dd-ca1e4846be82",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:14.433Z",
-                "id": 1974,
-                "workflowId": "bWRZiqDT0VHHaFXc",
-                "versionId": "c75156d1-5f14-4f3e-86dd-ca1e4846be82",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:34:14.518Z",
-                "id": 1976,
-                "workflowId": "bWRZiqDT0VHHaFXc",
-                "versionId": "c75156d1-5f14-4f3e-86dd-ca1e4846be82",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            }
-        ]
-    }
+    "activeVersion": null
 }

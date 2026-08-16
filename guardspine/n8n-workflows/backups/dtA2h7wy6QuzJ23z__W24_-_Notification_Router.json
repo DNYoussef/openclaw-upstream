@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-04-01T22:12:23.261Z",
+    "updatedAt": "2026-08-15T20:01:07.556Z",
     "createdAt": "2026-03-20T17:29:58.401Z",
     "id": "dtA2h7wy6QuzJ23z",
     "name": "W24 - Notification Router",
@@ -215,19 +215,32 @@
         },
         {
             "parameters": {
-                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "url": "https://api.guardspine.ai/api/v1/ops/evidence/seal",
                 "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={{ JSON.stringify($json) }}",
+                "jsonBody": "={{ JSON.stringify({ diff_hash: ('n8n:' + $workflow.name + ':' + $execution.id).slice(0, 250), approver_id: 'n8n-workflows', policy_ref: 'ops-automation', metadata: { payload: $json, workflow: $workflow.name, execution_id: $execution.id } }) }}",
                 "options": {
                     "timeout": 10000
+                },
+                "sendHeaders": true,
+                "specifyHeaders": "keypair",
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-Service-Key",
+                            "value": "={{ $env.GUARDSPINE_SERVICE_KEY }}"
+                        },
+                        {
+                            "name": "X-Service-Name",
+                            "value": "n8n"
+                        }
+                    ]
                 }
             },
             "name": "Seal via GuardSpine",
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
-            "onError": "continueRegularOutput",
             "position": [
                 1580,
                 325
@@ -355,9 +368,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
-    "activeVersionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
-    "versionCounter": 61,
+    "versionId": "060b7dc8-abec-4320-9d74-4d24b33dbd24",
+    "activeVersionId": "060b7dc8-abec-4320-9d74-4d24b33dbd24",
+    "versionCounter": 78,
     "triggerCount": 1,
     "shared": [
         {
@@ -380,9 +393,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-04-01T22:12:11.617Z",
-        "createdAt": "2026-04-01T22:12:11.617Z",
-        "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
+        "updatedAt": "2026-08-15T20:01:07.558Z",
+        "createdAt": "2026-08-15T20:01:07.558Z",
+        "versionId": "060b7dc8-abec-4320-9d74-4d24b33dbd24",
         "workflowId": "dtA2h7wy6QuzJ23z",
         "nodes": [
             {
@@ -593,19 +606,32 @@
             },
             {
                 "parameters": {
-                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "url": "https://api.guardspine.ai/api/v1/ops/evidence/seal",
                     "method": "POST",
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "jsonBody": "={{ JSON.stringify({ diff_hash: ('n8n:' + $workflow.name + ':' + $execution.id).slice(0, 250), approver_id: 'n8n-workflows', policy_ref: 'ops-automation', metadata: { payload: $json, workflow: $workflow.name, execution_id: $execution.id } }) }}",
                     "options": {
                         "timeout": 10000
+                    },
+                    "sendHeaders": true,
+                    "specifyHeaders": "keypair",
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "X-Service-Key",
+                                "value": "={{ $env.GUARDSPINE_SERVICE_KEY }}"
+                            },
+                            {
+                                "name": "X-Service-Name",
+                                "value": "n8n"
+                            }
+                        ]
                     }
                 },
                 "name": "Seal via GuardSpine",
                 "type": "n8n-nodes-base.httpRequest",
                 "typeVersion": 4.2,
-                "onError": "continueRegularOutput",
                 "position": [
                     1580,
                     325
@@ -727,34 +753,18 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-04-01T22:12:11.677Z",
-                "id": 2113,
+                "createdAt": "2026-08-15T20:01:07.626Z",
+                "id": 2266,
                 "workflowId": "dtA2h7wy6QuzJ23z",
-                "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
+                "versionId": "060b7dc8-abec-4320-9d74-4d24b33dbd24",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-04-01T22:12:23.296Z",
-                "id": 2115,
+                "createdAt": "2026-08-15T20:01:07.598Z",
+                "id": 2265,
                 "workflowId": "dtA2h7wy6QuzJ23z",
-                "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-04-01T22:12:11.653Z",
-                "id": 2112,
-                "workflowId": "dtA2h7wy6QuzJ23z",
-                "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-04-01T22:12:23.279Z",
-                "id": 2114,
-                "workflowId": "dtA2h7wy6QuzJ23z",
-                "versionId": "bb6f7522-80bb-4aca-a659-f240a4b41202",
+                "versionId": "060b7dc8-abec-4320-9d74-4d24b33dbd24",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

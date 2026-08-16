@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-23T15:53:26.184Z",
+    "updatedAt": "2026-08-15T20:01:03.306Z",
     "createdAt": "2026-03-21T14:09:25.674Z",
     "id": "44qkKekVoLzsrkD8",
     "name": "H13 - OpenClaw Agent Heartbeat",
@@ -200,20 +200,33 @@
             "name": "Seal via GuardSpine",
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
-            "onError": "continueRegularOutput",
             "position": [
                 1700,
                 220
             ],
             "id": "seal-b215ed1c",
             "parameters": {
-                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "url": "https://api.guardspine.ai/api/v1/ops/evidence/seal",
                 "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={{ JSON.stringify($json) }}",
+                "jsonBody": "={{ JSON.stringify({ diff_hash: ('n8n:' + $workflow.name + ':' + $execution.id).slice(0, 250), approver_id: 'n8n-workflows', policy_ref: 'ops-automation', metadata: { payload: $json, workflow: $workflow.name, execution_id: $execution.id } }) }}",
                 "options": {
                     "timeout": 10000
+                },
+                "sendHeaders": true,
+                "specifyHeaders": "keypair",
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-Service-Key",
+                            "value": "={{ $env.GUARDSPINE_SERVICE_KEY }}"
+                        },
+                        {
+                            "name": "X-Service-Name",
+                            "value": "n8n"
+                        }
+                    ]
                 }
             }
         }
@@ -345,9 +358,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "9ebd4bdf-faa3-4575-a402-a2bada69cd9b",
-    "activeVersionId": "9ebd4bdf-faa3-4575-a402-a2bada69cd9b",
-    "versionCounter": 49,
+    "versionId": "e0aa9d66-6c8d-48a1-ab45-9ba2fb3b0bc4",
+    "activeVersionId": "e0aa9d66-6c8d-48a1-ab45-9ba2fb3b0bc4",
+    "versionCounter": 66,
     "triggerCount": 1,
     "shared": [
         {
@@ -370,9 +383,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-23T15:53:26.184Z",
-        "createdAt": "2026-03-23T15:53:26.184Z",
-        "versionId": "9ebd4bdf-faa3-4575-a402-a2bada69cd9b",
+        "updatedAt": "2026-08-15T20:01:03.307Z",
+        "createdAt": "2026-08-15T20:01:03.307Z",
+        "versionId": "e0aa9d66-6c8d-48a1-ab45-9ba2fb3b0bc4",
         "workflowId": "44qkKekVoLzsrkD8",
         "nodes": [
             {
@@ -568,20 +581,33 @@
                 "name": "Seal via GuardSpine",
                 "type": "n8n-nodes-base.httpRequest",
                 "typeVersion": 4.2,
-                "onError": "continueRegularOutput",
                 "position": [
                     1700,
                     220
                 ],
                 "id": "seal-b215ed1c",
                 "parameters": {
-                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "url": "https://api.guardspine.ai/api/v1/ops/evidence/seal",
                     "method": "POST",
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "jsonBody": "={{ JSON.stringify({ diff_hash: ('n8n:' + $workflow.name + ':' + $execution.id).slice(0, 250), approver_id: 'n8n-workflows', policy_ref: 'ops-automation', metadata: { payload: $json, workflow: $workflow.name, execution_id: $execution.id } }) }}",
                     "options": {
                         "timeout": 10000
+                    },
+                    "sendHeaders": true,
+                    "specifyHeaders": "keypair",
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "X-Service-Key",
+                                "value": "={{ $env.GUARDSPINE_SERVICE_KEY }}"
+                            },
+                            {
+                                "name": "X-Service-Name",
+                                "value": "n8n"
+                            }
+                        ]
                     }
                 }
             }
@@ -707,18 +733,18 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-23T15:53:26.239Z",
-                "id": 1694,
+                "createdAt": "2026-08-15T20:01:03.386Z",
+                "id": 2252,
                 "workflowId": "44qkKekVoLzsrkD8",
-                "versionId": "9ebd4bdf-faa3-4575-a402-a2bada69cd9b",
+                "versionId": "e0aa9d66-6c8d-48a1-ab45-9ba2fb3b0bc4",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-23T15:53:26.212Z",
-                "id": 1693,
+                "createdAt": "2026-08-15T20:01:03.359Z",
+                "id": 2251,
                 "workflowId": "44qkKekVoLzsrkD8",
-                "versionId": "9ebd4bdf-faa3-4575-a402-a2bada69cd9b",
+                "versionId": "e0aa9d66-6c8d-48a1-ab45-9ba2fb3b0bc4",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

@@ -4,7 +4,7 @@
     "id": "0joE5wojUGMwuIrD",
     "name": "W42 - Nightly PR Factory",
     "description": null,
-    "active": true,
+    "active": false,
     "isArchived": false,
     "nodes": [
         {
@@ -109,8 +109,8 @@
     "meta": null,
     "pinData": null,
     "versionId": "f98c6d59-bddd-45c9-848d-1042827220b5",
-    "activeVersionId": "f98c6d59-bddd-45c9-848d-1042827220b5",
-    "versionCounter": 11,
+    "activeVersionId": null,
+    "versionCounter": 20,
     "triggerCount": 1,
     "shared": [
         {
@@ -132,138 +132,5 @@
         }
     ],
     "tags": [],
-    "activeVersion": {
-        "updatedAt": "2026-03-30T14:33:06.451Z",
-        "createdAt": "2026-03-30T14:33:06.451Z",
-        "versionId": "f98c6d59-bddd-45c9-848d-1042827220b5",
-        "workflowId": "0joE5wojUGMwuIrD",
-        "nodes": [
-            {
-                "parameters": {
-                    "rule": {
-                        "interval": [
-                            {
-                                "triggerAtHour": 3,
-                                "triggerAtMinute": 15
-                            }
-                        ]
-                    }
-                },
-                "id": "s1",
-                "name": "Nightly 3:15",
-                "type": "n8n-nodes-base.scheduleTrigger",
-                "typeVersion": 1.2,
-                "position": [
-                    240,
-                    300
-                ]
-            },
-            {
-                "parameters": {
-                    "jsCode": "return [{json:{date:new Date().toISOString().split(\"T\")[0],message:\"PR Factory triggered\"}}];"
-                },
-                "id": "c1",
-                "name": "Build Context",
-                "type": "n8n-nodes-base.code",
-                "typeVersion": 2,
-                "position": [
-                    460,
-                    300
-                ]
-            },
-            {
-                "parameters": {
-                    "method": "POST",
-                    "url": "http://telemetry-api.railway.internal:8090/telemetry",
-                    "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "Content-Type",
-                                "value": "application/json"
-                            },
-                            {
-                                "name": "Authorization",
-                                "value": "***REDACTED***"
-                            }
-                        ]
-                    },
-                    "sendBody": true,
-                    "specifyBody": "json",
-                    "jsonBody": "{\"service\":\"pr-factory\",\"event_type\":\"pr_factory_triggered\",\"payload\":{}}",
-                    "options": {}
-                },
-                "id": "h1",
-                "name": "Log",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "position": [
-                    680,
-                    300
-                ]
-            }
-        ],
-        "connections": {
-            "Nightly 3:15": {
-                "main": [
-                    [
-                        {
-                            "node": "Build Context",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            },
-            "Build Context": {
-                "main": [
-                    [
-                        {
-                            "node": "Log",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
-            }
-        },
-        "authors": "David Youssef",
-        "name": null,
-        "description": null,
-        "autosaved": false,
-        "workflowPublishHistory": [
-            {
-                "createdAt": "2026-03-30T14:33:06.704Z",
-                "id": 1811,
-                "workflowId": "0joE5wojUGMwuIrD",
-                "versionId": "f98c6d59-bddd-45c9-848d-1042827220b5",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:33:06.936Z",
-                "id": 1813,
-                "workflowId": "0joE5wojUGMwuIrD",
-                "versionId": "f98c6d59-bddd-45c9-848d-1042827220b5",
-                "event": "activated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:33:06.668Z",
-                "id": 1810,
-                "workflowId": "0joE5wojUGMwuIrD",
-                "versionId": "f98c6d59-bddd-45c9-848d-1042827220b5",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            },
-            {
-                "createdAt": "2026-03-30T14:33:06.818Z",
-                "id": 1812,
-                "workflowId": "0joE5wojUGMwuIrD",
-                "versionId": "f98c6d59-bddd-45c9-848d-1042827220b5",
-                "event": "deactivated",
-                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
-            }
-        ]
-    }
+    "activeVersion": null
 }

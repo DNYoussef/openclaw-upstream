@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-23T15:52:19.997Z",
+    "updatedAt": "2026-08-15T20:01:02.567Z",
     "createdAt": "2026-03-22T02:34:55.953Z",
     "id": "1sfRFQD2BPlBab7C",
     "name": "M31-Slack-Channel-Scanner",
@@ -161,12 +161,28 @@
             ],
             "parameters": {
                 "method": "POST",
-                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "url": "https://api.guardspine.ai/api/v1/ops/evidence/seal",
                 "authentication": "noAuth",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={{ JSON.stringify({stream_key: 'slack-scanner', execution_id: 'scan-' + Date.now(), event_type: 'channel_scan', payload: {channels_scanned: 9, relevant_messages: 1, channel: $json.channel_name, reason: $json.reason, forward_ok: $json.forward_ok !== false, forward_error: $json.forward_error || null}, meta: {workflow: 'M31-Slack-Channel-Scanner'}}) }}",
-                "options": {}
+                "jsonBody": "={{ JSON.stringify({ diff_hash: ('n8n:' + $workflow.name + ':' + $execution.id).slice(0, 250), approver_id: 'n8n-workflows', policy_ref: 'ops-automation', metadata: { payload: $json, workflow: $workflow.name, execution_id: $execution.id } }) }}",
+                "options": {
+                    "timeout": 10000
+                },
+                "sendHeaders": true,
+                "specifyHeaders": "keypair",
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-Service-Key",
+                            "value": "={{ $env.GUARDSPINE_SERVICE_KEY }}"
+                        },
+                        {
+                            "name": "X-Service-Name",
+                            "value": "n8n"
+                        }
+                    ]
+                }
             },
             "id": "aa62ebc2-cf8b-4286-960f-957395f04890"
         },
@@ -276,9 +292,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "7dcedecd-5e07-4023-a7a6-0aef4e69ff1a",
-    "activeVersionId": "7dcedecd-5e07-4023-a7a6-0aef4e69ff1a",
-    "versionCounter": 34,
+    "versionId": "97fa7279-badb-4141-ad62-0f71dbcbd6f2",
+    "activeVersionId": "97fa7279-badb-4141-ad62-0f71dbcbd6f2",
+    "versionCounter": 51,
     "triggerCount": 1,
     "shared": [
         {
@@ -301,9 +317,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-23T15:52:19.997Z",
-        "createdAt": "2026-03-23T15:52:19.997Z",
-        "versionId": "7dcedecd-5e07-4023-a7a6-0aef4e69ff1a",
+        "updatedAt": "2026-08-15T19:54:48.061Z",
+        "createdAt": "2026-08-15T19:54:48.061Z",
+        "versionId": "97fa7279-badb-4141-ad62-0f71dbcbd6f2",
         "workflowId": "1sfRFQD2BPlBab7C",
         "nodes": [
             {
@@ -460,12 +476,28 @@
                 ],
                 "parameters": {
                     "method": "POST",
-                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "url": "https://api.guardspine.ai/api/v1/ops/evidence/seal",
                     "authentication": "noAuth",
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "={{ JSON.stringify({stream_key: 'slack-scanner', execution_id: 'scan-' + Date.now(), event_type: 'channel_scan', payload: {channels_scanned: 9, relevant_messages: 1, channel: $json.channel_name, reason: $json.reason, forward_ok: $json.forward_ok !== false, forward_error: $json.forward_error || null}, meta: {workflow: 'M31-Slack-Channel-Scanner'}}) }}",
-                    "options": {}
+                    "jsonBody": "={{ JSON.stringify({ diff_hash: ('n8n:' + $workflow.name + ':' + $execution.id).slice(0, 250), approver_id: 'n8n-workflows', policy_ref: 'ops-automation', metadata: { payload: $json, workflow: $workflow.name, execution_id: $execution.id } }) }}",
+                    "options": {
+                        "timeout": 10000
+                    },
+                    "sendHeaders": true,
+                    "specifyHeaders": "keypair",
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "X-Service-Key",
+                                "value": "={{ $env.GUARDSPINE_SERVICE_KEY }}"
+                            },
+                            {
+                                "name": "X-Service-Name",
+                                "value": "n8n"
+                            }
+                        ]
+                    }
                 },
                 "id": "aa62ebc2-cf8b-4286-960f-957395f04890"
             },
@@ -569,18 +601,34 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-23T15:52:20.057Z",
-                "id": 1658,
+                "createdAt": "2026-08-15T19:54:48.109Z",
+                "id": 2220,
                 "workflowId": "1sfRFQD2BPlBab7C",
-                "versionId": "7dcedecd-5e07-4023-a7a6-0aef4e69ff1a",
+                "versionId": "97fa7279-badb-4141-ad62-0f71dbcbd6f2",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-03-23T15:52:20.029Z",
-                "id": 1657,
+                "createdAt": "2026-08-15T20:01:02.613Z",
+                "id": 2250,
                 "workflowId": "1sfRFQD2BPlBab7C",
-                "versionId": "7dcedecd-5e07-4023-a7a6-0aef4e69ff1a",
+                "versionId": "97fa7279-badb-4141-ad62-0f71dbcbd6f2",
+                "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-08-15T19:54:48.093Z",
+                "id": 2219,
+                "workflowId": "1sfRFQD2BPlBab7C",
+                "versionId": "97fa7279-badb-4141-ad62-0f71dbcbd6f2",
+                "event": "deactivated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-08-15T20:01:02.591Z",
+                "id": 2249,
+                "workflowId": "1sfRFQD2BPlBab7C",
+                "versionId": "97fa7279-badb-4141-ad62-0f71dbcbd6f2",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }

@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-03-21T18:42:20.305Z",
+    "updatedAt": "2026-08-15T20:01:04.482Z",
     "createdAt": "2026-03-21T14:10:04.570Z",
     "id": "DZB5YHTAGxCfPPWt",
     "name": "A4 - RLM DocSync Nightly",
@@ -73,19 +73,32 @@
         },
         {
             "parameters": {
-                "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                "url": "https://api.guardspine.ai/api/v1/ops/evidence/seal",
                 "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={{ JSON.stringify($json) }}",
+                "jsonBody": "={{ JSON.stringify({ diff_hash: ('n8n:' + $workflow.name + ':' + $execution.id).slice(0, 250), approver_id: 'n8n-workflows', policy_ref: 'ops-automation', metadata: { payload: $json, workflow: $workflow.name, execution_id: $execution.id } }) }}",
                 "options": {
                     "timeout": 10000
+                },
+                "sendHeaders": true,
+                "specifyHeaders": "keypair",
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-Service-Key",
+                            "value": "={{ $env.GUARDSPINE_SERVICE_KEY }}"
+                        },
+                        {
+                            "name": "X-Service-Name",
+                            "value": "n8n"
+                        }
+                    ]
                 }
             },
             "name": "Seal via GuardSpine",
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
-            "onError": "continueRegularOutput",
             "position": [
                 980,
                 250
@@ -140,9 +153,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "3ea26cbc-496c-48ae-b05d-3ac842e06551",
-    "activeVersionId": "3ea26cbc-496c-48ae-b05d-3ac842e06551",
-    "versionCounter": 46,
+    "versionId": "74ac1e6b-6c09-4cdd-bbe5-ca710a1a5698",
+    "activeVersionId": "74ac1e6b-6c09-4cdd-bbe5-ca710a1a5698",
+    "versionCounter": 63,
     "triggerCount": 1,
     "shared": [
         {
@@ -165,9 +178,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-03-21T18:42:20.305Z",
-        "createdAt": "2026-03-21T18:42:20.305Z",
-        "versionId": "3ea26cbc-496c-48ae-b05d-3ac842e06551",
+        "updatedAt": "2026-08-15T20:01:04.483Z",
+        "createdAt": "2026-08-15T20:01:04.483Z",
+        "versionId": "74ac1e6b-6c09-4cdd-bbe5-ca710a1a5698",
         "workflowId": "DZB5YHTAGxCfPPWt",
         "nodes": [
             {
@@ -236,19 +249,32 @@
             },
             {
                 "parameters": {
-                    "url": "http://guardspine-internal.railway.internal:8000/api/v1/ops/evidence/seal",
+                    "url": "https://api.guardspine.ai/api/v1/ops/evidence/seal",
                     "method": "POST",
                     "sendBody": true,
                     "specifyBody": "json",
-                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "jsonBody": "={{ JSON.stringify({ diff_hash: ('n8n:' + $workflow.name + ':' + $execution.id).slice(0, 250), approver_id: 'n8n-workflows', policy_ref: 'ops-automation', metadata: { payload: $json, workflow: $workflow.name, execution_id: $execution.id } }) }}",
                     "options": {
                         "timeout": 10000
+                    },
+                    "sendHeaders": true,
+                    "specifyHeaders": "keypair",
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "X-Service-Key",
+                                "value": "={{ $env.GUARDSPINE_SERVICE_KEY }}"
+                            },
+                            {
+                                "name": "X-Service-Name",
+                                "value": "n8n"
+                            }
+                        ]
                     }
                 },
                 "name": "Seal via GuardSpine",
                 "type": "n8n-nodes-base.httpRequest",
                 "typeVersion": 4.2,
-                "onError": "continueRegularOutput",
                 "position": [
                     980,
                     250
@@ -297,11 +323,19 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-03-21T18:42:20.397Z",
-                "id": 1349,
+                "createdAt": "2026-08-15T20:01:04.619Z",
+                "id": 2256,
                 "workflowId": "DZB5YHTAGxCfPPWt",
-                "versionId": "3ea26cbc-496c-48ae-b05d-3ac842e06551",
+                "versionId": "74ac1e6b-6c09-4cdd-bbe5-ca710a1a5698",
                 "event": "activated",
+                "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
+            },
+            {
+                "createdAt": "2026-08-15T20:01:04.578Z",
+                "id": 2255,
+                "workflowId": "DZB5YHTAGxCfPPWt",
+                "versionId": "74ac1e6b-6c09-4cdd-bbe5-ca710a1a5698",
+                "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
         ]
