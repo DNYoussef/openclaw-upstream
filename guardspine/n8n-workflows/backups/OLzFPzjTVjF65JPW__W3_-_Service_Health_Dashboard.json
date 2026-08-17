@@ -1,5 +1,5 @@
 {
-    "updatedAt": "2026-08-15T20:01:06.214Z",
+    "updatedAt": "2026-08-16T14:33:55.570Z",
     "createdAt": "2026-03-20T17:30:00.245Z",
     "id": "OLzFPzjTVjF65JPW",
     "name": "W3 - Service Health Dashboard",
@@ -73,7 +73,7 @@
         },
         {
             "parameters": {
-                "jsCode": "const healthItems = $('Query Health KPIs').all();\nconst autoItems = $('Query Automation KPIs').all();\n\nconst health = (healthItems.length > 0) ? healthItems[0].json : {};\nconst auto = (autoItems.length > 0) ? autoItems[0].json : {};\n\nconst alerts = [];\nif ((health.checks_failed || 0) > 0) alerts.push({severity: 'high', msg: health.checks_failed + ' health checks failed'});\nif ((health.crashes || 0) > 0) alerts.push({severity: 'critical', msg: health.crashes + ' service crashes detected'});\nif ((auto.failed_heartbeats || 0) > 3) alerts.push({severity: 'medium', msg: auto.failed_heartbeats + ' agent heartbeat failures'});\n\nreturn [{json: {alerts, alert_count: alerts.length, health_summary: health, automation_summary: auto}}];"
+                "jsCode": "// Read the ROW, not the envelope. The KPI endpoint returns {view, rows, count},\n// so healthItems[0].json.checks_failed was always undefined and every threshold\n// read that as zero - no check in this node could ever fire.\nconst healthResp = $('Query Health KPIs').first().json;\nconst autoResp = $('Query Automation KPIs').first().json;\n\nconst MAX_AGE_DAYS = 3;\nconst WEEK_GRACE_DAYS = 7;\nconst now = Date.now();\nconst alerts = [];\n\n// Date.parse is far too permissive for a database date: V8 normalises 2026-02-30\n// into March 2 and accepts locale-dependent forms, so a corrupt value can read as\n// a fresh one. Require an explicit calendar date and prove it round-trips.\nfunction parseDay(v) {\n  if (typeof v !== 'string') return null;\n  const m = v.match(/^(\\d{4})-(\\d{2})-(\\d{2})(?:[T ].*)?$/);\n  if (!m) return null;\n  const y = +m[1], mo = +m[2], d = +m[3];\n  const dt = new Date(Date.UTC(y, mo - 1, d));\n  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) {\n    return null;\n  }\n  return dt.getTime();\n}\n\n// A metric we cannot read is NOT a zero. (v || 0) turned missing, null, \"\" and\n// \"unknown\" all into a passing zero, so a row reading checks_passed 0 of 254 with\n// checks_failed absent reported perfect health.\nfunction num(row, key) {\n  const v = row[key];\n  return (typeof v === 'number' && Number.isFinite(v) && v >= 0) ? v : null;\n}\n\n// rows[0] is only the newest if the endpoint sorts that way, and that is not\n// contractually guaranteed - it measures newest-first today, which is exactly the\n// kind of assumption that already went wrong once in this practice. Pick the max\n// proven date, and if any row is undated we cannot prove which is newest, so fail\n// closed rather than guess.\nfunction newest(rows, field) {\n  let best = null, bestT = -Infinity, undated = 0;\n  for (const r of rows) {\n    if (!r || typeof r !== 'object') { undated++; continue; }\n    const t = parseDay(r[field]);\n    if (t === null) { undated++; continue; }\n    if (t > bestT) { bestT = t; best = r; }\n  }\n  return {row: best, t: bestT, undated: undated};\n}\n\nfunction rowsOf(resp) {\n  if (!resp || typeof resp !== 'object') return null;\n  return Array.isArray(resp.rows) ? resp.rows : null;\n}\n\nfunction check(resp, view, dateField, graceDays, metrics) {\n  const rows = rowsOf(resp);\n  if (rows === null) {\n    alerts.push({severity: 'high', type: 'input_unreadable',\n                 msg: view + ' did not return a rows array'});\n    return;\n  }\n  if (rows.length === 0) {\n    alerts.push({severity: 'high', type: 'input_empty',\n                 msg: view + ' returned no rows in the queried window'});\n    return;\n  }\n  const sel = newest(rows, dateField);\n  if (sel.undated > 0) {\n    alerts.push({severity: 'high', type: 'input_undated',\n                 msg: sel.undated + ' of ' + rows.length + ' ' + view +\n                      ' row(s) carry no valid ' + dateField +\n                      ', so the newest cannot be identified'});\n    return;\n  }\n  const ageDays = (now - sel.t) / 86400000;\n  // A negative age is a clock or data fault, not freshness. Without this a corrupt\n  // future date sails past the staleness test as the freshest row available.\n  if (ageDays < -1) {\n    alerts.push({severity: 'high', type: 'input_future_dated',\n                 msg: view + ' newest ' + dateField + ' is ' + Math.round(-ageDays) +\n                      ' days in the FUTURE, so its clock or data is wrong'});\n    return;\n  }\n  if (ageDays > graceDays) {\n    alerts.push({severity: 'high', type: 'input_stale',\n                 msg: view + ' newest row is ' + Math.round(ageDays) + ' days old'});\n  }\n  for (const m of metrics) {\n    const v = num(sel.row, m.key);\n    if (v === null) {\n      alerts.push({severity: 'high', type: 'input_unreadable',\n                   msg: view + '.' + m.key + ' is missing or not a number, so it ' +\n                        'cannot be compared against its threshold'});\n      continue;\n    }\n    if (v > m.threshold) {\n      alerts.push({severity: m.severity, type: m.key,\n                   msg: v + ' ' + m.label + ' (threshold ' + m.threshold +\n                        ') as of ' + sel.row[dateField]});\n    }\n  }\n}\n\ncheck(healthResp, 'kpi_health', 'day', MAX_AGE_DAYS, [\n  {key: 'checks_failed', threshold: 0, severity: 'high',     label: 'health checks failed'},\n  {key: 'crashes',       threshold: 0, severity: 'critical', label: 'service crashes'}\n]);\n\n// The column is heartbeats_failed. The old code read failed_heartbeats, which does\n// not exist, so agent failures were structurally invisible.\ncheck(autoResp, 'kpi_automation', 'week', MAX_AGE_DAYS + WEEK_GRACE_DAYS, [\n  {key: 'heartbeats_failed',  threshold: 3, severity: 'medium', label: 'agent heartbeats failed'},\n  {key: 'heartbeats_timeout', threshold: 3, severity: 'medium', label: 'agent heartbeats timed out'}\n]);\n\nreturn [{json: {\n  alerts: alerts,\n  alert_count: alerts.length,\n  checked_at: new Date().toISOString()\n}}];"
             },
             "name": "Check Thresholds",
             "type": "n8n-nodes-base.code",
@@ -87,13 +87,26 @@
         {
             "parameters": {
                 "conditions": {
-                    "boolean": [
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 2
+                    },
+                    "conditions": [
                         {
-                            "value1": "={{ $json.all_green }}",
-                            "value2": false
+                            "id": "alert-count-positive",
+                            "leftValue": "={{ $json.alert_count }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "gt"
+                            }
                         }
-                    ]
-                }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
             },
             "name": "Any Alerts?",
             "type": "n8n-nodes-base.if",
@@ -111,7 +124,7 @@
                 "sendBody": true,
                 "specifyBody": "json",
                 "contentType": "json",
-                "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": \"={{ JSON.stringify($json.alerts) }}\", \"alert_count\": \"={{ $json.alert_count }}\"}}",
+                "jsonBody": "={\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": {{ JSON.stringify($json.alerts) }}, \"alert_count\": {{ $json.alert_count }}}}",
                 "sendHeaders": true,
                 "authentication": "predefinedCredentialType",
                 "nodeCredentialType": "httpHeaderAuth"
@@ -332,9 +345,9 @@
     },
     "meta": null,
     "pinData": null,
-    "versionId": "9eedd1dc-09fb-4199-b281-47fddb72cd13",
-    "activeVersionId": "9eedd1dc-09fb-4199-b281-47fddb72cd13",
-    "versionCounter": 75,
+    "versionId": "5c4da2ec-1049-46f8-8b75-b2e361991ca4",
+    "activeVersionId": "5c4da2ec-1049-46f8-8b75-b2e361991ca4",
+    "versionCounter": 84,
     "triggerCount": 1,
     "shared": [
         {
@@ -357,9 +370,9 @@
     ],
     "tags": [],
     "activeVersion": {
-        "updatedAt": "2026-08-15T20:01:06.215Z",
-        "createdAt": "2026-08-15T20:01:06.215Z",
-        "versionId": "9eedd1dc-09fb-4199-b281-47fddb72cd13",
+        "updatedAt": "2026-08-16T14:33:55.571Z",
+        "createdAt": "2026-08-16T14:33:55.571Z",
+        "versionId": "5c4da2ec-1049-46f8-8b75-b2e361991ca4",
         "workflowId": "OLzFPzjTVjF65JPW",
         "nodes": [
             {
@@ -428,7 +441,7 @@
             },
             {
                 "parameters": {
-                    "jsCode": "const healthItems = $('Query Health KPIs').all();\nconst autoItems = $('Query Automation KPIs').all();\n\nconst health = (healthItems.length > 0) ? healthItems[0].json : {};\nconst auto = (autoItems.length > 0) ? autoItems[0].json : {};\n\nconst alerts = [];\nif ((health.checks_failed || 0) > 0) alerts.push({severity: 'high', msg: health.checks_failed + ' health checks failed'});\nif ((health.crashes || 0) > 0) alerts.push({severity: 'critical', msg: health.crashes + ' service crashes detected'});\nif ((auto.failed_heartbeats || 0) > 3) alerts.push({severity: 'medium', msg: auto.failed_heartbeats + ' agent heartbeat failures'});\n\nreturn [{json: {alerts, alert_count: alerts.length, health_summary: health, automation_summary: auto}}];"
+                    "jsCode": "// Read the ROW, not the envelope. The KPI endpoint returns {view, rows, count},\n// so healthItems[0].json.checks_failed was always undefined and every threshold\n// read that as zero - no check in this node could ever fire.\nconst healthResp = $('Query Health KPIs').first().json;\nconst autoResp = $('Query Automation KPIs').first().json;\n\nconst MAX_AGE_DAYS = 3;\nconst WEEK_GRACE_DAYS = 7;\nconst now = Date.now();\nconst alerts = [];\n\n// Date.parse is far too permissive for a database date: V8 normalises 2026-02-30\n// into March 2 and accepts locale-dependent forms, so a corrupt value can read as\n// a fresh one. Require an explicit calendar date and prove it round-trips.\nfunction parseDay(v) {\n  if (typeof v !== 'string') return null;\n  const m = v.match(/^(\\d{4})-(\\d{2})-(\\d{2})(?:[T ].*)?$/);\n  if (!m) return null;\n  const y = +m[1], mo = +m[2], d = +m[3];\n  const dt = new Date(Date.UTC(y, mo - 1, d));\n  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) {\n    return null;\n  }\n  return dt.getTime();\n}\n\n// A metric we cannot read is NOT a zero. (v || 0) turned missing, null, \"\" and\n// \"unknown\" all into a passing zero, so a row reading checks_passed 0 of 254 with\n// checks_failed absent reported perfect health.\nfunction num(row, key) {\n  const v = row[key];\n  return (typeof v === 'number' && Number.isFinite(v) && v >= 0) ? v : null;\n}\n\n// rows[0] is only the newest if the endpoint sorts that way, and that is not\n// contractually guaranteed - it measures newest-first today, which is exactly the\n// kind of assumption that already went wrong once in this practice. Pick the max\n// proven date, and if any row is undated we cannot prove which is newest, so fail\n// closed rather than guess.\nfunction newest(rows, field) {\n  let best = null, bestT = -Infinity, undated = 0;\n  for (const r of rows) {\n    if (!r || typeof r !== 'object') { undated++; continue; }\n    const t = parseDay(r[field]);\n    if (t === null) { undated++; continue; }\n    if (t > bestT) { bestT = t; best = r; }\n  }\n  return {row: best, t: bestT, undated: undated};\n}\n\nfunction rowsOf(resp) {\n  if (!resp || typeof resp !== 'object') return null;\n  return Array.isArray(resp.rows) ? resp.rows : null;\n}\n\nfunction check(resp, view, dateField, graceDays, metrics) {\n  const rows = rowsOf(resp);\n  if (rows === null) {\n    alerts.push({severity: 'high', type: 'input_unreadable',\n                 msg: view + ' did not return a rows array'});\n    return;\n  }\n  if (rows.length === 0) {\n    alerts.push({severity: 'high', type: 'input_empty',\n                 msg: view + ' returned no rows in the queried window'});\n    return;\n  }\n  const sel = newest(rows, dateField);\n  if (sel.undated > 0) {\n    alerts.push({severity: 'high', type: 'input_undated',\n                 msg: sel.undated + ' of ' + rows.length + ' ' + view +\n                      ' row(s) carry no valid ' + dateField +\n                      ', so the newest cannot be identified'});\n    return;\n  }\n  const ageDays = (now - sel.t) / 86400000;\n  // A negative age is a clock or data fault, not freshness. Without this a corrupt\n  // future date sails past the staleness test as the freshest row available.\n  if (ageDays < -1) {\n    alerts.push({severity: 'high', type: 'input_future_dated',\n                 msg: view + ' newest ' + dateField + ' is ' + Math.round(-ageDays) +\n                      ' days in the FUTURE, so its clock or data is wrong'});\n    return;\n  }\n  if (ageDays > graceDays) {\n    alerts.push({severity: 'high', type: 'input_stale',\n                 msg: view + ' newest row is ' + Math.round(ageDays) + ' days old'});\n  }\n  for (const m of metrics) {\n    const v = num(sel.row, m.key);\n    if (v === null) {\n      alerts.push({severity: 'high', type: 'input_unreadable',\n                   msg: view + '.' + m.key + ' is missing or not a number, so it ' +\n                        'cannot be compared against its threshold'});\n      continue;\n    }\n    if (v > m.threshold) {\n      alerts.push({severity: m.severity, type: m.key,\n                   msg: v + ' ' + m.label + ' (threshold ' + m.threshold +\n                        ') as of ' + sel.row[dateField]});\n    }\n  }\n}\n\ncheck(healthResp, 'kpi_health', 'day', MAX_AGE_DAYS, [\n  {key: 'checks_failed', threshold: 0, severity: 'high',     label: 'health checks failed'},\n  {key: 'crashes',       threshold: 0, severity: 'critical', label: 'service crashes'}\n]);\n\n// The column is heartbeats_failed. The old code read failed_heartbeats, which does\n// not exist, so agent failures were structurally invisible.\ncheck(autoResp, 'kpi_automation', 'week', MAX_AGE_DAYS + WEEK_GRACE_DAYS, [\n  {key: 'heartbeats_failed',  threshold: 3, severity: 'medium', label: 'agent heartbeats failed'},\n  {key: 'heartbeats_timeout', threshold: 3, severity: 'medium', label: 'agent heartbeats timed out'}\n]);\n\nreturn [{json: {\n  alerts: alerts,\n  alert_count: alerts.length,\n  checked_at: new Date().toISOString()\n}}];"
                 },
                 "name": "Check Thresholds",
                 "type": "n8n-nodes-base.code",
@@ -442,13 +455,26 @@
             {
                 "parameters": {
                     "conditions": {
-                        "boolean": [
+                        "options": {
+                            "caseSensitive": true,
+                            "leftValue": "",
+                            "typeValidation": "strict",
+                            "version": 2
+                        },
+                        "conditions": [
                             {
-                                "value1": "={{ $json.all_green }}",
-                                "value2": false
+                                "id": "alert-count-positive",
+                                "leftValue": "={{ $json.alert_count }}",
+                                "rightValue": 0,
+                                "operator": {
+                                    "type": "number",
+                                    "operation": "gt"
+                                }
                             }
-                        ]
-                    }
+                        ],
+                        "combinator": "and"
+                    },
+                    "options": {}
                 },
                 "name": "Any Alerts?",
                 "type": "n8n-nodes-base.if",
@@ -466,7 +492,7 @@
                     "sendBody": true,
                     "specifyBody": "json",
                     "contentType": "json",
-                    "jsonBody": "{\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": \"={{ JSON.stringify($json.alerts) }}\", \"alert_count\": \"={{ $json.alert_count }}\"}}",
+                    "jsonBody": "={\"service\": \"infrastructure\", \"event_type\": \"health_alert\", \"payload\": {\"alerts\": {{ JSON.stringify($json.alerts) }}, \"alert_count\": {{ $json.alert_count }}}}",
                     "sendHeaders": true,
                     "authentication": "predefinedCredentialType",
                     "nodeCredentialType": "httpHeaderAuth"
@@ -681,18 +707,18 @@
         "autosaved": false,
         "workflowPublishHistory": [
             {
-                "createdAt": "2026-08-15T20:01:06.256Z",
-                "id": 2262,
+                "createdAt": "2026-08-16T14:33:55.616Z",
+                "id": 2296,
                 "workflowId": "OLzFPzjTVjF65JPW",
-                "versionId": "9eedd1dc-09fb-4199-b281-47fddb72cd13",
+                "versionId": "5c4da2ec-1049-46f8-8b75-b2e361991ca4",
                 "event": "activated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             },
             {
-                "createdAt": "2026-08-15T20:01:06.240Z",
-                "id": 2261,
+                "createdAt": "2026-08-16T14:33:55.602Z",
+                "id": 2295,
                 "workflowId": "OLzFPzjTVjF65JPW",
-                "versionId": "9eedd1dc-09fb-4199-b281-47fddb72cd13",
+                "versionId": "5c4da2ec-1049-46f8-8b75-b2e361991ca4",
                 "event": "deactivated",
                 "userId": "8cd03d92-a006-4efe-a3ad-9585d97ba3dc"
             }
