@@ -1,6 +1,24 @@
 """
 GuardSpine <-> OpenClaw Hardening Connector
 
+** NOT CURRENTLY WIRED IN. Confirmed during Phase 3A governance-routing
+** consolidation (see ../../GOVERNANCE_ROUTING.md): the live OpenClaw
+** governance extension is plugin.js in this same directory (declared as
+** `main` in package.json / openclaw.plugin.json), and its `before_tool_call`
+** hook calls its OWN self-contained 3-model council (runCouncilReview, via
+** LiteLLM) directly. Nothing in plugin.js -- or anywhere else in this repo
+** except one documentation file -- imports this module, spawns Python, or
+** references OpenClawConnector. That's checked mechanically by
+** ../lib/check-governance-routing.cjs, with a positive control proving the
+** check would catch it if that ever changed.
+**
+** This file is left in place, not deleted, because it's real, working
+** design intent for a governance path that was apparently never finished
+** wiring up -- deleting it would erase that intent rather than resolve it.
+** If this bridge is ever meant to be live, that's a deliberate, reviewed
+** activation decision (a real policy change, adding a second governance
+** system alongside plugin.js's), not something to do silently.
+
 This is the ONLY file that lives in GuardSpine proper.
 It provides the adapter interface between GuardSpine's
 existing governance engine and the openclaw-hardening project.
