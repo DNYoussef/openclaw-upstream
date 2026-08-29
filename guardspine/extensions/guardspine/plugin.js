@@ -176,78 +176,9 @@ function resolvePluginConfig(rawConfig = {}, env = process.env) {
 // EVIDENCE PACK (hash-chained)
 // ═══════════════════════════════════════════════════════════════
 
-class EvidencePack {
-  constructor(sessionId) {
-    this.sessionId = sessionId;
-    this.entries = [];
-    this.prevHash = "genesis";
-  }
-  add(entry) {
-    const sequence = this.entries.length;
-    const timestamp = new Date().toISOString();
-    const itemId = entry.item_id || `entry-${String(sequence).padStart(6, "0")}`;
-    const contentType = entry.content_type || `guardspine/openclaw/${entry.tier || "event"}`;
-
-    const contentHash = sha256Prefixed(canonicalJson(entry));
-    const chainInput = `${sequence}|${itemId}|${contentType}|${contentHash}|${this.prevHash}`;
-    const chainHash = sha256Prefixed(chainInput);
-
-    this.entries.push({
-      ...entry,
-      timestamp,
-      item_id: itemId,
-      content_type: contentType,
-      content_hash: contentHash,
-      previous_hash: this.prevHash,
-      sequence,
-      chain_hash: chainHash,
-    });
-    this.prevHash = chainHash;
-    return chainHash;
-  }
-  summary() {
-    const byTier = {};
-    for (const e of this.entries) {
-      const t = e.tier || "unknown";
-      byTier[t] = (byTier[t] || 0) + 1;
-    }
-    return {
-      session_id: this.sessionId,
-      total_entries: this.entries.length,
-      by_tier: byTier,
-      chain_root: this.prevHash,
-    };
-  }
-  toJSON() {
-    return {
-      session_id: this.sessionId,
-      entries: this.entries,
-      chain_root: this.prevHash,
-      immutability_proof: {
-        hash_chain: this.entries.map((e) => ({
-          sequence: e.sequence,
-          item_id: e.item_id,
-          content_type: e.content_type,
-          content_hash: e.content_hash,
-          previous_hash: e.previous_hash,
-          chain_hash: e.chain_hash,
-        })),
-        root_hash: this.prevHash,
-      },
-    };
-  }
-}
-
-function sha256Prefixed(input) {
-  return "sha256:" + crypto.createHash("sha256").update(input, "utf8").digest("hex");
-}
-
-function canonicalJson(value) {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return "[" + value.map((v) => canonicalJson(v)).join(",") + "]";
-  const keys = Object.keys(value).sort();
-  return "{" + keys.map((k) => JSON.stringify(k) + ":" + canonicalJson(value[k])).join(",") + "}";
-}
+// EvidencePack is defined in ../../lib/evidence-pack.cjs (Phase 3B extraction
+// -- see that file's header comment for why incremental persistence exists).
+const { EvidencePack } = require("../../lib/evidence-pack.cjs");
 
 // ═══════════════════════════════════════════════════════════════
 // AUDIT LOG
@@ -1350,7 +1281,7 @@ function register(api) {
   const councilEndpoint = resolvedConfig.councilEndpoint;
   const allowDevInbox = resolvedConfig.allowDevInbox;
   const sessionId = crypto.randomUUID();
-  const evidence = new EvidencePack(sessionId);
+  const evidence = new EvidencePack(sessionId, LOG_DIR);
 
   // Bind Discord send from OpenClaw runtime (if available)
   if (api.runtime && api.runtime.discord && api.runtime.discord.sendMessageDiscord) {

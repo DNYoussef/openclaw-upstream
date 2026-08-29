@@ -1,11 +1,16 @@
-# Phase 3A Gate: governance verifier routing consolidation
+# Phase 3B Gate: evidence-pack durability
 
-## G1: the routing check is proven (positive controls prove it can fail) and passes against the real plugin.js
+## G1: the extracted evidence-pack module's own tests pass, including a positive control proving the durability fix can actually fail
+
+CHECK: node guardspine/lib/evidence-pack.test.cjs
+EXPECT: All evidence-pack assertions passed.
+
+## G2: Phase 3A's governance-routing gate still passes against the modified plugin.js (extraction must not change routing/wiring)
 
 CHECK: node guardspine/lib/check-governance-routing.test.cjs
 EXPECT: All governance-routing assertions passed.
 
-## G2: the CLI gate itself runs clean
+## G3: plugin.js still parses (syntax-only smoke check; it cannot be safely required standalone -- it registers live network/Discord/Slack hooks)
 
-CHECK: node guardspine/lib/check-governance-routing.cjs
-EXPECT: Governance routing OK: plugin.js's own 3-model council is wired to before_tool_call; no reference to the dormant connector.py/openclaw-hardening bridge.
+CHECK: node -c guardspine/extensions/guardspine/plugin.js
+EXPECT: (no output, exit 0)
